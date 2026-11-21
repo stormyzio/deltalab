@@ -1,0 +1,238 @@
+import { useMemo } from 'react'
+import { Combine, Copy, Trash2 } from 'lucide-react'
+import type {
+  CanvasNode,
+  ElementRecord,
+  FullCatalogResponse,
+} from '../../../shared/chemistry.ts'
+import { formatFrNumber } from '@/lib/chemistry-ui'
+import {
+  buildCanonicalSignature,
+  formatChargeLabel,
+  formatFormulaFromComposition,
+} from '@/lib/chemistry-calc'
+import { Button } from '@/components/ui/button'
+import { MetricCell } from './InspectorPrimitives'
+
+export function MultiSelectionInspector({
+  nodes,
+  catalog,
+  elementsBySymbol,
+  onMerge,
+  onIonize,
+  onDuplicate,
+  onDelete,
+}: {
+  nodes: CanvasNode[]
+  catalog: FullCatalogResponse | null
+  elementsBySymbol: Map<string, ElementRecord>
+  onMerge: () => void
+  onIonize: (direction: 1 | -1) => void
+  onDuplicate: () => void
+  onDelete: () => void
+}) {
+  const atomsCount = nodes.filter((n) => n.kind === 'atom').length
+  const moleculesCount = nodes.filter(
+    (n) => n.kind === 'molecule' && n.species.kind !== 'ion',
+  ).length
+  const ionsCount = nodes.filter(
+    (n) => n.kind === 'molecule' && n.species.kind === 'ion',
+  ).length
+  const flasksCount = nodes.filter((n) => n.kind === 'flask').length
+
+  const allChemical = flasksCount === 0
+
+  const summary = useMemo(() => {
+    if (!allChemical) return null
+    const composition: Record<string, number> = {}
+    let totalCharge = 0
+    let totalMass = 0
+
+    for (const node of nodes) {
+      if (node.kind === 'atom') {
+        composition[node.symbol] = (composition[node.symbol] ?? 0) + 1
+        totalMass += elementsBySymbol.get(node.symbol)?.atomicMass ?? 0
+      } else if (node.kind === 'molecule') {
+        totalCharge += node.species.charge
+        totalMass += node.species.molarMass
+        for (const [sym, qty] of Object.entries(node.species.composition)) {
+          composition[sym] = (composition[sym] ?? 0) + qty
+        }
+      }
+    }
+
+    const sig = buildCanonicalSignature(composition)
+    const rawFormula = formatFormulaFromComposition(composition)
+
+    const exactMatches =
+      catalog?.species.filter(
+        (sp) =>
+          buildCanonicalSignature(sp.composition) === sig && sp.charge === totalCharge,
+      ) ?? []
+
+    const possibleIons =
+      catalog?.species.filter(
+        (sp) =>
+          sp.kind === 'ion' &&
+          buildCanonicalSignature(sp.composition) === sig &&
+          sp.charge !== totalCharge,
+      ) ?? []
+
+    return {
+      composition,
+      totalCharge,
+      totalMass,
+      rawFormula,
+      exactMatches,
+      possibleIons,
+    }
+  }, [allChemical, catalog, elementsBySymbol, nodes])
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-xs font-semibold text-foreground">Sélection multiple</h2>
+          <p className="mt-0.5 font-mono text-[10.5px] tabular-nums text-muted-foreground">
+            {[
+              atomsCount > 0 ? `${atomsCount} atome${atomsCount > 1 ? 's' : ''}` : null,
+              moleculesCount > 0
+                ? `${moleculesCount} molécule${moleculesCount > 1 ? 's' : ''}`
+                : null,
+              ionsCount > 0 ? `${ionsCount} ion${ionsCount > 1 ? 's' : ''}` : null,
+              flasksCount > 0 ? `${flasksCount} fiole${flasksCount > 1 ? 's' : ''}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDuplicate}
+            aria-label="Dupliquer la sélection"
+          >
+            <Copy className="h-3.5 w-3.5" strokeWidth={1.6} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            className="hover:text-red-400"
+            aria-label="Supprimer la sélection"
+          >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+          </Button>
+        </div>
+      </div>
+
+      {summary && (
+        <>
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-border/60 pt-3.5 text-xs">
+            <MetricCell label="Formule cumulée" value={summary.rawFormula} mono />
+            <MetricCell
+              label="Charge totale"
+              value={formatChargeLabel(summary.totalCharge)}
+              mono
+            />
+            <MetricCell
+              label="Masse cumulée"
+              value={`${formatFrNumber(summary.totalMass, 2)} g/mol`}
+              mono
+            />
+            <MetricCell
+              label="Atomes"
+              value={String(
+                Object.values(summary.composition).reduce((a, b) => a + b, 0),
+              )}
+              mono
+            />
+          </dl>
+
+          <div className="border-t border-border/60 pt-3.5">
+            {summary.exactMatches.length > 0 ? (
+              <>
+                <p className="text-[10.5px] font-medium text-muted-foreground">
+                  {summary.exactMatches.length > 1
+                    ? `${summary.exactMatches.length} isomères reconnus en base`
+                    : 'Combinaison reconnue en base'}
+                </p>
+                {summary.exactMatches.length === 1 ? (
+                  <div className="mt-1 flex items-baseline justify-between gap-2">
+                    <span className="shrink-0 text-sm font-semibold text-foreground">
+                      {summary.exactMatches[0].displayFormula}
+                    </span>
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {summary.exactMatches[0].nameFr}
+                    </span>
+                  </div>
+                ) : (
+                  <ul className="mt-1.5 space-y-1 text-[11px]">
+                    {summary.exactMatches.slice(0, 4).map((cand) => (
+                      <li
+                        key={cand.id}
+                        className="flex items-baseline justify-between gap-2 text-zinc-200"
+                      >
+                        <span className="truncate font-medium">{cand.nameFr}</span>
+                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                          {cand.displayFormula}
+                        </span>
+                      </li>
+                    ))}
+                    {summary.exactMatches.length > 4 && (
+                      <li className="font-mono text-[10px] text-muted-foreground">
+                        +{summary.exactMatches.length - 4} autres isomères
+                      </li>
+                    )}
+                  </ul>
+                )}
+                <Button size="sm" onClick={onMerge} className="mt-2.5 w-full">
+                  <Combine className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  <span>
+                    {summary.exactMatches.length > 1
+                      ? 'Choisir l’isomère (V)'
+                      : 'Fusionner (V)'}
+                  </span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] font-medium text-zinc-300">
+                  Aucune espèce neutre exacte
+                </p>
+                {summary.possibleIons.length > 0 ? (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[10.5px] text-muted-foreground">
+                      Ion polyatomique possible :
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {summary.possibleIons.map((ion) => (
+                        <Button
+                          key={ion.id}
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            onIonize(ion.charge > summary.totalCharge ? 1 : -1)
+                          }
+                          className="h-7 px-2.5 font-mono text-xs"
+                        >
+                          {ion.displayFormula}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-[10.5px] text-muted-foreground">
+                    Ajoutez ou ajustez les atomes sélectionnés pour former une espèce connue.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
