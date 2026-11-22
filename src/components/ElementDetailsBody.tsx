@@ -1,5 +1,10 @@
 import { useMemo } from 'react'
-import type { ElementRecord, FullCatalogResponse } from '../../shared/chemistry.ts'
+import {
+  type ElementRecord,
+  type FullCatalogResponse,
+  getElementSolidColor,
+  getSolidSpeciesIdForElement,
+} from '../../shared/chemistry.ts'
 import {
   expandElectronConfiguration,
   getElementMassNumber,
@@ -15,7 +20,9 @@ import {
   formatOxidationState,
   getElementStateAtTemperature,
 } from '@/lib/chemistry-ui'
+import { describeElementSolid } from '@/lib/solid-alloys'
 import { ChemFormula, ChemText, ElectronConfig, Nuclide, Sup } from '@/components/ui/chem-text'
+import { SolidBlockArtwork } from '@/components/SolidBlockArtwork'
 
 const SHELL_LETTERS = ['K', 'L', 'M', 'N', 'O', 'P', 'Q']
 
@@ -119,6 +126,7 @@ export function ElementDetailsBody({
   catalog,
   temperatureC = 20,
   onJumpToSpecies,
+  solidAction,
   showRelatedSpecies = true,
   maxSpecies = 28,
 }: {
@@ -126,6 +134,7 @@ export function ElementDetailsBody({
   catalog: FullCatalogResponse | null
   temperatureC?: number
   onJumpToSpecies?: (speciesId: string) => void
+  solidAction?: { label: string; onClick: () => void }
   showRelatedSpecies?: boolean
   maxSpecies?: number
 }) {
@@ -144,6 +153,28 @@ export function ElementDetailsBody({
         : phase === 'gas'
           ? 'Gaz'
           : STATE_META[element.defaultState].labelFr
+
+  const isSolidElement = element.defaultState === 'solid'
+  const solidSpecies = useMemo(() => {
+    if (!isSolidElement || !catalog) return null
+    const targetId = getSolidSpeciesIdForElement(element.symbol)
+    return catalog.species.find((sp) => sp.id === targetId) ?? null
+  }, [catalog, element.symbol, isSolidElement])
+
+  const solidColorHex = isSolidElement
+    ? getElementSolidColor(element.symbol, element.category)
+    : null
+  const solidDescription = isSolidElement
+    ? describeElementSolid(element, solidSpecies)
+    : null
+  const isMetalElement =
+    element.category !== 'nonmetal' &&
+    element.category !== 'metalloid' &&
+    element.category !== 'halogen' &&
+    element.category !== 'noble-gas'
+  const solidTitle =
+    solidSpecies?.nameFr ??
+    (isMetalElement ? `${element.nameFr} métallique` : `${element.nameFr} solide`)
 
   const relatedSpecies = useMemo(() => {
     if (!showRelatedSpecies || !catalog) return []
@@ -205,6 +236,77 @@ export function ElementDetailsBody({
           </div>
         </dl>
       </div>
+
+      {/* Macroscopic Solid Body (only for solid elements at 20 °C) */}
+      {isSolidElement && solidColorHex && (
+        <div className="border-t border-border/60 pt-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Corps simple solide
+            </span>
+            {solidAction && (
+              <button
+                type="button"
+                onClick={solidAction.onClick}
+                className="rounded px-2 py-0.5 text-[11px] font-medium text-zinc-200 hover:bg-accent hover:text-foreground"
+              >
+                {solidAction.label}
+              </button>
+            )}
+          </div>
+
+          <div className="mt-2.5 flex items-start gap-3">
+            <SolidBlockArtwork colorHex={solidColorHex} size="md" className="mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                {solidSpecies && onJumpToSpecies ? (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToSpecies(solidSpecies.id)}
+                    className="text-left text-xs font-semibold text-foreground hover:underline"
+                  >
+                    {solidTitle}
+                  </button>
+                ) : (
+                  <span className="text-xs font-semibold text-foreground">{solidTitle}</span>
+                )}
+                <span className="text-[11px] text-muted-foreground">
+                  <ChemFormula
+                    value={solidSpecies?.displayFormula ?? element.symbol}
+                    state="s"
+                  />
+                </span>
+              </div>
+              {solidDescription && (
+                <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">
+                  <ChemText value={solidDescription} />
+                </p>
+              )}
+            </div>
+          </div>
+
+          <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div className="min-w-0">
+              <dt className="text-[10.5px] text-muted-foreground">Masse volumique</dt>
+              <dd className="mt-0.5 tabular-nums text-foreground">
+                {element.densityGPerCm3 !== null ? (
+                  <>
+                    {formatFrNumber(element.densityGPerCm3, 2)} g/cm<Sup>3</Sup>
+                  </>
+                ) : (
+                  '—'
+                )}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-[10.5px] text-muted-foreground">Point de fusion</dt>
+              <dd className="mt-0.5 tabular-nums text-foreground">
+                {formatElementTempC(element.meltingPointC)}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
 
       {/* Bohr Electron Shell Diagram + Full & Condensed Configuration */}
       <div className="border-t border-border/60 pt-3.5">

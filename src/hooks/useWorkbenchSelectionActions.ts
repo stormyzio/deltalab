@@ -6,10 +6,12 @@ import {
   useEffect,
 } from 'react'
 import type {
+  AlloyRecord,
   CanvasAtomNode,
   CanvasFlaskNode,
   CanvasMoleculeNode,
   CanvasNode,
+  CanvasSolidNode,
   CatalogSpeciesRecord,
   ElementRecord,
   SpeciesRecord,
@@ -18,6 +20,15 @@ import type {
 import type { ExternalDragItem } from '@/types/drag'
 import { api } from '@/lib/api'
 import { createEmptySolution, getDefaultSpeciesAmountMol } from '@/lib/chemistry-ui'
+import {
+  createSolidNodeFromAlloy,
+  createSolidNodeFromElement,
+  forgeAlloyFromNodes,
+  reproportionSolidToAlloy,
+  rescaleSolidMass,
+  rescaleSolidVolume,
+  updateSolidComponentMass,
+} from '@/lib/solid-alloys'
 import {
   type PendingMergeState,
   cloneCanvasNode,
@@ -35,6 +46,7 @@ interface UseWorkbenchSelectionActionsParams {
   elementsBySymbol: Map<string, ElementRecord>
   speciesMap: Map<string, CatalogSpeciesRecord>
   vessels: VesselRecord[]
+  alloys: AlloyRecord[]
   setNodes: Dispatch<SetStateAction<CanvasNode[]>>
   setSelectedIds: Dispatch<SetStateAction<Set<string>>>
   setPendingMerge: Dispatch<SetStateAction<PendingMergeState | null>>
@@ -55,6 +67,7 @@ export function useWorkbenchSelectionActions({
   elementsBySymbol,
   speciesMap,
   vessels,
+  alloys,
   setNodes,
   setSelectedIds,
   setPendingMerge,
@@ -105,17 +118,21 @@ export function useWorkbenchSelectionActions({
             : undefined
 
         if (singleEl) {
-          newNode = {
-            id: createNodeId('atom'),
-            kind: 'atom',
-            x: worldX,
-            y: worldY,
-            symbol: singleEl.symbol,
-            atomicNumber: singleEl.atomicNumber,
-            nameFr: singleEl.nameFr,
-            category: singleEl.category,
-            cpkColor: singleEl.cpkColor,
-          } satisfies CanvasAtomNode
+          if (singleEl.defaultState === 'solid') {
+            newNode = createSolidNodeFromElement(singleEl, worldX, worldY, 1)
+          } else {
+            newNode = {
+              id: createNodeId('atom'),
+              kind: 'atom',
+              x: worldX,
+              y: worldY,
+              symbol: singleEl.symbol,
+              atomicNumber: singleEl.atomicNumber,
+              nameFr: singleEl.nameFr,
+              category: singleEl.category,
+              cpkColor: singleEl.cpkColor,
+            } satisfies CanvasAtomNode
+          }
         } else {
           newNode = {
             id: createNodeId('mol'),
@@ -161,6 +178,191 @@ export function useWorkbenchSelectionActions({
     [setNodes],
   )
 
+  const handleConvertAtomToSolid = useCallback(
+    (atomId: string) => {
+      const atom = nodesRef.current.find(
+        (n): n is CanvasAtomNode => n.kind === 'atom' && n.id === atomId,
+      )
+      if (!atom) return
+      const el = elementsBySymbol.get(atom.symbol)
+      if (!el || el.defaultState !== 'solid') {
+        triggerShake([atomId])
+        showNotice('warning', `${atom.symbol} n’est pas solide à température ambiante.`)
+        return
+      }
+      const solidNode = createSolidNodeFromElement(el, atom.x, atom.y, 1)
+      setNodes((prev) => prev.map((n) => (n.id === atomId ? solidNode : n)))
+      setSelectedIds(new Set([solidNode.id]))
+      triggerFresh(solidNode.id)
+      showNotice('success', `Bloc solide : ${solidNode.nameFr}`)
+    },
+    [elementsBySymbol, nodesRef, setNodes, setSelectedIds, showNotice, triggerFresh, triggerShake],
+  )
+
+  const handleConvertSelectedAtomsToSolid = useCallback(() => {
+    const selectedAtoms = nodesRef.current.filter(
+      (n): n is CanvasAtomNode => n.kind === 'atom' && selectedIds.has(n.id),
+    )
+    if (selectedAtoms.length === 0) return
+    if (selectedAtoms.length === 1) {
+      handleConvertAtomToSolid(selectedAtoms[0].id)
+      return
+    }
+    const replacements = new Map<string, CanvasSolidNode>()
+    const rejectedIds: string[] = []
+    for (const atom of selectedAtoms) {
+      const el = elementsBySymbol.get(atom.symbol)
+      if (!el || el.defaultState !== 'solid') {
+        rejectedIds.push(atom.id)
+        continue
+      }
+      replacements.set(atom.id, createSolidNodeFromElement(el, atom.x, atom.y, 1))
+    }
+    if (replacements.size === 0) {
+      triggerShake(rejectedIds)
+      showNotice('warning', 'Aucun atome sélectionné n’est solide à température ambiante.')
+      return
+    }
+    setNodes((prev) => prev.map((n) => replacements.get(n.id) ?? n))
+    const newIds = [...replacements.values()].map((s) => s.id)
+    setSelectedIds(new Set(newIds))
+    for (const id of newIds) triggerFresh(id)
+    showNotice(
+      'success',
+      `${newIds.length} bloc${newIds.length > 1 ? 's' : ''} solide${newIds.length > 1 ? 's' : ''} créé${newIds.length > 1 ? 's' : ''}`,
+    )
+  }, [
+    elementsBySymbol,
+    handleConvertAtomToSolid,
+    nodesRef,
+    selectedIds,
+    setNodes,
+    setSelectedIds,
+    showNotice,
+    triggerFresh,
+    triggerShake,
+  ])
+
+  const handleSetSolidMass = useCallback(
+    (nodeId: string, nextMassG: number) => {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === nodeId && n.kind === 'solid' ? rescaleSolidMass(n, nextMassG) : n,
+        ),
+      )
+    },
+    [setNodes],
+  )
+
+  const handleSetSolidVolume = useCallback(
+    (nodeId: string, nextVolumeCm3: number) => {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === nodeId && n.kind === 'solid'
+            ? rescaleSolidVolume(n, nextVolumeCm3)
+            : n,
+        ),
+      )
+    },
+    [setNodes],
+  )
+
+  const handleSetSolidComponentMass = useCallback(
+    (nodeId: string, symbol: string, nextMassG: number) => {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === nodeId && n.kind === 'solid'
+            ? updateSolidComponentMass(n, symbol, nextMassG, alloys, elementsBySymbol)
+            : n,
+        ),
+      )
+    },
+    [alloys, elementsBySymbol, setNodes],
+  )
+
+  const handleReproportionSolidToAlloy = useCallback(
+    (nodeId: string, alloy: AlloyRecord) => {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === nodeId && n.kind === 'solid'
+            ? reproportionSolidToAlloy(n, alloy)
+            : n,
+        ),
+      )
+      showNotice('success', `Proportions ajustées : ${alloy.nameFr}`)
+    },
+    [setNodes, showNotice],
+  )
+
+  const handleDropSolidOnSolid = useCallback(
+    (draggedId: string, targetSolidId: string) => {
+      const dragged = nodesRef.current.find((n) => n.id === draggedId)
+      const target = nodesRef.current.find(
+        (n): n is CanvasSolidNode => n.kind === 'solid' && n.id === targetSolidId,
+      )
+      if (!dragged || !target || dragged.id === target.id) return
+      if (dragged.kind === 'atom') {
+        const el = elementsBySymbol.get(dragged.symbol)
+        if (!el || el.defaultState !== 'solid') {
+          triggerShake([draggedId, targetSolidId])
+          showNotice('warning', `${dragged.symbol} n’est pas un élément solide.`)
+          return
+        }
+      } else if (dragged.kind !== 'solid') {
+        return
+      }
+
+      const forged = forgeAlloyFromNodes(
+        [target, dragged],
+        alloys,
+        elementsBySymbol,
+        target.x,
+        target.y,
+      )
+      const removeSet = new Set([dragged.id, target.id])
+      setNodes((prev) => [...prev.filter((n) => !removeSet.has(n.id)), forged])
+      setSelectedIds(new Set([forged.id]))
+      triggerFresh(forged.id)
+      showNotice(
+        'success',
+        forged.isAlloy
+          ? `Alliage formé : ${forged.nameFr}`
+          : `${forged.nameFr} fusionné`,
+      )
+    },
+    [alloys, elementsBySymbol, nodesRef, setNodes, setSelectedIds, showNotice, triggerFresh, triggerShake],
+  )
+
+  const handleSpawnAlloy = useCallback(
+    (alloy: AlloyRecord) => {
+      handleViewChange('workbench')
+      requestAnimationFrame(() => {
+        const pt = getSpawnWorldPoint()
+        const solidNode = createSolidNodeFromAlloy(alloy, pt.x, pt.y, 10)
+        setNodes((prev) => [...prev, solidNode])
+        setSelectedIds(new Set([solidNode.id]))
+        triggerFresh(solidNode.id)
+        showNotice('success', `${alloy.nameFr} ajouté sur la paillasse`)
+      })
+    },
+    [getSpawnWorldPoint, handleViewChange, setNodes, setSelectedIds, showNotice, triggerFresh],
+  )
+
+  const handleSpawnSolidElement = useCallback(
+    (element: ElementRecord) => {
+      handleViewChange('workbench')
+      requestAnimationFrame(() => {
+        const pt = getSpawnWorldPoint()
+        const solidNode = createSolidNodeFromElement(element, pt.x, pt.y, 1)
+        setNodes((prev) => [...prev, solidNode])
+        setSelectedIds(new Set([solidNode.id]))
+        triggerFresh(solidNode.id)
+        showNotice('success', `${solidNode.nameFr} ajouté sur la paillasse`)
+      })
+    },
+    [getSpawnWorldPoint, handleViewChange, setNodes, setSelectedIds, showNotice, triggerFresh],
+  )
+
   const completeMergeWithSpecies = useCallback(
     (species: SpeciesRecord, sourceIds: string[], avgX: number, avgY: number) => {
       const mergedNode: CanvasMoleculeNode = {
@@ -198,9 +400,53 @@ export function useWorkbenchSelectionActions({
   )
 
   const handleMergeSelected = useCallback(async () => {
-    const selectedChemical = nodesRef.current.filter(
+    const selectedNodesList = nodesRef.current.filter((n) => selectedIds.has(n.id))
+    if (selectedNodesList.length < 2) return
+
+    // Solid blocks (+ optional solid atoms) -> forge alloy / fuse solid block
+    const hasSolidBlock = selectedNodesList.some((n) => n.kind === 'solid')
+    if (hasSolidBlock) {
+      const allForgeable = selectedNodesList.every(
+        (n): n is CanvasSolidNode | CanvasAtomNode =>
+          n.kind === 'solid' ||
+          (n.kind === 'atom' &&
+            elementsBySymbol.get(n.symbol)?.defaultState === 'solid'),
+      )
+      if (!allForgeable) {
+        triggerShake(selectedNodesList.map((n) => n.id))
+        showNotice(
+          'warning',
+          'Seuls des blocs solides ou éléments solides peuvent être alliés ensemble.',
+        )
+        return
+      }
+      const avgX =
+        selectedNodesList.reduce((acc, n) => acc + n.x, 0) / selectedNodesList.length
+      const avgY =
+        selectedNodesList.reduce((acc, n) => acc + n.y, 0) / selectedNodesList.length
+      const forged = forgeAlloyFromNodes(
+        selectedNodesList as Array<CanvasSolidNode | CanvasAtomNode>,
+        alloys,
+        elementsBySymbol,
+        avgX,
+        avgY,
+      )
+      const removeSet = new Set(selectedNodesList.map((n) => n.id))
+      setNodes((prev) => [...prev.filter((n) => !removeSet.has(n.id)), forged])
+      setSelectedIds(new Set([forged.id]))
+      triggerFresh(forged.id)
+      showNotice(
+        'success',
+        forged.isAlloy
+          ? `Alliage formé : ${forged.nameFr}`
+          : `${forged.nameFr} fusionné`,
+      )
+      return
+    }
+
+    const selectedChemical = selectedNodesList.filter(
       (n): n is CanvasAtomNode | CanvasMoleculeNode =>
-        (n.kind === 'atom' || n.kind === 'molecule') && selectedIds.has(n.id),
+        n.kind === 'atom' || n.kind === 'molecule',
     )
     if (selectedChemical.length < 2 || selectedChemical.length !== selectedIds.size) {
       return
@@ -249,7 +495,19 @@ export function useWorkbenchSelectionActions({
     } catch {
       showNotice('warning', 'Erreur lors de la fusion.')
     }
-  }, [completeMergeWithSpecies, nodesRef, selectedIds, setPendingMerge, showNotice, triggerShake])
+  }, [
+    alloys,
+    completeMergeWithSpecies,
+    elementsBySymbol,
+    nodesRef,
+    selectedIds,
+    setNodes,
+    setPendingMerge,
+    setSelectedIds,
+    showNotice,
+    triggerFresh,
+    triggerShake,
+  ])
 
   const handleIonizeSelected = useCallback(
     async (direction: 1 | -1) => {
@@ -426,6 +684,11 @@ export function useWorkbenchSelectionActions({
       if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
         void handleMergeSelected()
+      } else if ((e.key === 's' || e.key === 'S') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (selectedIds.size > 0) {
+          e.preventDefault()
+          handleConvertSelectedAtomsToSolid()
+        }
       } else if (
         e.key === 'Backspace' ||
         e.key === 'Delete' ||
@@ -458,6 +721,7 @@ export function useWorkbenchSelectionActions({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [
     activeView,
+    handleConvertSelectedAtomsToSolid,
     handleDeleteIds,
     handleDuplicateSelected,
     handleIonizeSelected,
@@ -597,6 +861,14 @@ export function useWorkbenchSelectionActions({
   return {
     spawnItem,
     handleUpdateMoleculeAmount,
+    handleConvertAtomToSolid,
+    handleSetSolidMass,
+    handleSetSolidVolume,
+    handleSetSolidComponentMass,
+    handleReproportionSolidToAlloy,
+    handleDropSolidOnSolid,
+    handleSpawnAlloy,
+    handleSpawnSolidElement,
     handlePickMergeIsomer,
     handleMergeSelected,
     handleIonizeSelected,

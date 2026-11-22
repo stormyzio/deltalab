@@ -1,5 +1,7 @@
 import type {
   AcidBaseCoupleRecord,
+  AlloyComponentSpec,
+  AlloyRecord,
   CatalogDissolutionProduct,
   CatalogReactionRecord,
   CatalogSolutionRecord,
@@ -284,6 +286,7 @@ export function getCatalogSummary(): CatalogSummary {
     redoxCouplesCount: count('redox_couples'),
     solubilityProductsCount: count('solubility_products'),
     acidBaseCouplesCount: count('acid_base_couples'),
+    alloysCount: count('alloys'),
   }
 }
 
@@ -447,7 +450,37 @@ export function getFullCatalog(): FullCatalogResponse {
     .all() as unknown as RawReactionRow[]
   const reactions = rxnRows.map((row) => mapReactionRow(row, speciesFormulaMap))
 
-  return { summary, elements, species, solutions, reactions, vessels }
+  const alloyRows = db
+    .prepare(
+      "SELECT * FROM alloys ORDER BY CASE source WHEN 'curated' THEN 0 WHEN 'wikidata' THEN 1 ELSE 2 END, name_fr ASC",
+    )
+    .all() as unknown as Array<{
+    id: string
+    name_fr: string
+    family_fr: string
+    base_element: string
+    components_json: string
+    density_g_per_cm3: number
+    melting_point_c: number | null
+    color_hex: string
+    uses_fr: string
+    source: string
+  }>
+
+  const alloys: AlloyRecord[] = alloyRows.map((a) => ({
+    id: a.id,
+    nameFr: a.name_fr,
+    familyFr: a.family_fr,
+    baseElement: a.base_element,
+    components: JSON.parse(a.components_json) as AlloyComponentSpec[],
+    densityGPerCm3: a.density_g_per_cm3,
+    meltingPointC: a.melting_point_c,
+    colorHex: a.color_hex,
+    usesFr: a.uses_fr,
+    source: a.source as AlloyRecord['source'],
+  }))
+
+  return { summary, elements, species, solutions, reactions, vessels, alloys }
 }
 
 interface RawRedoxRow {

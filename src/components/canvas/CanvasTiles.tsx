@@ -4,18 +4,22 @@ import type {
   CanvasAtomNode,
   CanvasFlaskNode,
   CanvasMoleculeNode,
+  CanvasSolidNode,
 } from '../../../shared/chemistry.ts'
 import {
   CATEGORY_META,
   formatCapacityMl,
   formatFrNumber,
+  formatMassG,
   formatSpeciesQuantityBadge,
   formatVolumeMl,
 } from '@/lib/chemistry-ui'
 import { projectFlaskStateAtExtent } from '@/lib/flask-reaction-ui'
+import { getSolidTotalMassG, getSolidVolumeCm3 } from '@/lib/solid-alloys'
 import { cn } from '@/lib/utils'
-import { ChemFormula, ChemText, StateTag } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText, StateTag, Sup } from '@/components/ui/chem-text'
 import { ReactionControlCard } from '@/components/ReactionControlCard'
+import { SolidBlockArtwork } from '@/components/SolidBlockArtwork'
 import { VesselArtwork } from '@/components/VesselArtwork'
 import { FlaskContentSubcard } from './FlaskContentSubcard'
 import { FlaskPourPopover } from './FlaskPourPopover'
@@ -149,6 +153,98 @@ export const MoleculeTile = memo(function MoleculeTile({
               {qtyLabel}
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+export const SolidBlockTile = memo(function SolidBlockTile({
+  node,
+  selected,
+  shaking,
+  fresh,
+  altCopy,
+  dropHovered,
+  dropHint,
+  setElRef,
+  onPointerDown,
+}: {
+  node: CanvasSolidNode
+  selected: boolean
+  shaking: boolean
+  fresh: boolean
+  altCopy: boolean
+  dropHovered?: boolean
+  dropHint?: { text: string; valid: boolean } | null
+  setElRef: (id: string, el: HTMLDivElement | null) => void
+  onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void
+}) {
+  const totalMassG = getSolidTotalMassG(node)
+  const volumeCm3 = getSolidVolumeCm3(node)
+  const symbolSummary =
+    node.components.length === 1
+      ? node.components[0].symbol
+      : node.components.map((c) => c.symbol).join('·')
+
+  return (
+    <div
+      ref={(el) => setElRef(node.id, el)}
+      data-node-id={node.id}
+      onPointerDown={onPointerDown}
+      style={{
+        left: 0,
+        top: 0,
+        transform: `translate3d(${node.x}px, ${node.y}px, 0) translate(-50%, -50%)`,
+      }}
+      className={cn(
+        'pointer-events-auto absolute will-change-transform',
+        altCopy ? 'cursor-copy' : 'cursor-grab active:cursor-grabbing',
+      )}
+    >
+      <div
+        className={cn(
+          'relative flex w-[124px] flex-col items-center rounded-xl border bg-card/90 px-2.5 pb-2 pt-2.5 shadow-md',
+          selected
+            ? 'border-zinc-200 ring-2 ring-zinc-200/25'
+            : dropHovered
+              ? dropHint?.valid
+                ? 'border-zinc-300 ring-2 ring-zinc-200/25'
+                : 'border-amber-400/80 ring-2 ring-amber-400/25'
+              : 'border-border hover:border-zinc-600',
+          shaking && 'animate-dl-shake border-amber-500/70',
+          fresh && 'animate-dl-pop',
+        )}
+      >
+        {dropHovered && dropHint && (
+          <div
+            className={cn(
+              'pointer-events-none absolute -top-3.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-zinc-950/95 px-2 py-0.5 text-[10px] font-medium shadow-md',
+              dropHint.valid ? 'text-zinc-100' : 'text-amber-200',
+            )}
+          >
+            <ChemText value={dropHint.text} />
+          </div>
+        )}
+
+        <div className="flex h-[52px] items-center justify-center">
+          <SolidBlockArtwork colorHex={node.colorHex} volumeCm3={volumeCm3} size="md" />
+        </div>
+
+        <div className="mt-1 w-full text-center">
+          <p className="truncate text-xs font-semibold leading-tight text-foreground">
+            <ChemText
+              value={
+                node.isAlloy
+                  ? node.nameFr
+                  : `${symbolSummary} · ${node.nameFr.replace(/ métallique$| solide$/, '')}`
+              }
+            />
+          </p>
+          <p className="mt-0.5 truncate whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">
+            {formatMassG(totalMassG)} · {formatFrNumber(volumeCm3, volumeCm3 < 10 ? 1 : 0)} cm
+            <Sup>3</Sup>
+          </p>
         </div>
       </div>
     </div>

@@ -8,8 +8,8 @@ import {
   useState,
 } from 'react'
 import {
-  ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID,
   type CanvasNode,
+  getSolidSpeciesIdForElement,
 } from '../../shared/chemistry.ts'
 import type { ActiveExternalDrag, ExternalDragItem } from '@/types/drag'
 import { getDefaultSpeciesAmountMol } from '@/lib/chemistry-ui'
@@ -142,8 +142,7 @@ export function useExternalDockDrag({
             let nextHint: { text: string; valid: boolean }
             if (meta.item.kind === 'atom') {
               const el = meta.item.element
-              const solidId = ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[el.symbol]
-              if (!solidId) {
+              if (el.defaultState !== 'solid') {
                 nextHint = { text: `${el.symbol} non solide`, valid: false }
               } else {
                 nextHint = {
@@ -239,9 +238,8 @@ export function useExternalDockDrag({
             const targetFlask = getFlaskHitTest(nodesRef.current, pt.x, pt.y)
             if (targetFlask) {
               const el = meta.item.element
-              const solidId = ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[el.symbol]
-              if (solidId) {
-                void addSpeciesToFlask(targetFlask.id, solidId)
+              if (el.defaultState === 'solid') {
+                void addSpeciesToFlask(targetFlask.id, getSolidSpeciesIdForElement(el.symbol))
               } else {
                 triggerShake([targetFlask.id])
                 showNotice(

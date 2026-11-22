@@ -186,6 +186,21 @@ CREATE TABLE IF NOT EXISTS acid_base_couples (
   source TEXT NOT NULL DEFAULT 'IUPAC'
 );
 
+CREATE TABLE IF NOT EXISTS alloys (
+  id TEXT PRIMARY KEY,
+  name_fr TEXT NOT NULL,
+  family_fr TEXT NOT NULL,
+  base_element TEXT NOT NULL,
+  components_json TEXT NOT NULL,
+  density_g_per_cm3 REAL NOT NULL,
+  melting_point_c REAL,
+  color_hex TEXT NOT NULL,
+  uses_fr TEXT NOT NULL DEFAULT '',
+  source TEXT NOT NULL DEFAULT 'curated'
+);
+
+CREATE INDEX IF NOT EXISTS idx_alloys_base_element ON alloys(base_element);
+
 CREATE TABLE IF NOT EXISTS workspace_state (
   id TEXT PRIMARY KEY,
   payload_json TEXT NOT NULL,

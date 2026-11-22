@@ -21,11 +21,15 @@ import {
   formatVolumeMl,
   getSpeciesDensityGPerMl,
 } from '@/lib/chemistry-ui'
-import { buildCanonicalSignature, formatChargeLabel } from '@/lib/chemistry-calc'
+import {
+  buildCanonicalSignature,
+  extractNotableBehaviors,
+  formatChargeLabel,
+} from '@/lib/chemistry-calc'
 import { describeWaterBehavior } from '@/lib/water-behavior'
 import { cn } from '@/lib/utils'
 import { MASS_UNITS, MOL_UNITS, VOLUME_UNITS } from '@/lib/quantity-units'
-import { ChemFormula, ChemVar } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText, ChemVar } from '@/components/ui/chem-text'
 import { ScrubNumberInput } from '@/components/ui/scrub-number-input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MolecularRepresentationSection } from '@/components/MolecularRepresentationSection'
@@ -35,6 +39,14 @@ import {
   QuickActions,
 } from './InspectorPrimitives'
 import { SpeciesChemistryTab } from './SpeciesChemistryTab'
+
+function UnknownValue({ title = 'Donnée non renseignée en base' }: { title?: string }) {
+  return (
+    <span title={title} className="text-muted-foreground">
+      ?
+    </span>
+  )
+}
 
 export function SpeciesInspector({
   node,
@@ -130,7 +142,7 @@ export function SpeciesInspector({
     )
   }, [catalog, sp.charge, sp.composition, sp.id])
 
-  const behaviors = Object.entries(sp.behaviors).filter(([key]) => key !== 'families')
+  const notableBehaviors = extractNotableBehaviors(sp.behaviors)
   const [speciesTab, setSpeciesTab] = useState<'overview' | 'chemistry'>('overview')
 
   const kindLabel = SPECIES_KIND_LABEL[sp.kind]
@@ -145,10 +157,6 @@ export function SpeciesInspector({
     return true
   })
   const subtitleParts = [kindLabel, stateOrCharge, ...extraFamilies]
-  const distinctIupac =
-    sp.iupacName && sp.iupacName.trim().toLowerCase() !== sp.nameFr.trim().toLowerCase()
-      ? sp.iupacName.trim()
-      : null
 
   return (
     <div className="space-y-4">
@@ -190,7 +198,13 @@ export function SpeciesInspector({
         />
         <MetricCell
           label={sp.standardState === 'liquid' ? 'Miscibilité H₂O' : 'Solubilité H₂O'}
-          value={waterBehavior.valueLabel ?? waterBehavior.tierLabel}
+          value={
+            waterBehavior.tier === 'unknown' ? (
+              <UnknownValue title="Solubilité dans l’eau non renseignée" />
+            ) : (
+              (waterBehavior.valueLabel ?? waterBehavior.tierLabel)
+            )
+          }
           mono={waterBehavior.valueLabel !== null}
         />
       </dl>
@@ -414,97 +428,133 @@ export function SpeciesInspector({
             </div>
           </section>
 
-          {(sp.meltingPointC !== null ||
-            sp.boilingPointC !== null ||
-            sp.densityGPerCm3 !== null ||
-            sp.appearanceFr !== null ||
-            sp.pkaValues.length > 0 ||
-            sp.ghsPictograms.length > 0) && (
-            <section className="space-y-2.5 border-t border-border/60 pt-3.5">
-              <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="font-medium text-muted-foreground">
-                  Constantes physico-chimiques
-                </span>
-                {sp.pubchemCid && (
-                  <span className="shrink-0 whitespace-nowrap text-[10px] text-zinc-500">
-                    CID {sp.pubchemCid}
-                  </span>
-                )}
-              </div>
+          <section className="space-y-2.5 border-t border-border/60 pt-3.5">
+            <span className="block text-[11px] font-medium text-muted-foreground">
+              Constantes physico-chimiques
+            </span>
 
-              <dl className="grid grid-cols-3 gap-x-3 gap-y-2 text-[11px]">
-                {sp.meltingPointC !== null && (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+              {!isIon && (
+                <>
                   <MetricCell
                     label="T° fusion"
-                    value={`${formatFrNumber(sp.meltingPointC, 1)} °C`}
-                    mono
+                    value={
+                      sp.meltingPointC !== null ? (
+                        `${formatFrNumber(sp.meltingPointC, 1)} °C`
+                      ) : (
+                        <UnknownValue />
+                      )
+                    }
+                    mono={sp.meltingPointC !== null}
                   />
-                )}
-                {sp.boilingPointC !== null && (
                   <MetricCell
                     label="T° ébullition"
-                    value={`${formatFrNumber(sp.boilingPointC, 1)} °C${sp.thermalNote ? ` (${THERMAL_NOTE_FR[sp.thermalNote] ?? sp.thermalNote})` : ''}`}
-                    mono
+                    value={
+                      sp.boilingPointC !== null ? (
+                        `${formatFrNumber(sp.boilingPointC, 1)} °C${sp.thermalNote ? ` (${THERMAL_NOTE_FR[sp.thermalNote] ?? sp.thermalNote})` : ''}`
+                      ) : (
+                        <UnknownValue />
+                      )
+                    }
+                    mono={sp.boilingPointC !== null}
                   />
-                )}
-                {sp.densityGPerCm3 !== null && (
                   <MetricCell
-                    label="Densité"
-                    value={formatDensity(sp.densityGPerCm3, sp.standardState)}
-                    mono
-                  />
-                )}
-                {sp.appearanceFr && (
-                  <div className="col-span-3">
-                    <dt className="text-[10px] text-muted-foreground">Aspect pur</dt>
-                    <dd className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-200">
-                      {sp.colorHex && (
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full border border-white/20"
-                          style={{ backgroundColor: sp.colorHex }}
+                    label="Masse volumique"
+                    value={
+                      sp.densityGPerCm3 !== null ? (
+                        <ChemText
+                          value={formatDensity(sp.densityGPerCm3, sp.standardState)}
                         />
+                      ) : (
+                        <UnknownValue />
+                      )
+                    }
+                    mono={sp.densityGPerCm3 !== null}
+                  />
+                  <div className="min-w-0">
+                    <dt className="truncate text-[10.5px] text-muted-foreground">Aspect pur</dt>
+                    <dd className="mt-0.5 flex items-center gap-1.5 text-foreground">
+                      {sp.appearanceFr ? (
+                        <>
+                          {sp.colorHex && (
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full border border-white/20"
+                              style={{ backgroundColor: sp.colorHex }}
+                            />
+                          )}
+                          <span className="truncate">{sp.appearanceFr}</span>
+                        </>
+                      ) : (
+                        <UnknownValue />
                       )}
-                      <span>{sp.appearanceFr}</span>
                     </dd>
                   </div>
-                )}
-              </dl>
-
-              {sp.pkaValues.length > 0 && (
-                <p className="text-[11px] tabular-nums text-zinc-300">
-                  <span className="font-sans text-[10.5px] text-muted-foreground">pKa · </span>
-                  {sp.pkaValues
-                    .map((val, idx) =>
-                      `${sp.pkaValues.length > 1 ? `pKa${idx + 1} ` : ''}${formatFrNumber(val, 2)}`,
-                    )
-                    .join(' · ')}
-                </p>
+                </>
               )}
 
-              {sp.ghsPictograms.length > 0 && (
-                <p className="text-[10.5px] text-muted-foreground">
-                  {sp.ghsSignalWord && (
-                    <span className="mr-1.5 font-medium text-zinc-200">
-                      {sp.ghsSignalWord} ·
-                    </span>
+              <div className="min-w-0">
+                <dt className="text-[10.5px] text-muted-foreground">
+                  p<ChemVar base="K" sub="a" />
+                </dt>
+                <dd className="mt-0.5 tabular-nums text-foreground">
+                  {sp.pkaValues.length > 0 ? (
+                    sp.pkaValues.map((val, idx) => (
+                      <span key={idx}>
+                        {idx > 0 && ' · '}
+                        {sp.pkaValues.length > 1 && (
+                          <>
+                            p<ChemVar base="K" sub={`a${idx + 1}`} /> ={' '}
+                          </>
+                        )}
+                        {formatFrNumber(val, 2)}
+                      </span>
+                    ))
+                  ) : (
+                    <UnknownValue title="Aucun pKa aqueux renseigné" />
                   )}
-                  {sp.ghsPictograms.map((code) => GHS_LABEL_FR[code] ?? code).join(', ')}
-                </p>
-              )}
-            </section>
-          )}
+                </dd>
+              </div>
+
+              <div className="min-w-0">
+                <dt className="text-[10.5px] text-muted-foreground">Sécurité SGH</dt>
+                <dd className="mt-0.5 text-[10.5px] text-muted-foreground">
+                  {sp.ghsPictograms.length > 0 ? (
+                    <>
+                      {sp.ghsSignalWord && (
+                        <span
+                          className={cn(
+                            'mr-1.5 font-medium',
+                            sp.ghsSignalWord === 'Danger'
+                              ? 'text-red-400'
+                              : 'text-amber-300',
+                          )}
+                        >
+                          {sp.ghsSignalWord}
+                        </span>
+                      )}
+                      <span className="text-zinc-300">
+                        {sp.ghsPictograms
+                          .map((code) => GHS_LABEL_FR[code] ?? code)
+                          .join(' · ')}
+                      </span>
+                    </>
+                  ) : (
+                    <UnknownValue title="Pictogrammes SGH non renseignés" />
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </section>
         </div>
       ) : (
         <SpeciesChemistryTab
           sp={sp}
           enriched={enriched}
-          isIon={isIon}
           isUnknownSolubility={isUnknownSolubility}
           linkedSolution={linkedSolution}
           linkedReactions={linkedReactions}
           massBreakdown={massBreakdown}
-          behaviors={behaviors}
-          distinctIupac={distinctIupac}
+          notableBehaviors={notableBehaviors}
           elementsBySymbol={elementsBySymbol}
           onOpenInCatalog={onOpenInCatalog}
         />

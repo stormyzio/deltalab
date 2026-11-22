@@ -14,6 +14,7 @@ export function parseViewFromHash(hash: string): AppView {
   if (hash === '#solutions') return 'solutions'
   if (hash === '#reactions') return 'reactions'
   if (hash === '#verrerie') return 'vessels'
+  if (hash === '#alliages') return 'alloys'
   if (hash === '#lewis') return 'lewis'
   if (hash === '#equations') return 'equations'
   if (hash === '#tableau') return 'periodic'
@@ -52,6 +53,15 @@ export function cloneCanvasNode(node: CanvasNode, dx: number, dy: number): Canva
         solutes: node.solution.solutes.map((item) => ({ ...item })),
         dissolvedSpecies: node.solution.dissolvedSpecies.map((item) => ({ ...item })),
       },
+    }
+  }
+  if (node.kind === 'solid') {
+    return {
+      ...node,
+      id,
+      x: node.x + dx,
+      y: node.y + dy,
+      components: node.components.map((c) => ({ ...c })),
     }
   }
   return {

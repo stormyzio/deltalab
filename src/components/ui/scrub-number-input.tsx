@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom'
 import { MoveHorizontal } from 'lucide-react'
 import type { ScrubUnitOption } from '@/lib/quantity-units'
 import { cn } from '@/lib/utils'
+import { ChemText } from '@/components/ui/chem-text'
 
 interface ScrubNumberInputProps {
   /** Current value in base unit */
@@ -458,11 +459,11 @@ export function ScrubNumberInput({
             style={{ minWidth: `calc(${maxUnitChars}ch + 0.75rem)` }}
             className="flex h-full shrink-0 items-center justify-center border-l border-border/60 px-1.5 text-[10px] font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground disabled:pointer-events-none"
           >
-            {activeUnit.label}
+            <ChemText value={activeUnit.label} />
           </button>
         ) : (
           <span className="flex h-full shrink-0 items-center pr-1.5 text-[10px] text-muted-foreground select-none">
-            {activeUnit.label}
+            <ChemText value={activeUnit.label} />
           </span>
         ))}
 

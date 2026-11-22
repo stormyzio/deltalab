@@ -222,12 +222,14 @@ export interface SavedWorkbenchRecord {
   id: string
   name: string
   savedAt: string
+  updatedAt?: string
   nodeCount: number
   nodes: CanvasNode[]
   discoveredSpeciesIds: string[]
 }
 
 const SAVED_BENCHES_KEY = 'deltalab:saved-benches:v1'
+const MAX_SAVED_BENCHES = 50
 
 export function loadSavedWorkbenches(): SavedWorkbenchRecord[] {
   if (typeof window === 'undefined') return []
@@ -236,14 +238,23 @@ export function loadSavedWorkbenches(): SavedWorkbenchRecord[] {
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (item): item is SavedWorkbenchRecord =>
-        Boolean(item) &&
-        typeof item === 'object' &&
-        typeof (item as SavedWorkbenchRecord).id === 'string' &&
-        typeof (item as SavedWorkbenchRecord).name === 'string' &&
-        Array.isArray((item as SavedWorkbenchRecord).nodes),
-    )
+    return parsed
+      .filter(
+        (item): item is SavedWorkbenchRecord =>
+          Boolean(item) &&
+          typeof item === 'object' &&
+          typeof (item as SavedWorkbenchRecord).id === 'string' &&
+          typeof (item as SavedWorkbenchRecord).name === 'string' &&
+          Array.isArray((item as SavedWorkbenchRecord).nodes),
+      )
+      .map((item) => ({
+        ...item,
+        nodeCount: item.nodes.length,
+        updatedAt: item.updatedAt ?? item.savedAt,
+        discoveredSpeciesIds: Array.isArray(item.discoveredSpeciesIds)
+          ? item.discoveredSpeciesIds
+          : [],
+      }))
   } catch {
     return []
   }
@@ -252,7 +263,10 @@ export function loadSavedWorkbenches(): SavedWorkbenchRecord[] {
 export function persistSavedWorkbenches(list: SavedWorkbenchRecord[]): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(SAVED_BENCHES_KEY, JSON.stringify(list.slice(0, 16)))
+    window.localStorage.setItem(
+      SAVED_BENCHES_KEY,
+      JSON.stringify(list.slice(0, MAX_SAVED_BENCHES)),
+    )
   } catch {
     // ignore storage quota errors
   }

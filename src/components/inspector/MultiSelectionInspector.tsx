@@ -1,18 +1,22 @@
 import { useMemo } from 'react'
 import { Combine } from 'lucide-react'
 import type {
+  CanvasAtomNode,
   CanvasNode,
+  CanvasSolidNode,
   ElementRecord,
   FullCatalogResponse,
 } from '../../../shared/chemistry.ts'
-import { formatFrNumber } from '@/lib/chemistry-ui'
+import { formatFrNumber, formatMassG } from '@/lib/chemistry-ui'
 import {
   buildCanonicalSignature,
   formatChargeLabel,
   formatFormulaFromComposition,
 } from '@/lib/chemistry-calc'
+import { forgeAlloyFromNodes, getSolidTotalMassG } from '@/lib/solid-alloys'
 import { Button } from '@/components/ui/button'
-import { ChemFormula } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText, Sup } from '@/components/ui/chem-text'
+import { SolidBlockArtwork } from '@/components/SolidBlockArtwork'
 import { MetricCell } from './InspectorPrimitives'
 
 export function MultiSelectionInspector({
@@ -29,6 +33,7 @@ export function MultiSelectionInspector({
   onIonize: (direction: 1 | -1) => void
 }) {
   const atomsCount = nodes.filter((n) => n.kind === 'atom').length
+  const solidsCount = nodes.filter((n) => n.kind === 'solid').length
   const moleculesCount = nodes.filter(
     (n) => n.kind === 'molecule' && n.species.kind !== 'ion',
   ).length
@@ -37,7 +42,29 @@ export function MultiSelectionInspector({
   ).length
   const flasksCount = nodes.filter((n) => n.kind === 'flask').length
 
-  const allChemical = flasksCount === 0
+  const canForgeAlloy =
+    solidsCount > 0 &&
+    flasksCount === 0 &&
+    moleculesCount === 0 &&
+    ionsCount === 0 &&
+    nodes.every(
+      (n) =>
+        n.kind === 'solid' ||
+        (n.kind === 'atom' && elementsBySymbol.get(n.symbol)?.defaultState === 'solid'),
+    )
+
+  const alloyPreview = useMemo(() => {
+    if (!canForgeAlloy) return null
+    return forgeAlloyFromNodes(
+      nodes as Array<CanvasSolidNode | CanvasAtomNode>,
+      catalog?.alloys ?? [],
+      elementsBySymbol,
+      0,
+      0,
+    )
+  }, [canForgeAlloy, catalog?.alloys, elementsBySymbol, nodes])
+
+  const allChemical = flasksCount === 0 && solidsCount === 0
 
   const summary = useMemo(() => {
     if (!allChemical) return null
@@ -93,6 +120,9 @@ export function MultiSelectionInspector({
           <p className="mt-0.5 text-[10.5px] tabular-nums text-muted-foreground">
             {[
               atomsCount > 0 ? `${atomsCount} atome${atomsCount > 1 ? 's' : ''}` : null,
+              solidsCount > 0
+                ? `${solidsCount} bloc${solidsCount > 1 ? 's' : ''} solide${solidsCount > 1 ? 's' : ''}`
+                : null,
               moleculesCount > 0
                 ? `${moleculesCount} molécule${moleculesCount > 1 ? 's' : ''}`
                 : null,
@@ -104,6 +134,34 @@ export function MultiSelectionInspector({
           </p>
         </div>
       </div>
+
+      {alloyPreview && (
+        <div className="space-y-3 border-t border-border/60 pt-3.5">
+          <p className="text-[10.5px] font-medium text-muted-foreground">
+            {alloyPreview.alloyId
+              ? 'Alliage répertorié'
+              : alloyPreview.isAlloy
+                ? 'Alliage personnalisé'
+                : 'Fusion de solide'}
+          </p>
+          <div className="flex items-center gap-3">
+            <SolidBlockArtwork colorHex={alloyPreview.colorHex} size="sm" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
+                <ChemText value={alloyPreview.nameFr} />
+              </p>
+              <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                {formatMassG(getSolidTotalMassG(alloyPreview))} · ρ ={' '}
+                {formatFrNumber(alloyPreview.densityGPerCm3, 2)} g/cm<Sup>3</Sup>
+              </p>
+            </div>
+          </div>
+          <Button size="sm" onClick={onMerge} className="w-full">
+            <Combine className="h-3.5 w-3.5" strokeWidth={1.7} />
+            <span>{alloyPreview.isAlloy ? 'Allier (V)' : 'Fusionner (V)'}</span>
+          </Button>
+        </div>
+      )}
 
       {summary && (
         <>

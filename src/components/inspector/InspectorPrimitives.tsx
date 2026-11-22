@@ -11,6 +11,7 @@ export type CatalogJumpTarget =
   | { section: 'solutions'; id: string }
   | { section: 'reactions'; id: string }
   | { section: 'vessels'; id: string }
+  | { section: 'alloys'; id: string }
 
 export function MetricCell({
   label,

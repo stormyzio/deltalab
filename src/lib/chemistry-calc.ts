@@ -125,6 +125,7 @@ const BEHAVIOR_LABELS_FR: Record<string, string> = {
   strongOxidizer: 'Oxydant fort',
   chlorideTestReagent: 'Réactif des ions Cl⁻',
   chalkMineral: 'Minéral calcaire',
+  reactsWithWater: 'Réagit vivement avec l’eau',
   conductive: 'Conductrice',
   electrolyte: 'Électrolyte',
   oxidizer: 'Oxydant',
@@ -134,6 +135,51 @@ const BEHAVIOR_LABELS_FR: Record<string, string> = {
   coloredIon: 'Ion coloré',
   acidStrength: 'Force acide',
   baseStrength: 'Force basique',
+}
+
+/**
+ * Keys already displayed in dedicated species sheet sections or internal metadata.
+ * Excluded from the qualitative "Particularités" strip to avoid duplicating information.
+ */
+const REDUNDANT_BEHAVIOR_KEYS = new Set([
+  'families',
+  'boilingPointC',
+  'meltingPointC',
+  'densityGPerMl',
+  'pKa',
+  'pKb',
+  'solubilitySource',
+  'wikidataId',
+  'pubchemCid',
+  'iupacName',
+  'strongAcid',
+  'strongBase',
+  'acidStrength',
+  'baseStrength',
+  'metal',
+  'miscible',
+  'coloredIon',
+  'conductive',
+  'electrolyte',
+  'molecularSolution',
+])
+
+export function extractNotableBehaviors(
+  behaviors: Record<string, unknown>,
+): Array<{ key: string; text: string }> {
+  const out: Array<{ key: string; text: string }> = []
+  for (const [key, value] of Object.entries(behaviors)) {
+    if (REDUNDANT_BEHAVIOR_KEYS.has(key)) continue
+    if (value === false || value === null || value === undefined) continue
+    const label = BEHAVIOR_LABELS_FR[key]
+    if (!label) continue
+    if (value === true) {
+      out.push({ key, text: label })
+    } else {
+      out.push({ key, text: `${label} : ${String(value)}` })
+    }
+  }
+  return out
 }
 
 export function formatBehaviorEntry(key: string, value: unknown): {

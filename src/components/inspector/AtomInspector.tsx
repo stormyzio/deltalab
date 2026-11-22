@@ -1,26 +1,24 @@
 import type {
   CanvasAtomNode,
-  CatalogSpeciesRecord,
   ElementRecord,
   FullCatalogResponse,
 } from '../../../shared/chemistry.ts'
 import { getElementMassNumber } from '@/lib/chemistry-calc'
-import { CATEGORY_META, STATE_META, formatFrNumber } from '@/lib/chemistry-ui'
-import { ChemFormula, Sup } from '@/components/ui/chem-text'
+import { CATEGORY_META, STATE_META } from '@/lib/chemistry-ui'
 import { ElementDetailsBody } from '@/components/ElementDetailsBody'
 import { type CatalogJumpTarget, QuickActions } from './InspectorPrimitives'
 
 export function AtomInspector({
   node,
   element,
-  solidSpecies,
   catalog,
+  onConvertToSolid,
   onOpenInCatalog,
 }: {
   node: CanvasAtomNode
   element: ElementRecord | null
-  solidSpecies: CatalogSpeciesRecord | null
   catalog: FullCatalogResponse | null
+  onConvertToSolid?: () => void
   onOpenInCatalog: (target: CatalogJumpTarget) => void
 }) {
   const cat = CATEGORY_META[node.category]
@@ -75,38 +73,16 @@ export function AtomInspector({
         />
       </div>
 
-      {solidSpecies && (
-        <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="h-2 w-2 shrink-0 rounded-full border border-white/20"
-              style={{ backgroundColor: solidSpecies.colorHex ?? '#d4d4d8' }}
-            />
-            <div className="min-w-0">
-              <p className="truncate text-[11px] text-zinc-200">
-                {solidSpecies.nameFr}{' '}
-                <span className="text-muted-foreground">
-                  <ChemFormula value={node.symbol} state="s" />
-                </span>
-              </p>
-              <p className="truncate text-[10px] text-muted-foreground">
-                Déposable en verrerie par glisser-déposer (10 mmol)
-              </p>
-            </div>
-          </div>
-          {solidSpecies.densityGPerCm3 !== null && (
-            <span className="shrink-0 whitespace-nowrap text-[10.5px] tabular-nums text-muted-foreground">
-              {formatFrNumber(solidSpecies.densityGPerCm3, 2)} g/cm<Sup>3</Sup>
-            </span>
-          )}
-        </div>
-      )}
-
       {element && (
         <ElementDetailsBody
           element={element}
           catalog={catalog}
           onJumpToSpecies={(id) => onOpenInCatalog({ section: 'species', id })}
+          solidAction={
+            onConvertToSolid
+              ? { label: 'Convertir en bloc (S)', onClick: onConvertToSolid }
+              : undefined
+          }
         />
       )}
     </div>

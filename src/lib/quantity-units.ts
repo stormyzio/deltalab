@@ -17,6 +17,18 @@ export const MASS_UNITS: ScrubUnitOption[] = [
   { id: 'mg', label: 'mg', toBase: 0.001, step: 1 },
 ]
 
+export const SOLID_MASS_UNITS: ScrubUnitOption[] = [
+  { id: 'g', label: 'g', toBase: 1, step: 0.5 },
+  { id: 'mg', label: 'mg', toBase: 0.001, step: 10 },
+  { id: 'kg', label: 'kg', toBase: 1000, step: 0.01 },
+]
+
+export const SOLID_VOLUME_UNITS: ScrubUnitOption[] = [
+  { id: 'cm3', label: 'cm³', toBase: 1, step: 0.1 },
+  { id: 'mm3', label: 'mm³', toBase: 0.001, step: 10 },
+  { id: 'dm3', label: 'dm³', toBase: 1000, step: 0.01 },
+]
+
 export const VOLUME_UNITS: ScrubUnitOption[] = [
   { id: 'mL', label: 'mL', toBase: 1, step: 1 },
   { id: 'L', label: 'L', toBase: 1000, step: 0.01 },

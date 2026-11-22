@@ -1,4 +1,5 @@
 import {
+  type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -8,18 +9,32 @@ import {
   useState,
 } from 'react'
 import type {
+  AlloyRecord,
   CanvasFlaskNode,
   CanvasNode,
+  ElementRecord,
   PhIndicatorId,
   SpeciesRecord,
 } from '../../shared/chemistry.ts'
-import { NODE_HALF_SIZE, getFlaskHitTest } from '@/lib/canvas-geometry'
+import {
+  NODE_HALF_SIZE,
+  getFlaskHitTest,
+  getSolidHitTest,
+} from '@/lib/canvas-geometry'
 import { findTitrationPairs } from '@/lib/titration-engine'
 import type { LabPresetDefinition, SavedWorkbenchRecord } from '@/lib/lab-presets'
 import { cn } from '@/lib/utils'
 import { ChemFormula } from '@/components/ui/chem-text'
-import { computeCanvasDropHint } from '@/components/canvas/canvas-drop-hints'
-import { AtomTile, FlaskTile, MoleculeTile } from '@/components/canvas/CanvasTiles'
+import {
+  computeCanvasDropHint,
+  computeSolidDropHint,
+} from '@/components/canvas/canvas-drop-hints'
+import {
+  AtomTile,
+  FlaskTile,
+  MoleculeTile,
+  SolidBlockTile,
+} from '@/components/canvas/CanvasTiles'
 import {
   IsomerPickerDialog,
   type PendingMergeIsomers,
@@ -49,6 +64,8 @@ interface LabCanvasProps {
   active?: boolean
   hydrated: boolean
   nodes: CanvasNode[]
+  elementsBySymbol: Map<string, ElementRecord>
+  alloys: AlloyRecord[]
   selectedIds: Set<string>
   viewport: ViewportTransform
   onViewportChange: (next: ViewportTransform) => void
@@ -68,6 +85,9 @@ interface LabCanvasProps {
   onEmptyFlask: (flaskId: string) => void
   onToggleFlaskFilter?: (flaskId: string) => void
   onDropAtomOnFlask: (atomNodeId: string, flaskId: string) => void
+  onDropSolidOnFlask: (solidNodeId: string, flaskId: string) => void
+  onDropSolidOnSolid: (draggedId: string, targetSolidId: string) => void
+  onConvertAtomToSolid: (atomNodeId: string) => void
   onDropMoleculeOnFlask: (moleculeNodeId: string, flaskId: string) => void
   onPourBetweenFlasks: (
     sourceFlaskId: string,
@@ -81,10 +101,18 @@ interface LabCanvasProps {
   onResetView: () => void
   onClearCanvas: () => void
   savedWorkbenches: SavedWorkbenchRecord[]
+  activeWorkbenchId: string | null
   onLoadPreset: (preset: LabPresetDefinition) => void
   onSaveCurrentWorkbench: (name: string) => void
+  onUpdateSavedWorkbench: (id: string) => void
+  onRenameSavedWorkbench: (id: string, nextName: string) => void
+  onDuplicateSavedWorkbench: (id: string) => void
+  onNewWorkbench: () => void
   onLoadSavedWorkbench: (record: SavedWorkbenchRecord) => void
   onDeleteSavedWorkbench: (id: string) => void
+  onExportCurrentWorkbench: (customName?: string) => void
+  onExportSavedWorkbench: (record: SavedWorkbenchRecord) => void
+  onImportWorkbenchFile: (file: File, mode?: 'replace' | 'merge') => void
   externalHoveredFlaskId: string | null
   externalHoverHint: { text: string; valid: boolean } | null
   pulsingFlaskIds: Set<string>
@@ -132,6 +160,8 @@ export function LabCanvas({
   active = true,
   hydrated,
   nodes,
+  elementsBySymbol,
+  alloys,
   selectedIds,
   viewport,
   onViewportChange,
@@ -147,6 +177,9 @@ export function LabCanvas({
   onEmptyFlask,
   onToggleFlaskFilter,
   onDropAtomOnFlask,
+  onDropSolidOnFlask,
+  onDropSolidOnSolid,
+  onConvertAtomToSolid,
   onDropMoleculeOnFlask,
   onPourBetweenFlasks,
   onChangeFlaskReactionExtent,
@@ -156,10 +189,18 @@ export function LabCanvas({
   onResetView,
   onClearCanvas,
   savedWorkbenches,
+  activeWorkbenchId,
   onLoadPreset,
   onSaveCurrentWorkbench,
+  onUpdateSavedWorkbench,
+  onRenameSavedWorkbench,
+  onDuplicateSavedWorkbench,
+  onNewWorkbench,
   onLoadSavedWorkbench,
   onDeleteSavedWorkbench,
+  onExportCurrentWorkbench,
+  onExportSavedWorkbench,
+  onImportWorkbenchFile,
   externalHoveredFlaskId,
   externalHoverHint,
   pulsingFlaskIds,
@@ -187,6 +228,11 @@ export function LabCanvas({
     null,
   )
   const [internalHoverHint, setInternalHoverHint] = useState<{
+    text: string
+    valid: boolean
+  } | null>(null)
+  const [hoveredSolidId, setHoveredSolidId] = useState<string | null>(null)
+  const [hoveredSolidHint, setHoveredSolidHint] = useState<{
     text: string
     valid: boolean
   } | null>(null)
@@ -239,6 +285,7 @@ export function LabCanvas({
   const pendingWheelViewportRef = useRef<ViewportTransform | null>(null)
 
   const hoveredFlaskKeyRef = useRef<string | null>(null)
+  const hoveredSolidKeyRef = useRef<string | null>(null)
 
   const dragNodesRef = useRef<{
     pointerId: number
@@ -634,10 +681,14 @@ export function LabCanvas({
         }
       }
 
-      // Check flask drop target when dragging a single atom/molecule, OR dragging a filled flask onto a filtration funnel
+      // Check flask or solid drop target when dragging a single node
       if (drag.origins.size === 1) {
         const worldPt = clientToWorld(e.clientX, e.clientY)
         const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+        const targetSolid =
+          !targetFlask && (drag.primaryKind === 'solid' || drag.primaryKind === 'atom')
+            ? getSolidHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+            : null
         const draggedNode =
           nodes.find((n) => n.id === drag.primaryNodeId) ??
           nodes.find((n) => n.id === drag.sourcePrimaryNodeId)
@@ -646,6 +697,7 @@ export function LabCanvas({
           targetFlask &&
           (drag.primaryKind === 'atom' ||
             drag.primaryKind === 'molecule' ||
+            drag.primaryKind === 'solid' ||
             (drag.primaryKind === 'flask' &&
               Boolean(targetFlask.hasFilter) &&
               draggedNode?.kind === 'flask' &&
@@ -656,7 +708,7 @@ export function LabCanvas({
           const nextHint =
             drag.primaryKind === 'flask' && draggedNode?.kind === 'flask'
               ? { text: 'Filtrer dans le filtre', valid: true }
-              : computeCanvasDropHint(draggedNode, targetFlask)
+              : computeCanvasDropHint(draggedNode, targetFlask, elementsBySymbol)
 
           const key = `${targetFlask.id}|${nextHint?.text ?? ''}|${nextHint?.valid ?? ''}`
           if (hoveredFlaskKeyRef.current !== key) {
@@ -668,6 +720,27 @@ export function LabCanvas({
           hoveredFlaskKeyRef.current = null
           setInternalHoveredFlaskId(null)
           setInternalHoverHint(null)
+        }
+
+        if (targetSolid && draggedNode) {
+          const nextHint = computeSolidDropHint(
+            draggedNode,
+            targetSolid,
+            alloys,
+            elementsBySymbol,
+          )
+          const key = nextHint
+            ? `${targetSolid.id}|${nextHint.text}|${nextHint.valid}`
+            : null
+          if (hoveredSolidKeyRef.current !== key) {
+            hoveredSolidKeyRef.current = key
+            setHoveredSolidId(nextHint ? targetSolid.id : null)
+            setHoveredSolidHint(nextHint)
+          }
+        } else if (hoveredSolidKeyRef.current !== null) {
+          hoveredSolidKeyRef.current = null
+          setHoveredSolidId(null)
+          setHoveredSolidHint(null)
         }
       }
     }
@@ -716,23 +789,35 @@ export function LabCanvas({
         if (el) el.style.zIndex = ''
       }
 
-      let droppedOnFlask = false
+      let droppedOnTarget = false
       if (drag.moved && drag.origins.size === 1) {
         const worldPt = clientToWorld(e.clientX, e.clientY)
         const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+        const targetSolid =
+          !targetFlask && (drag.primaryKind === 'solid' || drag.primaryKind === 'atom')
+            ? getSolidHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+            : null
+
         if (
           targetFlask &&
-          (drag.primaryKind === 'atom' || drag.primaryKind === 'molecule')
+          (drag.primaryKind === 'atom' ||
+            drag.primaryKind === 'molecule' ||
+            drag.primaryKind === 'solid')
         ) {
-          droppedOnFlask = true
+          droppedOnTarget = true
           if (drag.lastUpdates.length > 0) {
             onMoveNodes(drag.lastUpdates)
           }
           if (drag.primaryKind === 'atom') {
             onDropAtomOnFlask(drag.primaryNodeId, targetFlask.id)
+          } else if (drag.primaryKind === 'solid') {
+            onDropSolidOnFlask(drag.primaryNodeId, targetFlask.id)
           } else if (drag.primaryKind === 'molecule') {
             onDropMoleculeOnFlask(drag.primaryNodeId, targetFlask.id)
           }
+        } else if (targetSolid) {
+          droppedOnTarget = true
+          onDropSolidOnSolid(drag.primaryNodeId, targetSolid.id)
         } else if (
           targetFlask &&
           drag.primaryKind === 'flask' &&
@@ -742,7 +827,7 @@ export function LabCanvas({
             (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === drag.primaryNodeId,
           )
           if (srcNode && (srcNode.solution.hasWater || srcNode.solution.solutes.length > 0)) {
-            droppedOnFlask = true
+            droppedOnTarget = true
             // Snap source flask cleanly back to its origin position rather than overlapping the funnel
             const origin = drag.origins.get(drag.primaryNodeId)
             const el = nodeElMapRef.current.get(drag.primaryNodeId)
@@ -758,7 +843,7 @@ export function LabCanvas({
         }
       }
 
-      if (drag.moved && !droppedOnFlask && drag.lastUpdates.length > 0) {
+      if (drag.moved && !droppedOnTarget && drag.lastUpdates.length > 0) {
         onMoveNodes(drag.lastUpdates)
       }
 
@@ -766,6 +851,11 @@ export function LabCanvas({
         hoveredFlaskKeyRef.current = null
         setInternalHoveredFlaskId(null)
         setInternalHoverHint(null)
+      }
+      if (hoveredSolidKeyRef.current !== null) {
+        hoveredSolidKeyRef.current = null
+        setHoveredSolidId(null)
+        setHoveredSolidHint(null)
       }
     }
   }
@@ -827,9 +917,26 @@ export function LabCanvas({
     selectedNodes.length >= 1 &&
     selectedNodes.every((n) => n.kind === 'atom' || n.kind === 'molecule')
 
-  const canMergeSelected =
+  const isSolidAlloyMerge =
     selectedNodes.length >= 2 &&
-    selectedNodes.every((n) => n.kind === 'atom' || n.kind === 'molecule')
+    selectedNodes.some((n) => n.kind === 'solid') &&
+    selectedNodes.every(
+      (n) =>
+        n.kind === 'solid' ||
+        (n.kind === 'atom' && elementsBySymbol.get(n.symbol)?.defaultState === 'solid'),
+    )
+
+  const canMergeSelected =
+    isSolidAlloyMerge ||
+    (selectedNodes.length >= 2 &&
+      selectedNodes.every((n) => n.kind === 'atom' || n.kind === 'molecule'))
+
+  const singleSolidAtom =
+    selectedNodes.length === 1 &&
+    selectedNodes[0].kind === 'atom' &&
+    elementsBySymbol.get(selectedNodes[0].symbol)?.defaultState === 'solid'
+      ? selectedNodes[0]
+      : null
 
   const selectedChargeSum = useMemo(() => {
     let sum = 0
@@ -853,6 +960,31 @@ export function LabCanvas({
     })
   }
 
+  const [fileDropActive, setFileDropActive] = useState(false)
+
+  const handleCanvasDragOver = (e: ReactDragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.types.includes('Files')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    if (!fileDropActive) setFileDropActive(true)
+  }
+
+  const handleCanvasDragLeave = (e: ReactDragEvent<HTMLDivElement>) => {
+    if (!fileDropActive) return
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+    setFileDropActive(false)
+  }
+
+  const handleCanvasDrop = (e: ReactDragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return
+    e.preventDefault()
+    setFileDropActive(false)
+    const file = e.dataTransfer.files[0]
+    if (file) {
+      onImportWorkbenchFile(file, e.shiftKey ? 'merge' : 'replace')
+    }
+  }
+
   const dotSpacing = Math.max(14, 24 * viewport.zoom)
   const activeHoveredFlaskId = externalHoveredFlaskId ?? internalHoveredFlaskId
   const activeHoverHint = externalHoveredFlaskId ? externalHoverHint : internalHoverHint
@@ -864,6 +996,9 @@ export function LabCanvas({
       onPointerMove={handleCanvasPointerMove}
       onPointerUp={handleCanvasPointerUp}
       onPointerCancel={handleCanvasPointerUp}
+      onDragOver={handleCanvasDragOver}
+      onDragLeave={handleCanvasDragLeave}
+      onDrop={handleCanvasDrop}
       className={cn(
         'relative flex-1 overflow-hidden bg-background select-none touch-none',
         isPanning
@@ -878,6 +1013,19 @@ export function LabCanvas({
         backgroundPosition: `${viewport.x}px ${viewport.y}px`,
       }}
     >
+      {/* File drop overlay for .deltalab.json workbench imports */}
+      {fileDropActive && (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-[2px]">
+          <div className="rounded-xl border border-dashed border-zinc-400/70 bg-panel/95 px-6 py-4 text-center shadow-xl">
+            <p className="text-sm font-medium text-foreground">
+              Déposer pour importer la paillasse
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Fichier .deltalab.json · Maintenez Maj pour fusionner
+            </p>
+          </div>
+        </div>
+      )}
       {/* Quiet onboarding empty state (disappears when first item lands) */}
       {hydrated && nodes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
@@ -929,6 +1077,23 @@ export function LabCanvas({
                 shaking={isShaking}
                 fresh={isFresh}
                 altCopy={altPressed && toolMode === 'select' && !spacePressed}
+                setElRef={setNodeElRef}
+                onPointerDown={(e) => handleNodePointerDown(e, node)}
+              />
+            )
+          }
+
+          if (node.kind === 'solid') {
+            return (
+              <SolidBlockTile
+                key={node.id}
+                node={node}
+                selected={isSelected}
+                shaking={isShaking}
+                fresh={isFresh}
+                altCopy={altPressed && toolMode === 'select' && !spacePressed}
+                dropHovered={hoveredSolidId === node.id}
+                dropHint={hoveredSolidId === node.id ? hoveredSolidHint : null}
                 setElRef={setNodeElRef}
                 onPointerDown={(e) => handleNodePointerDown(e, node)}
               />
@@ -1066,10 +1231,15 @@ export function LabCanvas({
           <CanvasSelectionBar
             selectedCount={selectedNodes.length}
             canMergeSelected={canMergeSelected}
+            mergeLabel={isSolidAlloyMerge ? 'Allier' : 'Fusionner'}
             canIonizeSelected={canIonizeSelected}
             canIonizeMinus={canIonizeMinus}
             canIonizePlus={canIonizePlus}
             selectedChargeSum={selectedChargeSum}
+            canConvertSolidAtom={Boolean(singleSolidAtom)}
+            onConvertSolidAtom={
+              singleSolidAtom ? () => onConvertAtomToSolid(singleSolidAtom.id) : undefined
+            }
             selectedFlask={singleFlaskMeta}
             onToggleFlaskFilter={
               singleSelectedFlask && onToggleFlaskFilter
@@ -1114,11 +1284,19 @@ export function LabCanvas({
       >
         <LabPresetsPopover
           savedWorkbenches={savedWorkbenches}
-          currentNodeCount={nodes.length}
+          activeWorkbenchId={activeWorkbenchId}
+          currentNodes={nodes}
           onLoadPreset={onLoadPreset}
           onSaveCurrentWorkbench={onSaveCurrentWorkbench}
+          onUpdateSavedWorkbench={onUpdateSavedWorkbench}
+          onRenameSavedWorkbench={onRenameSavedWorkbench}
+          onDuplicateSavedWorkbench={onDuplicateSavedWorkbench}
+          onNewWorkbench={onNewWorkbench}
           onLoadSavedWorkbench={onLoadSavedWorkbench}
           onDeleteSavedWorkbench={onDeleteSavedWorkbench}
+          onExportCurrentWorkbench={onExportCurrentWorkbench}
+          onExportSavedWorkbench={onExportSavedWorkbench}
+          onImportWorkbenchFile={onImportWorkbenchFile}
         />
       </div>
 

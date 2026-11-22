@@ -1,18 +1,19 @@
-import {
-  ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID,
-  type CanvasFlaskNode,
-  type CanvasNode,
-  type CatalogSpeciesRecord,
-  type ElementRecord,
-  type FlaskProbeType,
-  type FullCatalogResponse,
-  type PhIndicatorId,
-  type SpeciesRecord,
+import type {
+  AlloyRecord,
+  CanvasFlaskNode,
+  CanvasNode,
+  CatalogSpeciesRecord,
+  ElementRecord,
+  FlaskProbeType,
+  FullCatalogResponse,
+  PhIndicatorId,
+  SpeciesRecord,
 } from '../../shared/chemistry.ts'
 import { cn } from '@/lib/utils'
 import { type CatalogJumpTarget } from '@/components/inspector/InspectorPrimitives'
 import { AtomInspector } from '@/components/inspector/AtomInspector'
 import { SpeciesInspector } from '@/components/inspector/SpeciesInspector'
+import { SolidInspector } from '@/components/inspector/SolidInspector'
 import { FlaskInspector } from '@/components/inspector/FlaskInspector'
 import { MultiSelectionInspector } from '@/components/inspector/MultiSelectionInspector'
 
@@ -30,6 +31,11 @@ interface InspectorPanelProps {
   canIonizeMinus?: boolean
   canIonizePlus?: boolean
   onUpdateMoleculeAmount: (nodeId: string, amountMol: number) => void
+  onConvertAtomToSolid: (atomId: string) => void
+  onSetSolidMass: (nodeId: string, nextMassG: number) => void
+  onSetSolidVolume: (nodeId: string, nextVolumeCm3: number) => void
+  onSetSolidComponentMass: (nodeId: string, symbol: string, nextMassG: number) => void
+  onReproportionSolidToAlloy: (nodeId: string, alloy: AlloyRecord) => void
   onAddWaterToFlask: (flaskId: string, volumeMl: number) => void
   onResizeFlask: (flaskId: string, newCapacityMl: number) => void
   onSetFlaskTemperature: (flaskId: string, temperatureC: number) => void
@@ -66,6 +72,11 @@ export function InspectorPanel({
   canIonizeMinus = true,
   canIonizePlus = true,
   onUpdateMoleculeAmount,
+  onConvertAtomToSolid,
+  onSetSolidMass,
+  onSetSolidVolume,
+  onSetSolidComponentMass,
+  onReproportionSolidToAlloy,
   onAddWaterToFlask,
   onResizeFlask,
   onSetFlaskTemperature,
@@ -108,11 +119,15 @@ export function InspectorPanel({
             {selectedNodes.length === 1
               ? singleNode?.kind === 'atom'
                 ? 'Atome'
-                : singleNode?.kind === 'flask'
-                  ? 'Verrerie'
-                  : singleNode?.species.kind === 'ion'
-                    ? 'Ion'
-                    : 'Espèce'
+                : singleNode?.kind === 'solid'
+                  ? singleNode.isAlloy
+                    ? 'Alliage'
+                    : 'Bloc solide'
+                  : singleNode?.kind === 'flask'
+                    ? 'Verrerie'
+                    : singleNode?.species.kind === 'ion'
+                      ? 'Ion'
+                      : 'Espèce'
               : `${selectedNodes.length} éléments`}
           </span>
         )}
@@ -136,14 +151,26 @@ export function InspectorPanel({
             <AtomInspector
               node={singleNode}
               element={elementsBySymbol.get(singleNode.symbol) ?? null}
-              solidSpecies={
-                ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[singleNode.symbol]
-                  ? (speciesById.get(
-                      ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[singleNode.symbol],
-                    ) ?? null)
-                  : null
-              }
               catalog={catalog}
+              onConvertToSolid={() => onConvertAtomToSolid(singleNode.id)}
+              onOpenInCatalog={onOpenInCatalog}
+            />
+          )}
+
+          {singleNode?.kind === 'solid' && (
+            <SolidInspector
+              key={singleNode.id}
+              node={singleNode}
+              elementsBySymbol={elementsBySymbol}
+              alloys={catalog?.alloys ?? []}
+              onSetMass={(g) => onSetSolidMass(singleNode.id, g)}
+              onSetVolume={(cm3) => onSetSolidVolume(singleNode.id, cm3)}
+              onSetComponentMass={(sym, g) =>
+                onSetSolidComponentMass(singleNode.id, sym, g)
+              }
+              onReproportionToAlloy={(alloy) =>
+                onReproportionSolidToAlloy(singleNode.id, alloy)
+              }
               onOpenInCatalog={onOpenInCatalog}
             />
           )}

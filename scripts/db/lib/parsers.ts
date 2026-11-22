@@ -37,34 +37,60 @@ export interface ParsedTemperature {
   note: 'decomposes' | 'sublimes' | 'explodes' | null
 }
 
+/**
+ * Strips English thousands-separator commas ("1,412 °C" -> "1412 °C", "3,600 °F" -> "3600 °F")
+ * without touching European decimal commas ("12,5 °C" stays "12,5 °C").
+ */
+function stripThousandsCommas(text: string): string {
+  return text.replace(/(?<=\d),(?=\d{3}(?!\d))/g, '')
+}
+
 function parseSingleTempChunk(text: string): { valueC: number; score: number } | null {
-  // Reject clearly non-temperature lines
-  if (/flash\s*point|autoignition|critical\s*temp|triple\s*point/i.test(text)) {
+  // Reject clearly non-temperature lines (or multi-property clauses where °C is a reference T, not MP/BP)
+  if (
+    /flash\s*point|autoignition|critical\s*temp|triple\s*point|specific\s*gravity|\bdensity\b|refractive\s*index|optical\s*rotation|\bsolubility\b|vapor\s*pressure|viscosity|\bpH\b|hydrate\s+loses|loses\s+.*water|dehydrat/i.test(
+      text,
+    )
+  ) {
     return null
   }
+  // Reject inequality-only bounds like "greater than 212 °F" or "less than 32 °F"
+  if (/(?:greater\s+than|less\s+than|above|below|^[<>≤≥]\s*)/i.test(text.trim())) {
+    return null
+  }
+
+  // Normalize thousands commas & strip error bars ("-192.7 + or - 2 °C" -> "-192.7 °C")
+  const cleaned = stripThousandsCommas(text).replace(
+    /(?:\+\s*or\s*-|\+\/-|±)\s*\d+(?:\.\d+)?/gi,
+    '',
+  )
+
   // Penalize reduced-pressure boiling points (e.g. "125 °C at 2 mm Hg", "at 10 torr")
+  const hasNormalPressure = /(?:760|75\d|77\d|101\.3|1\s*atm)/i.test(cleaned)
   const hasReducedPressure =
-    /(?:@|at)\s*(?:\d+(?:\.\d+)?)\s*(?:mm\s*hg|torr|mbar|pa|kpa)/i.test(text) &&
-    !/(?:760|75\d|77\d|101\.3|1\s*atm)/i.test(text)
+    /(?:@|at)\s*(?:\d+(?:\.\d+)?)\s*(?:mm\s*hg|torr|mbar|pa|kpa)/i.test(cleaned) &&
+    !hasNormalPressure
+  const isExplicitLabel = /^\s*(?:mp|bp|melting\s*point|boiling\s*point)\s*:/i.test(cleaned)
+  const bonus = (hasNormalPressure ? 3 : 0) + (isExplicitLabel ? 2 : 0)
 
   // Match Celsius: "-114.1 °C", "120-122 °C", "800.7 deg C", "100 C"
   const cMatch =
     /(-?\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(-?\d+(?:[.,]\d+)?))?\s*(?:°\s*C|deg\.?\s*C|\bC\b)/i.exec(
-      text,
+      cleaned,
     )
   if (cMatch) {
     const a = Number(cMatch[1].replace(',', '.'))
     const b = cMatch[2] ? Number(cMatch[2].replace(',', '.')) : a
     const val = (a + b) / 2
     if (Number.isFinite(val) && val >= -273.15 && val <= 6000) {
-      return { valueC: roundTo(val, 1), score: hasReducedPressure ? 2 : 10 }
+      return { valueC: roundTo(val, 1), score: (hasReducedPressure ? 2 : 10) + bonus }
     }
   }
 
   // Match Fahrenheit: "61.9 °F", "-137 to -135 °F"
   const fMatch =
     /(-?\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(-?\d+(?:[.,]\d+)?))?\s*(?:°\s*F|deg\.?\s*F)/i.exec(
-      text,
+      cleaned,
     )
   if (fMatch) {
     const a = Number(fMatch[1].replace(',', '.'))
@@ -72,22 +98,22 @@ function parseSingleTempChunk(text: string): { valueC: number; score: number } |
     const fVal = (a + b) / 2
     const cVal = ((fVal - 32) * 5) / 9
     if (Number.isFinite(cVal) && cVal >= -273.15 && cVal <= 6000) {
-      return { valueC: roundTo(cVal, 1), score: hasReducedPressure ? 1 : 8 }
+      return { valueC: roundTo(cVal, 1), score: (hasReducedPressure ? 1 : 8) + bonus }
     }
   }
 
   // Match Kelvin: "298.15 K"
-  const kMatch = /(-?\d+(?:[.,]\d+)?)\s*K\b/.exec(text)
+  const kMatch = /(-?\d+(?:[.,]\d+)?)\s*K\b/.exec(cleaned)
   if (kMatch) {
     const kVal = Number(kMatch[1].replace(',', '.'))
     const cVal = kVal - 273.15
     if (Number.isFinite(cVal) && cVal >= -273.15 && cVal <= 6000) {
-      return { valueC: roundTo(cVal, 1), score: hasReducedPressure ? 1 : 7 }
+      return { valueC: roundTo(cVal, 1), score: (hasReducedPressure ? 1 : 7) + bonus }
     }
   }
 
   // Pure numeric value (some CRC / PubChem Number fields omit unit and are in °C)
-  const bareMatch = /^\s*(-?\d+(?:\.\d+)?)\s*$/.exec(text)
+  const bareMatch = /^\s*(-?\d+(?:\.\d+)?)\s*$/.exec(cleaned)
   if (bareMatch) {
     const val = Number(bareMatch[1])
     if (Number.isFinite(val) && val >= -273.15 && val <= 5500) {
@@ -98,8 +124,8 @@ function parseSingleTempChunk(text: string): { valueC: number; score: number } |
   return null
 }
 
-export function parseTemperatureC(rawValues: string[]): ParsedTemperature {
-  let best: { valueC: number; score: number } | null = null
+export function parseTemperatureC(rawValues: string[], minAllowedC?: number): ParsedTemperature {
+  const candidates: Array<{ valueC: number; score: number }> = []
   let note: ParsedTemperature['note'] = null
 
   for (const raw of rawValues) {
@@ -115,21 +141,42 @@ export function parseTemperatureC(rawValues: string[]): ParsedTemperature {
     for (const part of parts) {
       const parsed = parseSingleTempChunk(part)
       if (!parsed) continue
-      if (!best || parsed.score > best.score) {
-        best = parsed
-      }
+      if (minAllowedC !== undefined && parsed.valueC < minAllowedC) continue
+      candidates.push(parsed)
+    }
+  }
+
+  if (candidates.length === 0) {
+    return { valueC: null, note }
+  }
+
+  // Consensus clustering: group readings within ±8 °C so multiple concordant sources
+  // beat a single OCR outlier (e.g. "Sublimes at 5 °C" vs "600 °C @760 mmHg").
+  let bestClusterScore = -1
+  let bestRepresentative = candidates[0]
+  for (const anchor of candidates) {
+    const cluster = candidates.filter((c) => Math.abs(c.valueC - anchor.valueC) <= 8)
+    const totalScore = cluster.reduce((sum, c) => sum + c.score, 0)
+    const maxInCluster = cluster.reduce((best, c) => (c.score > best.score ? c : best), cluster[0])
+    if (
+      totalScore > bestClusterScore ||
+      (totalScore === bestClusterScore && maxInCluster.score > bestRepresentative.score)
+    ) {
+      bestClusterScore = totalScore
+      bestRepresentative = maxInCluster
     }
   }
 
   return {
-    valueC: best ? best.valueC : null,
+    valueC: bestRepresentative.valueC,
     note,
   }
 }
 
 /**
  * Parses experimental density in g/cm³ (which equals g/mL).
- * Carefully rejects vapor density relative to air (air = 1) and nonsensical numbers.
+ * Carefully rejects vapor density relative to air (air = 1), cryogenic liquid densities
+ * for gases, and nonsensical numbers.
  */
 export function parseDensityGPerCm3(
   rawValues: string[],
@@ -140,26 +187,35 @@ export function parseDensityGPerCm3(
   for (const raw of rawValues) {
     if (!raw) continue
     const clauses = raw.split(/[;\n]/).map((s) => s.trim()).filter(Boolean)
-    for (const clause of clauses) {
-      // Skip vapor density relative to air (e.g., "2.5 (Air = 1)") or bulk/tap density noise
-      if (/\b(?:air\s*=\s*1|vapor\s*density|relative\s*vapor)\b/i.test(clause)) {
-        continue
-      }
+    for (const rawClause of clauses) {
+      const clause = stripThousandsCommas(rawClause)
       if (/heat\s*of\s*formation|detonation|viscosity/i.test(clause)) {
         continue
       }
 
+      // For gases, skip clauses describing cryogenic liquefied/solidified density
+      if (
+        isGasHint &&
+        (/\b(?:liq(?:uid)?|solid|ice)\b/i.test(clause) ||
+          /(?:@|at)\s*-\s*\d+/i.test(clause))
+      ) {
+        continue
+      }
+
       // 1. Explicit kg/m³ or g/L (1 g/L = 1 kg/m³ = 0.001 g/cm³)
+      // Checked BEFORE skipping "(air = 1)" because entries like
+      // "0.554 (air = 1) or 0.7168 g/liter" contain the real gas density in g/L!
       const kgM3 =
-        /(\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(\d+(?:[.,]\d+)?))?\s*(?:kg\s*\/\s*m3|kg\/m³|kg\s*m-3|g\s*\/\s*L|g\/l|g\s*l-1)/i.exec(
+        /(\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(\d+(?:[.,]\d+)?))?\s*(?:kg\s*\/\s*m3|kg\/m³|kg\s*m-3|g\s*\/\s*L\b|g\/l\b|g\s*\/\s*lit(?:er|re)s?\b|g\s*l-1)/i.exec(
           clause,
         )
       if (kgM3) {
         const a = Number(kgM3[1].replace(',', '.'))
         const b = kgM3[2] ? Number(kgM3[2].replace(',', '.')) : a
         const gPerCm3 = (a + b) / 2 / 1000
-        if (gPerCm3 >= 0.00005 && gPerCm3 <= 24) {
-          const score = isGasHint && gPerCm3 < 0.05 ? 10 : gPerCm3 >= 0.05 ? 9 : 5
+        const maxAllowed = isGasHint ? 0.03 : 24
+        if (gPerCm3 >= 0.00005 && gPerCm3 <= maxAllowed) {
+          const score = isGasHint ? 12 : gPerCm3 >= 0.05 ? 9 : 5
           if (!best || score > best.score) {
             best = { val: roundTo(gPerCm3, gPerCm3 < 0.05 ? 5 : 3), score }
           }
@@ -167,7 +223,32 @@ export function parseDensityGPerCm3(
         }
       }
 
-      // 2. Explicit g/cm³ or g/mL or g/cc
+      // Skip vapor density relative to air (e.g., "2.5 (Air = 1)")
+      if (/\b(?:air\s*=\s*1|vapor\s*density|relative\s*vapor|relative\s*gas\s*density)\b/i.test(clause)) {
+        continue
+      }
+
+      // For gases at 1 atm / 20 °C, g/cm³ values >= 0.03 are always liquefied/solidified or miscoded g/L
+      if (isGasHint) {
+        const gCm3Gas =
+          /(\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(\d+(?:[.,]\d+)?))?\s*(?:g\s*\/\s*(?:cm3|cm³|cu\s*cm|cc|mL|ml)|g\s*cm-3)/i.exec(
+            clause,
+          )
+        if (gCm3Gas) {
+          const a = Number(gCm3Gas[1].replace(',', '.'))
+          const b = gCm3Gas[2] ? Number(gCm3Gas[2].replace(',', '.')) : a
+          const val = (a + b) / 2
+          if (val >= 0.00005 && val < 0.03) {
+            const score = 10
+            if (!best || score > best.score) {
+              best = { val: roundTo(val, 5), score }
+            }
+          }
+        }
+        continue
+      }
+
+      // 2. Explicit g/cm³ or g/mL or g/cc (liquids & solids)
       const gCm3 =
         /(\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(\d+(?:[.,]\d+)?))?\s*(?:g\s*\/\s*(?:cm3|cm³|cu\s*cm|cc|mL|ml)|g\s*cm-3)/i.exec(
           clause,
@@ -176,11 +257,11 @@ export function parseDensityGPerCm3(
         const a = Number(gCm3[1].replace(',', '.'))
         const b = gCm3[2] ? Number(gCm3[2].replace(',', '.')) : a
         const val = (a + b) / 2
-        if (val >= 0.00005 && val <= 24) {
+        if (val >= 0.05 && val <= 24) {
           const nearRoom = /(?:15|18|20|22|25)\s*°?\s*C|(?:68|70|72|77)\s*°?\s*F/i.test(clause)
           const score = nearRoom ? 11 : 9
           if (!best || score > best.score) {
-            best = { val: roundTo(val, val < 0.05 ? 5 : 3), score }
+            best = { val: roundTo(val, 3), score }
           }
           continue
         }
@@ -188,7 +269,7 @@ export function parseDensityGPerCm3(
 
       // 3. Relative density / specific gravity (e.g. "2.17 at 25 °C/4 °C", "0.791 at 68 °F (USCG)")
       const rel =
-        /^(?:density[:\s]*|specific\s*gravity[:\s]*|d\s*=?\s*)?(\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(\d+(?:[.,]\d+)?))?(?:\s*(?:at|@|\(|g|water|\/4|-|$))/i.exec(
+        /^(?:density[:\s]*|specific\s*gravity[:\s]*|relative\s*density[^:]*:\s*|d\s*=?\s*)?(\d+(?:[.,]\d+)?)\s*(?:[-–—to]+\s*(\d+(?:[.,]\d+)?))?(?:\s*(?:at|@|\(|g|water|\/4|-|$))/i.exec(
           clause,
         )
       if (rel) {
@@ -616,16 +697,18 @@ export function parseAppearanceAndColor(
         ? { fr: 'Liquide', fem: false }
         : { fr: 'Solide', fem: false })
 
-  const color = detectedColor ?? {
-    fr: standardState === 'solid' ? 'blanc' : 'incolore',
-    hex: standardState === 'solid' ? '#e4e4e7' : '#d4d4d8',
+  if (!detectedColor) {
+    return {
+      appearanceFr: form.fr,
+      colorHex: null,
+    }
   }
 
   const plural = form.fr === 'Cristaux' || form.fr === 'Granulés'
-  const colorLabel = agreeFrenchColor(color.fr, form.fem, plural)
+  const colorLabel = agreeFrenchColor(detectedColor.fr, form.fem, plural)
   return {
     appearanceFr: `${form.fr} ${colorLabel}`,
-    colorHex: color.hex,
+    colorHex: detectedColor.hex,
   }
 }
 

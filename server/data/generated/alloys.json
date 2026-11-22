@@ -1,0 +1,3805 @@
+[
+  {
+    "id": "alloy_acier_doux",
+    "nameFr": "Acier doux",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 98.5,
+        "maxPct": 99.95,
+        "typicalPct": 99.6
+      },
+      {
+        "symbol": "C",
+        "minPct": 0.05,
+        "maxPct": 0.3,
+        "typicalPct": 0.2
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 0,
+        "maxPct": 1.2,
+        "typicalPct": 0.2,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.85,
+    "meltingPointC": 1480,
+    "colorHex": "#868e99",
+    "usesFr": "Charpentes métalliques, carrosseries automobiles, tôles et boulonnerie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_carbone",
+    "nameFr": "Acier au carbone",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 96.5,
+        "maxPct": 99.7,
+        "typicalPct": 99
+      },
+      {
+        "symbol": "C",
+        "minPct": 0.3,
+        "maxPct": 2.1,
+        "typicalPct": 1
+      }
+    ],
+    "densityGPerCm3": 7.84,
+    "meltingPointC": 1425,
+    "colorHex": "#78808b",
+    "usesFr": "Outils tranchants, ressorts, rails ferroviaires et câbles haute résistance.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_fonte_grise",
+    "nameFr": "Fonte grise",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 90,
+        "maxPct": 97.9,
+        "typicalPct": 94.5
+      },
+      {
+        "symbol": "C",
+        "minPct": 2.1,
+        "maxPct": 4.5,
+        "typicalPct": 3.5
+      },
+      {
+        "symbol": "Si",
+        "minPct": 0,
+        "maxPct": 3.5,
+        "typicalPct": 2,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.2,
+    "meltingPointC": 1180,
+    "colorHex": "#555b63",
+    "usesFr": "Blocs moteurs, disques de frein, cocottes et plaques de voirie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_fonte_blanche",
+    "nameFr": "Fonte blanche",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 92,
+        "maxPct": 97.5,
+        "typicalPct": 95.5
+      },
+      {
+        "symbol": "C",
+        "minPct": 2.2,
+        "maxPct": 6.7,
+        "typicalPct": 4.5
+      }
+    ],
+    "densityGPerCm3": 7.65,
+    "meltingPointC": 1150,
+    "colorHex": "#737982",
+    "usesFr": "Pièces soumises à forte abrasion, cylindres de laminoirs et broyeurs.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_inox_304",
+    "nameFr": "Acier inoxydable 304",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 65,
+        "maxPct": 76,
+        "typicalPct": 72
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 16,
+        "maxPct": 22,
+        "typicalPct": 18
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 6,
+        "maxPct": 12,
+        "typicalPct": 10
+      },
+      {
+        "symbol": "C",
+        "minPct": 0,
+        "maxPct": 0.2,
+        "typicalPct": 0.08,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.93,
+    "meltingPointC": 1430,
+    "colorHex": "#b4bcc6",
+    "usesFr": "Ustensiles alimentaires, matériel chirurgical, éviers et cuves chimiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_inox_316",
+    "nameFr": "Acier inoxydable 316 (marin)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 62,
+        "maxPct": 72,
+        "typicalPct": 68
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 15,
+        "maxPct": 20,
+        "typicalPct": 17
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 9,
+        "maxPct": 15,
+        "typicalPct": 12
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 1.5,
+        "maxPct": 4,
+        "typicalPct": 3
+      }
+    ],
+    "densityGPerCm3": 8,
+    "meltingPointC": 1400,
+    "colorHex": "#aeb7c2",
+    "usesFr": "Accastillage marin, milieux chlorés et implants orthopédiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_inox_ferritique",
+    "nameFr": "Acier inoxydable ferritique (430)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 78,
+        "maxPct": 89,
+        "typicalPct": 83
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 11,
+        "maxPct": 22,
+        "typicalPct": 17
+      }
+    ],
+    "densityGPerCm3": 7.75,
+    "meltingPointC": 1480,
+    "colorHex": "#a5aeb8",
+    "usesFr": "Électroménager, pots d’échappement et ustensiles magnétiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_inox_martensitique",
+    "nameFr": "Acier inoxydable martensitique (420)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 82,
+        "maxPct": 88,
+        "typicalPct": 86
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 11.5,
+        "maxPct": 15,
+        "typicalPct": 13.5
+      },
+      {
+        "symbol": "C",
+        "minPct": 0.15,
+        "maxPct": 1.2,
+        "typicalPct": 0.5
+      }
+    ],
+    "densityGPerCm3": 7.74,
+    "meltingPointC": 1450,
+    "colorHex": "#9da6b1",
+    "usesFr": "Lames de couteaux, scalpels, ciseaux et roulements inoxydables.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_rapide_hss",
+    "nameFr": "Acier rapide (HSS)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 70,
+        "maxPct": 85,
+        "typicalPct": 77
+      },
+      {
+        "symbol": "W",
+        "minPct": 5,
+        "maxPct": 20,
+        "typicalPct": 14
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 3,
+        "maxPct": 6,
+        "typicalPct": 4
+      },
+      {
+        "symbol": "V",
+        "minPct": 1,
+        "maxPct": 5,
+        "typicalPct": 2
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 0,
+        "maxPct": 10,
+        "typicalPct": 2,
+        "optional": true
+      },
+      {
+        "symbol": "C",
+        "minPct": 0.6,
+        "maxPct": 1.5,
+        "typicalPct": 1
+      }
+    ],
+    "densityGPerCm3": 8.15,
+    "meltingPointC": 1420,
+    "colorHex": "#6c737d",
+    "usesFr": "Forets, fraises et tarauds conservant leur dureté à haute température.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_chromoly",
+    "nameFr": "Acier chrome-molybdène (4140)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 95,
+        "maxPct": 98.5,
+        "typicalPct": 97.4
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 0.7,
+        "maxPct": 2,
+        "typicalPct": 1.1
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 0.4,
+        "maxPct": 1.2,
+        "typicalPct": 0.8,
+        "optional": true
+      },
+      {
+        "symbol": "C",
+        "minPct": 0.25,
+        "maxPct": 0.6,
+        "typicalPct": 0.4
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 0.15,
+        "maxPct": 0.5,
+        "typicalPct": 0.3
+      }
+    ],
+    "densityGPerCm3": 7.85,
+    "meltingPointC": 1416,
+    "colorHex": "#7c848f",
+    "usesFr": "Arceaux de sécurité, cadres de vélos, engrenages et vilebrequins.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_maraging",
+    "nameFr": "Acier maraging",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 64,
+        "maxPct": 74,
+        "typicalPct": 68.5
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 15,
+        "maxPct": 22,
+        "typicalPct": 18
+      },
+      {
+        "symbol": "Co",
+        "minPct": 6,
+        "maxPct": 13,
+        "typicalPct": 8.5
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 3,
+        "maxPct": 6,
+        "typicalPct": 4.5
+      },
+      {
+        "symbol": "Ti",
+        "minPct": 0.2,
+        "maxPct": 1.5,
+        "typicalPct": 0.5,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8,
+    "meltingPointC": 1413,
+    "colorHex": "#929aa5",
+    "usesFr": "Aérospatiale, lames d’escrime et centrifugeuses ultra-haute résistance.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_corten",
+    "nameFr": "Acier Corten (autopatinable)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 95,
+        "maxPct": 98.5,
+        "typicalPct": 97.6
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 0.4,
+        "maxPct": 1.3,
+        "typicalPct": 0.9
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0.2,
+        "maxPct": 0.7,
+        "typicalPct": 0.4
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 0.1,
+        "maxPct": 0.8,
+        "typicalPct": 0.4,
+        "optional": true
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 0.2,
+        "maxPct": 1,
+        "typicalPct": 0.5,
+        "optional": true
+      },
+      {
+        "symbol": "C",
+        "minPct": 0.05,
+        "maxPct": 0.25,
+        "typicalPct": 0.2,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.85,
+    "meltingPointC": 1460,
+    "colorHex": "#9c6244",
+    "usesFr": "Façades architecturales, ponts et sculptures (patine rouille protectrice).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_silicium",
+    "nameFr": "Acier électrique (au silicium)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 93,
+        "maxPct": 99,
+        "typicalPct": 96.5
+      },
+      {
+        "symbol": "Si",
+        "minPct": 1,
+        "maxPct": 7,
+        "typicalPct": 3.5
+      }
+    ],
+    "densityGPerCm3": 7.65,
+    "meltingPointC": 1450,
+    "colorHex": "#737b86",
+    "usesFr": "Tôles magnétiques de transformateurs et moteurs électriques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_acier_manganese",
+    "nameFr": "Acier Hadfield (au manganèse)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 82,
+        "maxPct": 90,
+        "typicalPct": 86
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 9,
+        "maxPct": 17,
+        "typicalPct": 13
+      },
+      {
+        "symbol": "C",
+        "minPct": 0.5,
+        "maxPct": 2,
+        "typicalPct": 1,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.88,
+    "meltingPointC": 1380,
+    "colorHex": "#7f838d",
+    "usesFr": "Concasseurs, aiguillages ferroviaires et blindages anti-usure.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_invar",
+    "nameFr": "Invar (Fe-36Ni)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 58,
+        "maxPct": 70,
+        "typicalPct": 64
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 30,
+        "maxPct": 42,
+        "typicalPct": 36
+      }
+    ],
+    "densityGPerCm3": 8.05,
+    "meltingPointC": 1427,
+    "colorHex": "#9da3ad",
+    "usesFr": "Instrumentation de précision, horlogerie et cuves de méthaniers (dilatation quasi nulle).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_elinvar",
+    "nameFr": "Élinvar",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 46,
+        "maxPct": 58,
+        "typicalPct": 52
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 30,
+        "maxPct": 40,
+        "typicalPct": 36
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 8,
+        "maxPct": 16,
+        "typicalPct": 12
+      }
+    ],
+    "densityGPerCm3": 8,
+    "meltingPointC": 1430,
+    "colorHex": "#9ea5af",
+    "usesFr": "Spiraux de montres mécaniques (élasticité constante avec la température).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_kovar",
+    "nameFr": "Kovar",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 48,
+        "maxPct": 60,
+        "typicalPct": 54
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 24,
+        "maxPct": 34,
+        "typicalPct": 29
+      },
+      {
+        "symbol": "Co",
+        "minPct": 13,
+        "maxPct": 22,
+        "typicalPct": 17
+      }
+    ],
+    "densityGPerCm3": 8.36,
+    "meltingPointC": 1450,
+    "colorHex": "#98a0ab",
+    "usesFr": "Scellements verre-métal (même dilatation que le verre borosilicaté).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_kanthal",
+    "nameFr": "Kanthal (FeCrAl)",
+    "familyFr": "Aciers & fontes",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 68,
+        "maxPct": 78,
+        "typicalPct": 72.5
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 18,
+        "maxPct": 26,
+        "typicalPct": 22
+      },
+      {
+        "symbol": "Al",
+        "minPct": 3,
+        "maxPct": 8,
+        "typicalPct": 5.5
+      }
+    ],
+    "densityGPerCm3": 7.1,
+    "meltingPointC": 1500,
+    "colorHex": "#949ca6",
+    "usesFr": "Résistances de fours industriels jusqu’à 1 400 °C et éléments chauffants.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_laiton",
+    "nameFr": "Laiton jaune (70/30)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 62,
+        "maxPct": 79,
+        "typicalPct": 70
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 21,
+        "maxPct": 38,
+        "typicalPct": 30
+      }
+    ],
+    "densityGPerCm3": 8.53,
+    "meltingPointC": 930,
+    "colorHex": "#d4b44a",
+    "usesFr": "Instruments à vent, douilles, robinetterie et serrurerie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_metal_muntz",
+    "nameFr": "Métal de Muntz (laiton 60/40)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 55,
+        "maxPct": 61.9,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 38.1,
+        "maxPct": 45,
+        "typicalPct": 40
+      }
+    ],
+    "densityGPerCm3": 8.39,
+    "meltingPointC": 900,
+    "colorHex": "#d0b65c",
+    "usesFr": "Revêtement de coques de navires, plaques tubulaires et architecture.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_tombac",
+    "nameFr": "Tombac (laiton rouge)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 80,
+        "maxPct": 95,
+        "typicalPct": 85
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 5,
+        "maxPct": 20,
+        "typicalPct": 15
+      }
+    ],
+    "densityGPerCm3": 8.75,
+    "meltingPointC": 1020,
+    "colorHex": "#cc8f46",
+    "usesFr": "Médailles, bijouterie fantaisie, boutons et feuilles d’imitation or.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_laiton_naval",
+    "nameFr": "Laiton naval",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 58,
+        "maxPct": 63,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 36,
+        "maxPct": 41,
+        "typicalPct": 39
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 0.5,
+        "maxPct": 2,
+        "typicalPct": 1
+      }
+    ],
+    "densityGPerCm3": 8.41,
+    "meltingPointC": 890,
+    "colorHex": "#cfb052",
+    "usesFr": "Arbres d’hélices, boulonnerie marine et échangeurs d’eau de mer.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_laiton_decolletage",
+    "nameFr": "Laiton de décolletage (au plomb)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 57,
+        "maxPct": 63,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 34,
+        "maxPct": 40,
+        "typicalPct": 37
+      },
+      {
+        "symbol": "Pb",
+        "minPct": 1,
+        "maxPct": 4,
+        "typicalPct": 3
+      }
+    ],
+    "densityGPerCm3": 8.49,
+    "meltingPointC": 885,
+    "colorHex": "#ceb056",
+    "usesFr": "Visserie, raccords hydrauliques et pièces usinées de précision.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_bronze",
+    "nameFr": "Bronze classique",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 80,
+        "maxPct": 96,
+        "typicalPct": 88
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 4,
+        "maxPct": 20,
+        "typicalPct": 12
+      }
+    ],
+    "densityGPerCm3": 8.8,
+    "meltingPointC": 950,
+    "colorHex": "#b8824a",
+    "usesFr": "Statues, coussinets mécaniques, engrenages et médailles.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_bronze_cloche",
+    "nameFr": "Bronze de cloche",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 73,
+        "maxPct": 79.9,
+        "typicalPct": 78
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 20.1,
+        "maxPct": 27,
+        "typicalPct": 22
+      }
+    ],
+    "densityGPerCm3": 8.7,
+    "meltingPointC": 890,
+    "colorHex": "#c2985d",
+    "usesFr": "Cloches d’église, gongs et cymbales (excellente résonance acoustique).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_speculum",
+    "nameFr": "Métal de spéculum (bronze miroir)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 62,
+        "maxPct": 72.9,
+        "typicalPct": 68
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 27.1,
+        "maxPct": 38,
+        "typicalPct": 32
+      }
+    ],
+    "densityGPerCm3": 8.55,
+    "meltingPointC": 750,
+    "colorHex": "#d3d1c9",
+    "usesFr": "Miroirs de télescopes historiques (poli miroir blanc argenté).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_bronze_canon",
+    "nameFr": "Bronze à canon (Gunmetal)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 84,
+        "maxPct": 90,
+        "typicalPct": 88
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 7,
+        "maxPct": 12,
+        "typicalPct": 10
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 1,
+        "maxPct": 5,
+        "typicalPct": 2
+      }
+    ],
+    "densityGPerCm3": 8.72,
+    "meltingPointC": 990,
+    "colorHex": "#b9854c",
+    "usesFr": "Vannes vapeur, pompes marines, paliers et pièces de fonderie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_bronze_aluminium",
+    "nameFr": "Bronze d’aluminium (Cupro-aluminium)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 84,
+        "maxPct": 96,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Al",
+        "minPct": 4,
+        "maxPct": 16,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 7.6,
+    "meltingPointC": 1040,
+    "colorHex": "#cfa151",
+    "usesFr": "Hélices de navires, vannes marines et outils anti-étincelles.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_bronze_silicium",
+    "nameFr": "Bronze au silicium",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 93,
+        "maxPct": 98,
+        "typicalPct": 96
+      },
+      {
+        "symbol": "Si",
+        "minPct": 1.5,
+        "maxPct": 5,
+        "typicalPct": 3
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 0,
+        "maxPct": 2,
+        "typicalPct": 1,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8.53,
+    "meltingPointC": 1015,
+    "colorHex": "#c4894d",
+    "usesFr": "Sculptures soudées, visserie marine et cuves chimiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_bronze_phosphore",
+    "nameFr": "Bronze au phosphore",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 85,
+        "maxPct": 96,
+        "typicalPct": 94.8
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 3.5,
+        "maxPct": 12,
+        "typicalPct": 5
+      },
+      {
+        "symbol": "P",
+        "minPct": 0.05,
+        "maxPct": 1.5,
+        "typicalPct": 0.2
+      }
+    ],
+    "densityGPerCm3": 8.85,
+    "meltingPointC": 1000,
+    "colorHex": "#bd854d",
+    "usesFr": "Cordes de guitare acoustique, contacts électriques et ressorts.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_cupronickel",
+    "nameFr": "Cupronickel (75/25)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 66,
+        "maxPct": 92,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 8,
+        "maxPct": 34,
+        "typicalPct": 25
+      }
+    ],
+    "densityGPerCm3": 8.94,
+    "meltingPointC": 1200,
+    "colorHex": "#c2beb8",
+    "usesFr": "Pièces de monnaie (1 € et 2 €) et tuyauteries d’eau de mer.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_constantan",
+    "nameFr": "Constantan",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 50,
+        "maxPct": 65,
+        "typicalPct": 55
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 35,
+        "maxPct": 50,
+        "typicalPct": 45
+      }
+    ],
+    "densityGPerCm3": 8.9,
+    "meltingPointC": 1260,
+    "colorHex": "#bab7b1",
+    "usesFr": "Thermocouples et résistances de précision (résistivité quasi constante).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_manganine",
+    "nameFr": "Manganine",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 80,
+        "maxPct": 88,
+        "typicalPct": 84
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 10,
+        "maxPct": 15,
+        "typicalPct": 12
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 2,
+        "maxPct": 6,
+        "typicalPct": 4
+      }
+    ],
+    "densityGPerCm3": 8.4,
+    "meltingPointC": 960,
+    "colorHex": "#b99c84",
+    "usesFr": "Shunts de courant et étalons de résistance électrique en métrologie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_maillechort",
+    "nameFr": "Maillechort (argentan)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 50,
+        "maxPct": 70,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 10,
+        "maxPct": 30,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 10,
+        "maxPct": 30,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 8.7,
+    "meltingPointC": 1110,
+    "colorHex": "#c9cbc8",
+    "usesFr": "Couverts argentés, frettes de guitare, clés d’instruments et lunetterie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_nordique",
+    "nameFr": "Or nordique",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 84,
+        "maxPct": 92,
+        "typicalPct": 89
+      },
+      {
+        "symbol": "Al",
+        "minPct": 3,
+        "maxPct": 8,
+        "typicalPct": 5
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 3,
+        "maxPct": 8,
+        "typicalPct": 5
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 0.5,
+        "maxPct": 3,
+        "typicalPct": 1
+      }
+    ],
+    "densityGPerCm3": 8.15,
+    "meltingPointC": 1030,
+    "colorHex": "#d8b454",
+    "usesFr": "Pièces de 10, 20 et 50 centimes d’euro (sans nickel, antimicrobien).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_cuivre_beryllium",
+    "nameFr": "Cuivre au béryllium",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 95,
+        "maxPct": 99.6,
+        "typicalPct": 98
+      },
+      {
+        "symbol": "Be",
+        "minPct": 0.4,
+        "maxPct": 5,
+        "typicalPct": 2
+      }
+    ],
+    "densityGPerCm3": 8.25,
+    "meltingPointC": 900,
+    "colorHex": "#cc8844",
+    "usesFr": "Outils amagnétiques anti-étincelles, ressorts et contacts de précision.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_cuivre_tungstene",
+    "nameFr": "Cuivre-tungstène (CuW)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "W",
+    "components": [
+      {
+        "symbol": "W",
+        "minPct": 50,
+        "maxPct": 90,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 10,
+        "maxPct": 50,
+        "typicalPct": 25
+      }
+    ],
+    "densityGPerCm3": 14.8,
+    "meltingPointC": 1085,
+    "colorHex": "#927966",
+    "usesFr": "Électrodes d’électroérosion, contacts haute tension et dissipateurs thermiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_cuivre_arsenical",
+    "nameFr": "Cuivre arsénié (bronze archaïque)",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 93,
+        "maxPct": 99.2,
+        "typicalPct": 97
+      },
+      {
+        "symbol": "As",
+        "minPct": 0.8,
+        "maxPct": 7,
+        "typicalPct": 3
+      }
+    ],
+    "densityGPerCm3": 8.8,
+    "meltingPointC": 1040,
+    "colorHex": "#c98856",
+    "usesFr": "Premiers outils et armes métalliques de l’âge du bronze ancien.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_devarda",
+    "nameFr": "Alliage de Devarda",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 42,
+        "maxPct": 58,
+        "typicalPct": 50
+      },
+      {
+        "symbol": "Al",
+        "minPct": 37,
+        "maxPct": 52,
+        "typicalPct": 45
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 2,
+        "maxPct": 10,
+        "typicalPct": 5
+      }
+    ],
+    "densityGPerCm3": 5.79,
+    "meltingPointC": 560,
+    "colorHex": "#b4a694",
+    "usesFr": "Réducteur de laboratoire permettant de doser les ions nitrate en ammoniac.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_shakudo",
+    "nameFr": "Shakudō",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 90,
+        "maxPct": 97,
+        "typicalPct": 95
+      },
+      {
+        "symbol": "Au",
+        "minPct": 3,
+        "maxPct": 10,
+        "typicalPct": 5
+      }
+    ],
+    "densityGPerCm3": 9.2,
+    "meltingPointC": 1070,
+    "colorHex": "#524457",
+    "usesFr": "Orfèvrerie japonaise traditionnelle (patine bleu-noir violacé).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_shibuichi",
+    "nameFr": "Shibuichi",
+    "familyFr": "Alliages de cuivre",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 60,
+        "maxPct": 85,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 15,
+        "maxPct": 40,
+        "typicalPct": 25
+      }
+    ],
+    "densityGPerCm3": 9.3,
+    "meltingPointC": 960,
+    "colorHex": "#b7a99f",
+    "usesFr": "Orfèvrerie japonaise et gardes de sabres (patine gris argenté).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_duralumin",
+    "nameFr": "Duralumin (2024)",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 88,
+        "maxPct": 96,
+        "typicalPct": 94
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 2.5,
+        "maxPct": 6,
+        "typicalPct": 4.5
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 0.4,
+        "maxPct": 3,
+        "typicalPct": 1.5
+      }
+    ],
+    "densityGPerCm3": 2.78,
+    "meltingPointC": 638,
+    "colorHex": "#c6cad0",
+    "usesFr": "Fuselages d’avions, structures aéronautiques et pièces forgées.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_silumin",
+    "nameFr": "Silumin (Alpax)",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 82,
+        "maxPct": 95,
+        "typicalPct": 88
+      },
+      {
+        "symbol": "Si",
+        "minPct": 5,
+        "maxPct": 18,
+        "typicalPct": 12
+      }
+    ],
+    "densityGPerCm3": 2.66,
+    "meltingPointC": 577,
+    "colorHex": "#aeb5be",
+    "usesFr": "Carters moteurs moulés sous pression, culasses et jantes alliage.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_magnalium",
+    "nameFr": "Magnalium",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 50,
+        "maxPct": 97,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 3,
+        "maxPct": 50,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 2.55,
+    "meltingPointC": 605,
+    "colorHex": "#cfd5dd",
+    "usesFr": "Pièces ultra-légères, pyrotechnie et instruments d’optique.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_al_6061",
+    "nameFr": "Aluminium 6061",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 94,
+        "maxPct": 99,
+        "typicalPct": 98.2
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 0.5,
+        "maxPct": 3,
+        "typicalPct": 1
+      },
+      {
+        "symbol": "Si",
+        "minPct": 0.3,
+        "maxPct": 2,
+        "typicalPct": 0.8
+      }
+    ],
+    "densityGPerCm3": 2.7,
+    "meltingPointC": 620,
+    "colorHex": "#c4cbd4",
+    "usesFr": "Cadres de vélos, profilés industriels, mâts et constructions soudées.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_al_7075",
+    "nameFr": "Aluminium 7075 (Zicral)",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 85,
+        "maxPct": 93,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 4,
+        "maxPct": 8,
+        "typicalPct": 5.6
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 1.5,
+        "maxPct": 4,
+        "typicalPct": 2.5
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0.8,
+        "maxPct": 3,
+        "typicalPct": 1.9
+      }
+    ],
+    "densityGPerCm3": 2.81,
+    "meltingPointC": 600,
+    "colorHex": "#bec5ce",
+    "usesFr": "Aéronautique haute résistance, mousquetons d’escalade et lanceurs spatiaux.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_al_5083",
+    "nameFr": "Aluminium 5083 (qualité marine)",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 92,
+        "maxPct": 96,
+        "typicalPct": 94.7
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 3.5,
+        "maxPct": 5.5,
+        "typicalPct": 4.5
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 0.3,
+        "maxPct": 1.5,
+        "typicalPct": 0.8
+      }
+    ],
+    "densityGPerCm3": 2.66,
+    "meltingPointC": 610,
+    "colorHex": "#c6cdd6",
+    "usesFr": "Coques de navires, plateformes offshore et réservoirs cryogéniques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_al_li",
+    "nameFr": "Alliage aluminium-lithium",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 94,
+        "maxPct": 99,
+        "typicalPct": 97.5
+      },
+      {
+        "symbol": "Li",
+        "minPct": 1,
+        "maxPct": 6,
+        "typicalPct": 2.5
+      }
+    ],
+    "densityGPerCm3": 2.52,
+    "meltingPointC": 625,
+    "colorHex": "#c3c9d1",
+    "usesFr": "Réservoirs cryogéniques de fusées et cellules d’avions de ligne.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_al_sc",
+    "nameFr": "Alliage aluminium-scandium",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 97,
+        "maxPct": 99.8,
+        "typicalPct": 99.5
+      },
+      {
+        "symbol": "Sc",
+        "minPct": 0.1,
+        "maxPct": 3,
+        "typicalPct": 0.5
+      }
+    ],
+    "densityGPerCm3": 2.71,
+    "meltingPointC": 655,
+    "colorHex": "#c8cfd8",
+    "usesFr": "Cadres de vélos ultra-légers, aéronautique et pièces soudées haute tenue.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_hydronalium",
+    "nameFr": "Hydronalium",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 85,
+        "maxPct": 93,
+        "typicalPct": 89
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 6,
+        "maxPct": 13,
+        "typicalPct": 10
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 0.2,
+        "maxPct": 2,
+        "typicalPct": 1
+      }
+    ],
+    "densityGPerCm3": 2.6,
+    "meltingPointC": 595,
+    "colorHex": "#cbd2da",
+    "usesFr": "Construction navale et pièces résistant à la corrosion saline.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_alliage_y",
+    "nameFr": "Alliage Y (pistons)",
+    "familyFr": "Alliages d’aluminium",
+    "baseElement": "Al",
+    "components": [
+      {
+        "symbol": "Al",
+        "minPct": 89,
+        "maxPct": 94,
+        "typicalPct": 92.5
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 3,
+        "maxPct": 5,
+        "typicalPct": 4
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 1.5,
+        "maxPct": 3,
+        "typicalPct": 2
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 1,
+        "maxPct": 2.5,
+        "typicalPct": 1.5
+      }
+    ],
+    "densityGPerCm3": 2.8,
+    "meltingPointC": 630,
+    "colorHex": "#c2c7ce",
+    "usesFr": "Pistons et culasses de moteurs d’avion à haute température.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_jaune_18k",
+    "nameFr": "Or jaune 18 carats (750)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Au",
+    "components": [
+      {
+        "symbol": "Au",
+        "minPct": 72,
+        "maxPct": 78,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 8,
+        "maxPct": 18,
+        "typicalPct": 12.5
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 8,
+        "maxPct": 18,
+        "typicalPct": 12.5
+      }
+    ],
+    "densityGPerCm3": 15.58,
+    "meltingPointC": 920,
+    "colorHex": "#e6be3a",
+    "usesFr": "Joaillerie et horlogerie de luxe (titre légal 750/1000).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_14k",
+    "nameFr": "Or jaune 14 carats (585)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Au",
+    "components": [
+      {
+        "symbol": "Au",
+        "minPct": 55,
+        "maxPct": 62,
+        "typicalPct": 58.5
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 20,
+        "maxPct": 32,
+        "typicalPct": 26.5
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 8,
+        "maxPct": 22,
+        "typicalPct": 15
+      }
+    ],
+    "densityGPerCm3": 13.1,
+    "meltingPointC": 880,
+    "colorHex": "#dfb94d",
+    "usesFr": "Bijouterie quotidienne résistante aux rayures (titre 585/1000).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_rose_18k",
+    "nameFr": "Or rose 18 carats",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Au",
+    "components": [
+      {
+        "symbol": "Au",
+        "minPct": 68,
+        "maxPct": 82,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 18.1,
+        "maxPct": 30,
+        "typicalPct": 22
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 0,
+        "maxPct": 7.9,
+        "typicalPct": 3,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 15.1,
+    "meltingPointC": 905,
+    "colorHex": "#e2a384",
+    "usesFr": "Joaillerie et boîtiers de montres à teinte cuivrée chaude.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_blanc",
+    "nameFr": "Or blanc 18 carats (au palladium)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Au",
+    "components": [
+      {
+        "symbol": "Au",
+        "minPct": 68,
+        "maxPct": 82,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Pd",
+        "minPct": 12,
+        "maxPct": 30,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 0,
+        "maxPct": 12,
+        "typicalPct": 5,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 16,
+    "meltingPointC": 1120,
+    "colorHex": "#d9d7cf",
+    "usesFr": "Haute joaillerie et sertissage de diamants (hypoallergénique).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_gris_ni",
+    "nameFr": "Or gris au nickel",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Au",
+    "components": [
+      {
+        "symbol": "Au",
+        "minPct": 68,
+        "maxPct": 80,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 8,
+        "maxPct": 18,
+        "typicalPct": 13
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 4,
+        "maxPct": 14,
+        "typicalPct": 8,
+        "optional": true
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 0,
+        "maxPct": 8,
+        "typicalPct": 4,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 14.7,
+    "meltingPointC": 960,
+    "colorHex": "#d1cfc8",
+    "usesFr": "Montures de bagues rigides (généralement rhodiées en surface).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_electrum",
+    "nameFr": "Électrum",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Au",
+    "components": [
+      {
+        "symbol": "Au",
+        "minPct": 20,
+        "maxPct": 85,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 15,
+        "maxPct": 80,
+        "typicalPct": 40
+      }
+    ],
+    "densityGPerCm3": 14.5,
+    "meltingPointC": 1000,
+    "colorHex": "#e6d68a",
+    "usesFr": "Premières monnaies antiques de Lydie et revêtements égyptiens.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_violet",
+    "nameFr": "Or pourpre (AuAl₂)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Au",
+    "components": [
+      {
+        "symbol": "Au",
+        "minPct": 72,
+        "maxPct": 85,
+        "typicalPct": 79
+      },
+      {
+        "symbol": "Al",
+        "minPct": 15,
+        "maxPct": 28,
+        "typicalPct": 21
+      }
+    ],
+    "densityGPerCm3": 7.66,
+    "meltingPointC": 1060,
+    "colorHex": "#9d5eb0",
+    "usesFr": "Composé intermétallique violet utilisé en incrustation joaillière.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_or_bleu",
+    "nameFr": "Or bleu (AuIn₂)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "In",
+    "components": [
+      {
+        "symbol": "In",
+        "minPct": 48,
+        "maxPct": 60,
+        "typicalPct": 54
+      },
+      {
+        "symbol": "Au",
+        "minPct": 40,
+        "maxPct": 52,
+        "typicalPct": 46
+      }
+    ],
+    "densityGPerCm3": 10.6,
+    "meltingPointC": 540,
+    "colorHex": "#8ba8c7",
+    "usesFr": "Composé intermétallique aux reflets bleutés pour la haute joaillerie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_tumbaga",
+    "nameFr": "Tumbaga",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 35,
+        "maxPct": 85,
+        "typicalPct": 65
+      },
+      {
+        "symbol": "Au",
+        "minPct": 15,
+        "maxPct": 65,
+        "typicalPct": 35
+      }
+    ],
+    "densityGPerCm3": 11.2,
+    "meltingPointC": 910,
+    "colorHex": "#d59348",
+    "usesFr": "Alliage précolombien d’or et de cuivre utilisé en orfèvrerie andine.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_argent_sterling",
+    "nameFr": "Argent sterling (925)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Ag",
+    "components": [
+      {
+        "symbol": "Ag",
+        "minPct": 88,
+        "maxPct": 95,
+        "typicalPct": 92.5
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 5,
+        "maxPct": 12,
+        "typicalPct": 7.5
+      }
+    ],
+    "densityGPerCm3": 10.36,
+    "meltingPointC": 893,
+    "colorHex": "#dcdde3",
+    "usesFr": "Orfèvrerie, bijoux, couverts et instruments de musique (flûtes).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_argent_britannia",
+    "nameFr": "Argent Britannia (958)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Ag",
+    "components": [
+      {
+        "symbol": "Ag",
+        "minPct": 95.1,
+        "maxPct": 98,
+        "typicalPct": 95.8
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 2,
+        "maxPct": 4.9,
+        "typicalPct": 4.2
+      }
+    ],
+    "densityGPerCm3": 10.42,
+    "meltingPointC": 925,
+    "colorHex": "#e1e2e8",
+    "usesFr": "Pièces d’investissement et haute argenterie britannique.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_argent_800",
+    "nameFr": "Argent 800 (monétaire)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Ag",
+    "components": [
+      {
+        "symbol": "Ag",
+        "minPct": 75,
+        "maxPct": 87.9,
+        "typicalPct": 80
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 12.1,
+        "maxPct": 25,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 10.15,
+    "meltingPointC": 840,
+    "colorHex": "#d2d0d3",
+    "usesFr": "Anciennes pièces de monnaie en argent et couverts résistants.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_platine_rhodie",
+    "nameFr": "Platine rhodié (90/10)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Pt",
+    "components": [
+      {
+        "symbol": "Pt",
+        "minPct": 75,
+        "maxPct": 97,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Rh",
+        "minPct": 3,
+        "maxPct": 25,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 19.95,
+    "meltingPointC": 1840,
+    "colorHex": "#d5dae2",
+    "usesFr": "Thermocouples haute température (type S), creusets et catalyseurs d’acide nitrique.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_platine_iridie",
+    "nameFr": "Platine iridié (90/10)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Pt",
+    "components": [
+      {
+        "symbol": "Pt",
+        "minPct": 75,
+        "maxPct": 95,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Ir",
+        "minPct": 5,
+        "maxPct": 25,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 21.56,
+    "meltingPointC": 1800,
+    "colorHex": "#cdd2da",
+    "usesFr": "Prototypes internationaux historiques du kilogramme et du mètre, électrodes médicales.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_platine_cobalt",
+    "nameFr": "Platine-cobalt",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Pt",
+    "components": [
+      {
+        "symbol": "Pt",
+        "minPct": 70,
+        "maxPct": 85,
+        "typicalPct": 77
+      },
+      {
+        "symbol": "Co",
+        "minPct": 15,
+        "maxPct": 30,
+        "typicalPct": 23
+      }
+    ],
+    "densityGPerCm3": 15.7,
+    "meltingPointC": 1470,
+    "colorHex": "#bcc3ce",
+    "usesFr": "Micro-aimants permanents biocompatibles et montres de luxe.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_palladium_argent",
+    "nameFr": "Palladium-argent (75/25)",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Pd",
+    "components": [
+      {
+        "symbol": "Pd",
+        "minPct": 65,
+        "maxPct": 85,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 15,
+        "maxPct": 35,
+        "typicalPct": 25
+      }
+    ],
+    "densityGPerCm3": 11.6,
+    "meltingPointC": 1380,
+    "colorHex": "#d3d6dc",
+    "usesFr": "Membranes de purification d’hydrogène ultra-pur et contacts électriques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_osmiridium",
+    "nameFr": "Osmiridium",
+    "familyFr": "Métaux précieux",
+    "baseElement": "Os",
+    "components": [
+      {
+        "symbol": "Os",
+        "minPct": 45,
+        "maxPct": 80,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Ir",
+        "minPct": 20,
+        "maxPct": 55,
+        "typicalPct": 40
+      }
+    ],
+    "densityGPerCm3": 22.5,
+    "meltingPointC": 2750,
+    "colorHex": "#92a0b0",
+    "usesFr": "Pointes de stylos-plumes haut de gamme et pivots de boussoles inusables.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_nichrome",
+    "nameFr": "Nichrome (80/20)",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 65,
+        "maxPct": 88,
+        "typicalPct": 80
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 12,
+        "maxPct": 35,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 8.4,
+    "meltingPointC": 1400,
+    "colorHex": "#aaadb3",
+    "usesFr": "Fils chauffants de grille-pain, fours de laboratoire et découpe fil chaud.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_chromel",
+    "nameFr": "Chromel (90/10)",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 88.1,
+        "maxPct": 94,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 6,
+        "maxPct": 11.9,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 8.73,
+    "meltingPointC": 1420,
+    "colorHex": "#acaeb2",
+    "usesFr": "Conducteur positif des thermocouples de type K (avec l’Alumel).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_alumel",
+    "nameFr": "Alumel",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 92,
+        "maxPct": 97,
+        "typicalPct": 95
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 1,
+        "maxPct": 4,
+        "typicalPct": 2
+      },
+      {
+        "symbol": "Al",
+        "minPct": 1,
+        "maxPct": 4,
+        "typicalPct": 2
+      },
+      {
+        "symbol": "Si",
+        "minPct": 0.5,
+        "maxPct": 2,
+        "typicalPct": 1,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8.6,
+    "meltingPointC": 1400,
+    "colorHex": "#a7a8a4",
+    "usesFr": "Conducteur négatif des thermocouples de type K (mesure −200 à +1 250 °C).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_monel",
+    "nameFr": "Monel 400",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 58,
+        "maxPct": 75,
+        "typicalPct": 67
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 23,
+        "maxPct": 38,
+        "typicalPct": 31
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 0,
+        "maxPct": 5,
+        "typicalPct": 2,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8.8,
+    "meltingPointC": 1325,
+    "colorHex": "#b8b2a8",
+    "usesFr": "Vannes résistant à l’acide fluorhydrique, chimie marine et cordes de guitare.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_inconel_625",
+    "nameFr": "Inconel 625",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 54,
+        "maxPct": 72,
+        "typicalPct": 62
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 16,
+        "maxPct": 26,
+        "typicalPct": 22
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 5,
+        "maxPct": 14,
+        "typicalPct": 9
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 0,
+        "maxPct": 10,
+        "typicalPct": 4,
+        "optional": true
+      },
+      {
+        "symbol": "Nb",
+        "minPct": 0,
+        "maxPct": 6,
+        "typicalPct": 3,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8.44,
+    "meltingPointC": 1320,
+    "colorHex": "#9fa5ae",
+    "usesFr": "Tuyères de fusées, échappements de Formule 1 et réacteurs nucléaires.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_inconel_718",
+    "nameFr": "Inconel 718",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 48,
+        "maxPct": 56,
+        "typicalPct": 53
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 16,
+        "maxPct": 22,
+        "typicalPct": 19
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 14,
+        "maxPct": 23,
+        "typicalPct": 19
+      },
+      {
+        "symbol": "Nb",
+        "minPct": 3.5,
+        "maxPct": 7,
+        "typicalPct": 5
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 2,
+        "maxPct": 4.5,
+        "typicalPct": 3
+      },
+      {
+        "symbol": "Ti",
+        "minPct": 0,
+        "maxPct": 2,
+        "typicalPct": 1,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8.19,
+    "meltingPointC": 1300,
+    "colorHex": "#99a0aa",
+    "usesFr": "Aubes de turboréacteurs, turbines à gaz et moteurs-fusées cryogéniques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_hastelloy",
+    "nameFr": "Hastelloy C-276",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 50,
+        "maxPct": 66,
+        "typicalPct": 58
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 12,
+        "maxPct": 22,
+        "typicalPct": 16
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 12,
+        "maxPct": 20,
+        "typicalPct": 16
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 0,
+        "maxPct": 10,
+        "typicalPct": 6,
+        "optional": true
+      },
+      {
+        "symbol": "W",
+        "minPct": 1,
+        "maxPct": 7,
+        "typicalPct": 4
+      }
+    ],
+    "densityGPerCm3": 8.89,
+    "meltingPointC": 1350,
+    "colorHex": "#969da7",
+    "usesFr": "Réacteurs chimiques ultra-corrosifs résistant aux acides chlorhydrique et sulfurique.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_nitinol",
+    "nameFr": "Nitinol (mémoire de forme)",
+    "familyFr": "Superalliages",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 46,
+        "maxPct": 62,
+        "typicalPct": 55
+      },
+      {
+        "symbol": "Ti",
+        "minPct": 38,
+        "maxPct": 54,
+        "typicalPct": 45
+      }
+    ],
+    "densityGPerCm3": 6.45,
+    "meltingPointC": 1310,
+    "colorHex": "#a3a8b0",
+    "usesFr": "Stents vasculaires, montures de lunettes superélastiques et actionneurs thermiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_stellite",
+    "nameFr": "Stellite",
+    "familyFr": "Superalliages",
+    "baseElement": "Co",
+    "components": [
+      {
+        "symbol": "Co",
+        "minPct": 45,
+        "maxPct": 70,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 20,
+        "maxPct": 35,
+        "typicalPct": 30
+      },
+      {
+        "symbol": "W",
+        "minPct": 3,
+        "maxPct": 18,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 8.4,
+    "meltingPointC": 1350,
+    "colorHex": "#919eae",
+    "usesFr": "Sièges de soupapes, outils de coupe et revêtements anti-usure à chaud.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_vitallium",
+    "nameFr": "Vitallium",
+    "familyFr": "Superalliages",
+    "baseElement": "Co",
+    "components": [
+      {
+        "symbol": "Co",
+        "minPct": 55,
+        "maxPct": 72,
+        "typicalPct": 65
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 22,
+        "maxPct": 34,
+        "typicalPct": 28
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 3,
+        "maxPct": 12,
+        "typicalPct": 7
+      }
+    ],
+    "densityGPerCm3": 8.3,
+    "meltingPointC": 1370,
+    "colorHex": "#97a4b4",
+    "usesFr": "Prothèses dentaires, prothèses de hanche et aubes de turbocompresseurs.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_elgiloy",
+    "nameFr": "Elgiloy",
+    "familyFr": "Superalliages",
+    "baseElement": "Co",
+    "components": [
+      {
+        "symbol": "Co",
+        "minPct": 35,
+        "maxPct": 45,
+        "typicalPct": 40
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 17,
+        "maxPct": 24,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 12,
+        "maxPct": 19,
+        "typicalPct": 16
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 12,
+        "maxPct": 20,
+        "typicalPct": 16
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 5,
+        "maxPct": 10,
+        "typicalPct": 7
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 0,
+        "maxPct": 3,
+        "typicalPct": 1,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8.3,
+    "meltingPointC": 1450,
+    "colorHex": "#96a0ae",
+    "usesFr": "Ressorts d’horlogerie amagnétiques, orthodontie et implants médicaux.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_cantor",
+    "nameFr": "Alliage de Cantor (haute entropie)",
+    "familyFr": "Superalliages",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 15,
+        "maxPct": 25,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 15,
+        "maxPct": 25,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 15,
+        "maxPct": 25,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Co",
+        "minPct": 15,
+        "maxPct": 25,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 15,
+        "maxPct": 25,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 8,
+    "meltingPointC": 1340,
+    "colorHex": "#949ba6",
+    "usesFr": "Alliage équiatomique à haute entropie d’une ténacité record en cryogénie.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_permalloy",
+    "nameFr": "Permalloy",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 72,
+        "maxPct": 86,
+        "typicalPct": 80
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 14,
+        "maxPct": 28,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 8.6,
+    "meltingPointC": 1440,
+    "colorHex": "#a6a7a3",
+    "usesFr": "Blindages magnétiques et noyaux de transformateurs haute perméabilité.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_mumetal",
+    "nameFr": "Mu-métal",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Ni",
+    "components": [
+      {
+        "symbol": "Ni",
+        "minPct": 73,
+        "maxPct": 82,
+        "typicalPct": 77
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 12,
+        "maxPct": 20,
+        "typicalPct": 16
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 3,
+        "maxPct": 7,
+        "typicalPct": 5
+      },
+      {
+        "symbol": "Mo",
+        "minPct": 1,
+        "maxPct": 4,
+        "typicalPct": 2,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 8.7,
+    "meltingPointC": 1450,
+    "colorHex": "#ababa7",
+    "usesFr": "Blindage magnétique de laboratoires, IRM et microscopes électroniques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_alnico",
+    "nameFr": "Alnico",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 42,
+        "maxPct": 60,
+        "typicalPct": 51
+      },
+      {
+        "symbol": "Co",
+        "minPct": 15,
+        "maxPct": 30,
+        "typicalPct": 24
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 10,
+        "maxPct": 22,
+        "typicalPct": 14
+      },
+      {
+        "symbol": "Al",
+        "minPct": 6,
+        "maxPct": 14,
+        "typicalPct": 8
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0,
+        "maxPct": 6,
+        "typicalPct": 3,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.3,
+    "meltingPointC": 1400,
+    "colorHex": "#8d96a2",
+    "usesFr": "Aimants permanents haute température, haut-parleurs et micros de guitare.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_neodyme_ndfeb",
+    "nameFr": "Aimant néodyme (NdFeB)",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 60,
+        "maxPct": 76,
+        "typicalPct": 68
+      },
+      {
+        "symbol": "Nd",
+        "minPct": 22,
+        "maxPct": 36,
+        "typicalPct": 31
+      },
+      {
+        "symbol": "B",
+        "minPct": 0.5,
+        "maxPct": 2.5,
+        "typicalPct": 1
+      }
+    ],
+    "densityGPerCm3": 7.5,
+    "meltingPointC": 1180,
+    "colorHex": "#a9b0ba",
+    "usesFr": "Aimants permanents les plus puissants (éoliennes, moteurs électriques, écouteurs).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_samarium_cobalt",
+    "nameFr": "Aimant samarium-cobalt (SmCo₅)",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Co",
+    "components": [
+      {
+        "symbol": "Co",
+        "minPct": 58,
+        "maxPct": 76,
+        "typicalPct": 66
+      },
+      {
+        "symbol": "Sm",
+        "minPct": 24,
+        "maxPct": 42,
+        "typicalPct": 34
+      }
+    ],
+    "densityGPerCm3": 8.4,
+    "meltingPointC": 1320,
+    "colorHex": "#929eb0",
+    "usesFr": "Aimants haute température (jusqu’à 350 °C) pour satellites et moteurs aéronautiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_sendust",
+    "nameFr": "Sendust",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 80,
+        "maxPct": 89,
+        "typicalPct": 85
+      },
+      {
+        "symbol": "Si",
+        "minPct": 7,
+        "maxPct": 12,
+        "typicalPct": 9.5
+      },
+      {
+        "symbol": "Al",
+        "minPct": 3.5,
+        "maxPct": 8,
+        "typicalPct": 5.5
+      }
+    ],
+    "densityGPerCm3": 7,
+    "meltingPointC": 1260,
+    "colorHex": "#7d8590",
+    "usesFr": "Inductances de puissance haute fréquence et têtes magnétiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_cunife",
+    "nameFr": "Cunife",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Cu",
+    "components": [
+      {
+        "symbol": "Cu",
+        "minPct": 52,
+        "maxPct": 68,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 15,
+        "maxPct": 25,
+        "typicalPct": 20
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 15,
+        "maxPct": 25,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 8.6,
+    "meltingPointC": 1240,
+    "colorHex": "#ad8d78",
+    "usesFr": "Aimants ductiles usinables en fils fins et micros de guitare.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_galfenol",
+    "nameFr": "Galfenol",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 75,
+        "maxPct": 88,
+        "typicalPct": 81
+      },
+      {
+        "symbol": "Ga",
+        "minPct": 12,
+        "maxPct": 25,
+        "typicalPct": 19
+      }
+    ],
+    "densityGPerCm3": 7.8,
+    "meltingPointC": 1430,
+    "colorHex": "#8d96a2",
+    "usesFr": "Capteurs de force et actionneurs magnétostrictifs ductiles.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_terfenol_d",
+    "nameFr": "Terfenol-D",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 35,
+        "maxPct": 50,
+        "typicalPct": 42
+      },
+      {
+        "symbol": "Dy",
+        "minPct": 30,
+        "maxPct": 48,
+        "typicalPct": 40
+      },
+      {
+        "symbol": "Tb",
+        "minPct": 12,
+        "maxPct": 25,
+        "typicalPct": 18
+      }
+    ],
+    "densityGPerCm3": 9.25,
+    "meltingPointC": 1240,
+    "colorHex": "#8e96a1",
+    "usesFr": "Transducteurs sonar et haut-parleurs acoustiques à forte magnétostriction.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_bismanol",
+    "nameFr": "Bismanol",
+    "familyFr": "Alliages magnétiques",
+    "baseElement": "Bi",
+    "components": [
+      {
+        "symbol": "Bi",
+        "minPct": 72,
+        "maxPct": 84,
+        "typicalPct": 79
+      },
+      {
+        "symbol": "Mn",
+        "minPct": 16,
+        "maxPct": 28,
+        "typicalPct": 21
+      }
+    ],
+    "densityGPerCm3": 9,
+    "meltingPointC": 445,
+    "colorHex": "#9992af",
+    "usesFr": "Aimants permanents sans terres rares obtenus par métallurgie des poudres.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ta6v",
+    "nameFr": "Titane TA6V (Ti-6Al-4V)",
+    "familyFr": "Titane & réfractaires",
+    "baseElement": "Ti",
+    "components": [
+      {
+        "symbol": "Ti",
+        "minPct": 85,
+        "maxPct": 93,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Al",
+        "minPct": 4,
+        "maxPct": 8,
+        "typicalPct": 6
+      },
+      {
+        "symbol": "V",
+        "minPct": 2,
+        "maxPct": 6,
+        "typicalPct": 4
+      }
+    ],
+    "densityGPerCm3": 4.43,
+    "meltingPointC": 1630,
+    "colorHex": "#9da5af",
+    "usesFr": "Turbines aéronautiques, implants chirurgicaux et structures spatiales.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_zircaloy",
+    "nameFr": "Zircaloy-4",
+    "familyFr": "Titane & réfractaires",
+    "baseElement": "Zr",
+    "components": [
+      {
+        "symbol": "Zr",
+        "minPct": 96,
+        "maxPct": 99,
+        "typicalPct": 98.2
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 1,
+        "maxPct": 2.5,
+        "typicalPct": 1.5
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 0.1,
+        "maxPct": 1,
+        "typicalPct": 0.2,
+        "optional": true
+      },
+      {
+        "symbol": "Cr",
+        "minPct": 0.05,
+        "maxPct": 0.5,
+        "typicalPct": 0.1,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 6.56,
+    "meltingPointC": 1850,
+    "colorHex": "#a8b0b9",
+    "usesFr": "Gaines de combustible nucléaire (très faible absorption des neutrons).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_tungstene_rhenium",
+    "nameFr": "Tungstène-rhénium",
+    "familyFr": "Titane & réfractaires",
+    "baseElement": "W",
+    "components": [
+      {
+        "symbol": "W",
+        "minPct": 70,
+        "maxPct": 97,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Re",
+        "minPct": 3,
+        "maxPct": 30,
+        "typicalPct": 25
+      }
+    ],
+    "densityGPerCm3": 19.7,
+    "meltingPointC": 3120,
+    "colorHex": "#7d8590",
+    "usesFr": "Anodes de tubes à rayons X et thermocouples jusqu’à 2 300 °C.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_molybdene_tzm",
+    "nameFr": "Molybdène TZM",
+    "familyFr": "Titane & réfractaires",
+    "baseElement": "Mo",
+    "components": [
+      {
+        "symbol": "Mo",
+        "minPct": 98,
+        "maxPct": 99.6,
+        "typicalPct": 99.4
+      },
+      {
+        "symbol": "Ti",
+        "minPct": 0.2,
+        "maxPct": 1.2,
+        "typicalPct": 0.5
+      },
+      {
+        "symbol": "Zr",
+        "minPct": 0.04,
+        "maxPct": 0.5,
+        "typicalPct": 0.1,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 10.22,
+    "meltingPointC": 2620,
+    "colorHex": "#878f9a",
+    "usesFr": "Tuyères spatiales, fours sous vide et matrices de forgeage à chaud.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_nb_ti",
+    "nameFr": "Niobium-titane (supraconducteur)",
+    "familyFr": "Titane & réfractaires",
+    "baseElement": "Nb",
+    "components": [
+      {
+        "symbol": "Nb",
+        "minPct": 45,
+        "maxPct": 65,
+        "typicalPct": 53
+      },
+      {
+        "symbol": "Ti",
+        "minPct": 35,
+        "maxPct": 55,
+        "typicalPct": 47
+      }
+    ],
+    "densityGPerCm3": 6,
+    "meltingPointC": 2050,
+    "colorHex": "#949ca7",
+    "usesFr": "Bobines supraconductrices des IRM et de l’accélérateur LHC au CERN.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_nb3sn",
+    "nameFr": "Niobium-étain (Nb₃Sn)",
+    "familyFr": "Titane & réfractaires",
+    "baseElement": "Nb",
+    "components": [
+      {
+        "symbol": "Nb",
+        "minPct": 64,
+        "maxPct": 76,
+        "typicalPct": 70
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 24,
+        "maxPct": 36,
+        "typicalPct": 30
+      }
+    ],
+    "densityGPerCm3": 8.9,
+    "meltingPointC": 2130,
+    "colorHex": "#9ca4af",
+    "usesFr": "Aimants supraconducteurs à très haut champ (réacteur ITER, RMN).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_zamak",
+    "nameFr": "Zamak",
+    "familyFr": "Alliages légers & zinc",
+    "baseElement": "Zn",
+    "components": [
+      {
+        "symbol": "Zn",
+        "minPct": 90,
+        "maxPct": 97,
+        "typicalPct": 95
+      },
+      {
+        "symbol": "Al",
+        "minPct": 2.5,
+        "maxPct": 6,
+        "typicalPct": 4
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0,
+        "maxPct": 3.5,
+        "typicalPct": 0.8,
+        "optional": true
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 0,
+        "maxPct": 1,
+        "typicalPct": 0.2,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 6.7,
+    "meltingPointC": 385,
+    "colorHex": "#9ea7b2",
+    "usesFr": "Pièces moulées de précision, poignées, miniatures et connecteurs.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_az91",
+    "nameFr": "Magnésium AZ91 (Elektron)",
+    "familyFr": "Alliages légers & zinc",
+    "baseElement": "Mg",
+    "components": [
+      {
+        "symbol": "Mg",
+        "minPct": 86,
+        "maxPct": 93,
+        "typicalPct": 90
+      },
+      {
+        "symbol": "Al",
+        "minPct": 6,
+        "maxPct": 11,
+        "typicalPct": 9
+      },
+      {
+        "symbol": "Zn",
+        "minPct": 0.3,
+        "maxPct": 2.5,
+        "typicalPct": 1
+      }
+    ],
+    "densityGPerCm3": 1.81,
+    "meltingPointC": 595,
+    "colorHex": "#cdd3db",
+    "usesFr": "Châssis d’appareils photo, boîtiers de boîtes de vitesses et aéronautique.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_lockalloy",
+    "nameFr": "Lockalloy (Be-Al)",
+    "familyFr": "Alliages légers & zinc",
+    "baseElement": "Be",
+    "components": [
+      {
+        "symbol": "Be",
+        "minPct": 55,
+        "maxPct": 70,
+        "typicalPct": 62
+      },
+      {
+        "symbol": "Al",
+        "minPct": 30,
+        "maxPct": 45,
+        "typicalPct": 38
+      }
+    ],
+    "densityGPerCm3": 2.09,
+    "meltingPointC": 1050,
+    "colorHex": "#aeb5be",
+    "usesFr": "Structures aérospatiales combinant rigidité du béryllium et légèreté.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_mischmetal",
+    "nameFr": "Mischmétal (pierre à briquet)",
+    "familyFr": "Alliages légers & zinc",
+    "baseElement": "Ce",
+    "components": [
+      {
+        "symbol": "Ce",
+        "minPct": 45,
+        "maxPct": 60,
+        "typicalPct": 52
+      },
+      {
+        "symbol": "La",
+        "minPct": 20,
+        "maxPct": 35,
+        "typicalPct": 26
+      },
+      {
+        "symbol": "Nd",
+        "minPct": 10,
+        "maxPct": 22,
+        "typicalPct": 16
+      },
+      {
+        "symbol": "Pr",
+        "minPct": 2,
+        "maxPct": 10,
+        "typicalPct": 6,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 6.7,
+    "meltingPointC": 800,
+    "colorHex": "#9da3ad",
+    "usesFr": "Allié au fer (ferrocérium) pour produire des étincelles dans les briquets.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferrocerium",
+    "nameFr": "Ferrocérium (allume-feu)",
+    "familyFr": "Alliages légers & zinc",
+    "baseElement": "Ce",
+    "components": [
+      {
+        "symbol": "Ce",
+        "minPct": 35,
+        "maxPct": 55,
+        "typicalPct": 45
+      },
+      {
+        "symbol": "La",
+        "minPct": 15,
+        "maxPct": 30,
+        "typicalPct": 22
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 15,
+        "maxPct": 30,
+        "typicalPct": 22
+      },
+      {
+        "symbol": "Nd",
+        "minPct": 0,
+        "maxPct": 15,
+        "typicalPct": 8,
+        "optional": true
+      },
+      {
+        "symbol": "Mg",
+        "minPct": 0,
+        "maxPct": 6,
+        "typicalPct": 3,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 6.8,
+    "meltingPointC": 850,
+    "colorHex": "#7d838c",
+    "usesFr": "Pierres à briquet et barres allume-feu pyrophoriques (étincelles à 3 000 °C).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_soudure_sn_pb",
+    "nameFr": "Soudure étain-plomb (60/40)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Sn",
+    "components": [
+      {
+        "symbol": "Sn",
+        "minPct": 45,
+        "maxPct": 75,
+        "typicalPct": 60
+      },
+      {
+        "symbol": "Pb",
+        "minPct": 25,
+        "maxPct": 55,
+        "typicalPct": 40
+      }
+    ],
+    "densityGPerCm3": 8.5,
+    "meltingPointC": 188,
+    "colorHex": "#9aa0a8",
+    "usesFr": "Brasure électronique classique (eutectique Sn 63 / Pb 37 à 183 °C).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_terne",
+    "nameFr": "Alliage Terne (Pb-Sn)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Pb",
+    "components": [
+      {
+        "symbol": "Pb",
+        "minPct": 75.1,
+        "maxPct": 92,
+        "typicalPct": 80
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 8,
+        "maxPct": 24.9,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 10.2,
+    "meltingPointC": 275,
+    "colorHex": "#7c828b",
+    "usesFr": "Revêtement anticorrosion de tôles de toiture et réservoirs.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_soudure_sac305",
+    "nameFr": "Soudure sans plomb (SAC305)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Sn",
+    "components": [
+      {
+        "symbol": "Sn",
+        "minPct": 92,
+        "maxPct": 98.5,
+        "typicalPct": 96.5
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 1,
+        "maxPct": 5,
+        "typicalPct": 3
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0.2,
+        "maxPct": 2.5,
+        "typicalPct": 0.5
+      }
+    ],
+    "densityGPerCm3": 7.38,
+    "meltingPointC": 217,
+    "colorHex": "#bdc3cb",
+    "usesFr": "Brasure électronique moderne conforme RoHS sans plomb.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_soudure_sn_cu",
+    "nameFr": "Soudure étain-cuivre (plomberie)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Sn",
+    "components": [
+      {
+        "symbol": "Sn",
+        "minPct": 95,
+        "maxPct": 99.5,
+        "typicalPct": 97
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0.5,
+        "maxPct": 5,
+        "typicalPct": 3
+      }
+    ],
+    "densityGPerCm3": 7.35,
+    "meltingPointC": 227,
+    "colorHex": "#babfc7",
+    "usesFr": "Brasure sans plomb pour conduites d’eau potable en cuivre.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_brasure_ag_cu",
+    "nameFr": "Brasure forte argent-cuivre (72/28)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Ag",
+    "components": [
+      {
+        "symbol": "Ag",
+        "minPct": 65,
+        "maxPct": 74.9,
+        "typicalPct": 72
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 25.1,
+        "maxPct": 35,
+        "typicalPct": 28
+      }
+    ],
+    "densityGPerCm3": 10,
+    "meltingPointC": 779,
+    "colorHex": "#d5c7c0",
+    "usesFr": "Eutectique de brasage haute résistance sous vide (industrie et tubes électroniques).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_pewter",
+    "nameFr": "Étain d’art (Pewter)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Sn",
+    "components": [
+      {
+        "symbol": "Sn",
+        "minPct": 84,
+        "maxPct": 97,
+        "typicalPct": 92
+      },
+      {
+        "symbol": "Sb",
+        "minPct": 2,
+        "maxPct": 12,
+        "typicalPct": 6
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0.5,
+        "maxPct": 5,
+        "typicalPct": 2,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.3,
+    "meltingPointC": 240,
+    "colorHex": "#b2b8c0",
+    "usesFr": "Vaisselle d’étain, pichets, figurines et objets décoratifs.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_babbitt",
+    "nameFr": "Régule (métal Babbitt)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Sn",
+    "components": [
+      {
+        "symbol": "Sn",
+        "minPct": 75,
+        "maxPct": 92,
+        "typicalPct": 89
+      },
+      {
+        "symbol": "Sb",
+        "minPct": 5,
+        "maxPct": 15,
+        "typicalPct": 7.5
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 2,
+        "maxPct": 10,
+        "typicalPct": 3.5
+      }
+    ],
+    "densityGPerCm3": 7.39,
+    "meltingPointC": 245,
+    "colorHex": "#afb5be",
+    "usesFr": "Coussinets antifriction de turbines, compresseurs et moteurs marins.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_metal_wood",
+    "nameFr": "Métal de Wood",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Bi",
+    "components": [
+      {
+        "symbol": "Bi",
+        "minPct": 44,
+        "maxPct": 56,
+        "typicalPct": 50
+      },
+      {
+        "symbol": "Pb",
+        "minPct": 20,
+        "maxPct": 32,
+        "typicalPct": 26.7
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 10,
+        "maxPct": 18,
+        "typicalPct": 13.3
+      },
+      {
+        "symbol": "Cd",
+        "minPct": 6,
+        "maxPct": 15,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 9.7,
+    "meltingPointC": 70,
+    "colorHex": "#9ba0ad",
+    "usesFr": "Fusibles thermiques et gicleurs incendie (fond dans l’eau chaude à 70 °C).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_metal_field",
+    "nameFr": "Métal de Field",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "In",
+    "components": [
+      {
+        "symbol": "In",
+        "minPct": 45,
+        "maxPct": 57,
+        "typicalPct": 51
+      },
+      {
+        "symbol": "Bi",
+        "minPct": 27,
+        "maxPct": 38,
+        "typicalPct": 32.5
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 12,
+        "maxPct": 22,
+        "typicalPct": 16.5
+      }
+    ],
+    "densityGPerCm3": 7.88,
+    "meltingPointC": 62,
+    "colorHex": "#b3b7c4",
+    "usesFr": "Alliage fusible non toxique sans plomb ni cadmium, fondant dès 62 °C.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_rose",
+    "nameFr": "Alliage de Rose",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Bi",
+    "components": [
+      {
+        "symbol": "Bi",
+        "minPct": 44,
+        "maxPct": 56,
+        "typicalPct": 50
+      },
+      {
+        "symbol": "Pb",
+        "minPct": 20,
+        "maxPct": 32,
+        "typicalPct": 25
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 20,
+        "maxPct": 32,
+        "typicalPct": 25
+      }
+    ],
+    "densityGPerCm3": 9.36,
+    "meltingPointC": 94,
+    "colorHex": "#9da2af",
+    "usesFr": "Bains de transfert thermique et moulages basse température (fond à 94 °C).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_cerrosafe",
+    "nameFr": "Cerrosafe",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Bi",
+    "components": [
+      {
+        "symbol": "Bi",
+        "minPct": 38,
+        "maxPct": 46,
+        "typicalPct": 42.5
+      },
+      {
+        "symbol": "Pb",
+        "minPct": 33,
+        "maxPct": 42,
+        "typicalPct": 37.7
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 9,
+        "maxPct": 14,
+        "typicalPct": 11.3
+      },
+      {
+        "symbol": "Cd",
+        "minPct": 6,
+        "maxPct": 11,
+        "typicalPct": 8.5
+      }
+    ],
+    "densityGPerCm3": 9.41,
+    "meltingPointC": 74,
+    "colorHex": "#9499a6",
+    "usesFr": "Empreintes de précision en métrologie (retrait nul après refroidissement).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_galinstan",
+    "nameFr": "Galinstan",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Ga",
+    "components": [
+      {
+        "symbol": "Ga",
+        "minPct": 60,
+        "maxPct": 76,
+        "typicalPct": 68.5
+      },
+      {
+        "symbol": "In",
+        "minPct": 16,
+        "maxPct": 28,
+        "typicalPct": 21.5
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 6,
+        "maxPct": 16,
+        "typicalPct": 10
+      }
+    ],
+    "densityGPerCm3": 6.44,
+    "meltingPointC": -19,
+    "colorHex": "#c6ced6",
+    "usesFr": "Thermomètres médicaux sans mercure et pâtes thermiques liquides.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_nak",
+    "nameFr": "NaK (sodium-potassium)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "K",
+    "components": [
+      {
+        "symbol": "K",
+        "minPct": 45,
+        "maxPct": 90,
+        "typicalPct": 78
+      },
+      {
+        "symbol": "Na",
+        "minPct": 10,
+        "maxPct": 55,
+        "typicalPct": 22
+      }
+    ],
+    "densityGPerCm3": 0.87,
+    "meltingPointC": -12,
+    "colorHex": "#d1d5db",
+    "usesFr": "Fluide caloporteur liquide à 20 °C et agent desséchant de laboratoire.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_metal_caractere",
+    "nameFr": "Plomb typographique",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Pb",
+    "components": [
+      {
+        "symbol": "Pb",
+        "minPct": 55,
+        "maxPct": 86,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Sb",
+        "minPct": 10,
+        "maxPct": 28,
+        "typicalPct": 17
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 3,
+        "maxPct": 22,
+        "typicalPct": 8
+      }
+    ],
+    "densityGPerCm3": 9.8,
+    "meltingPointC": 250,
+    "colorHex": "#777e88",
+    "usesFr": "Caractères mobiles d’imprimerie (légère expansion à la solidification).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_plomb_antimonie",
+    "nameFr": "Plomb antimonié (plomb dur)",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Pb",
+    "components": [
+      {
+        "symbol": "Pb",
+        "minPct": 85,
+        "maxPct": 98,
+        "typicalPct": 94
+      },
+      {
+        "symbol": "Sb",
+        "minPct": 2,
+        "maxPct": 15,
+        "typicalPct": 6
+      }
+    ],
+    "densityGPerCm3": 10.9,
+    "meltingPointC": 285,
+    "colorHex": "#6c727c",
+    "usesFr": "Grilles de batteries au plomb-acide et tuyauteries chimiques.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_amalgame_dentaire",
+    "nameFr": "Amalgame dentaire",
+    "familyFr": "Soudures & bas point de fusion",
+    "baseElement": "Hg",
+    "components": [
+      {
+        "symbol": "Hg",
+        "minPct": 42,
+        "maxPct": 56,
+        "typicalPct": 50
+      },
+      {
+        "symbol": "Ag",
+        "minPct": 20,
+        "maxPct": 40,
+        "typicalPct": 35
+      },
+      {
+        "symbol": "Sn",
+        "minPct": 8,
+        "maxPct": 20,
+        "typicalPct": 12
+      },
+      {
+        "symbol": "Cu",
+        "minPct": 0,
+        "maxPct": 10,
+        "typicalPct": 3,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 11.5,
+    "meltingPointC": 80,
+    "colorHex": "#c2c7ce",
+    "usesFr": "Obturations dentaires traditionnelles (plombages).",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferrochrome",
+    "nameFr": "Ferrochrome",
+    "familyFr": "Ferroalliages",
+    "baseElement": "Cr",
+    "components": [
+      {
+        "symbol": "Cr",
+        "minPct": 50,
+        "maxPct": 72,
+        "typicalPct": 62
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 24,
+        "maxPct": 48,
+        "typicalPct": 34
+      },
+      {
+        "symbol": "C",
+        "minPct": 0,
+        "maxPct": 8,
+        "typicalPct": 4,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.2,
+    "meltingPointC": 1550,
+    "colorHex": "#9aa2ac",
+    "usesFr": "Alliage mère sidérurgique apportant le chrome aux aciers inoxydables.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferrosilicium",
+    "nameFr": "Ferrosilicium",
+    "familyFr": "Ferroalliages",
+    "baseElement": "Si",
+    "components": [
+      {
+        "symbol": "Si",
+        "minPct": 40,
+        "maxPct": 80,
+        "typicalPct": 75
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 20,
+        "maxPct": 60,
+        "typicalPct": 25
+      }
+    ],
+    "densityGPerCm3": 3.1,
+    "meltingPointC": 1320,
+    "colorHex": "#636b76",
+    "usesFr": "Désoxydant de l’acier en fusion et production de fontes nodulaires.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferromanganese",
+    "nameFr": "Ferromanganèse",
+    "familyFr": "Ferroalliages",
+    "baseElement": "Mn",
+    "components": [
+      {
+        "symbol": "Mn",
+        "minPct": 65,
+        "maxPct": 85,
+        "typicalPct": 78
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 10,
+        "maxPct": 30,
+        "typicalPct": 16
+      },
+      {
+        "symbol": "C",
+        "minPct": 0,
+        "maxPct": 8,
+        "typicalPct": 6,
+        "optional": true
+      }
+    ],
+    "densityGPerCm3": 7.3,
+    "meltingPointC": 1260,
+    "colorHex": "#848088",
+    "usesFr": "Additif sidérurgique désulfurant et durcissant pour les aciers.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferronickel",
+    "nameFr": "Ferronickel",
+    "familyFr": "Ferroalliages",
+    "baseElement": "Fe",
+    "components": [
+      {
+        "symbol": "Fe",
+        "minPct": 50,
+        "maxPct": 82,
+        "typicalPct": 70
+      },
+      {
+        "symbol": "Ni",
+        "minPct": 18,
+        "maxPct": 50,
+        "typicalPct": 30
+      }
+    ],
+    "densityGPerCm3": 8.15,
+    "meltingPointC": 1450,
+    "colorHex": "#9298a1",
+    "usesFr": "Matière première issue des minerais latéritiques pour produire l’inox.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferrotitane",
+    "nameFr": "Ferrotitane",
+    "familyFr": "Ferroalliages",
+    "baseElement": "Ti",
+    "components": [
+      {
+        "symbol": "Ti",
+        "minPct": 40,
+        "maxPct": 75,
+        "typicalPct": 70
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 25,
+        "maxPct": 60,
+        "typicalPct": 30
+      }
+    ],
+    "densityGPerCm3": 5.4,
+    "meltingPointC": 1310,
+    "colorHex": "#9199a3",
+    "usesFr": "Affinage du grain et désoxydation des aciers spéciaux.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferrovanadium",
+    "nameFr": "Ferrovanadium",
+    "familyFr": "Ferroalliages",
+    "baseElement": "V",
+    "components": [
+      {
+        "symbol": "V",
+        "minPct": 45,
+        "maxPct": 85,
+        "typicalPct": 80
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 15,
+        "maxPct": 55,
+        "typicalPct": 20
+      }
+    ],
+    "densityGPerCm3": 6.4,
+    "meltingPointC": 1520,
+    "colorHex": "#89909b",
+    "usesFr": "Durcissement des aciers à outils, essieux et ressorts haute résistance.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferromolybdene",
+    "nameFr": "Ferromolybdène",
+    "familyFr": "Ferroalliages",
+    "baseElement": "Mo",
+    "components": [
+      {
+        "symbol": "Mo",
+        "minPct": 55,
+        "maxPct": 75,
+        "typicalPct": 65
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 25,
+        "maxPct": 45,
+        "typicalPct": 35
+      }
+    ],
+    "densityGPerCm3": 9.1,
+    "meltingPointC": 1850,
+    "colorHex": "#828a95",
+    "usesFr": "Apport de molybdène pour les aciers inoxydables marins et aciers rapides.",
+    "source": "curated"
+  },
+  {
+    "id": "alloy_ferrotungstene",
+    "nameFr": "Ferrotungstène",
+    "familyFr": "Ferroalliages",
+    "baseElement": "W",
+    "components": [
+      {
+        "symbol": "W",
+        "minPct": 70,
+        "maxPct": 85,
+        "typicalPct": 78
+      },
+      {
+        "symbol": "Fe",
+        "minPct": 15,
+        "maxPct": 30,
+        "typicalPct": 22
+      }
+    ],
+    "densityGPerCm3": 14.2,
+    "meltingPointC": 2500,
+    "colorHex": "#737a84",
+    "usesFr": "Fabrication d’aciers rapides (HSS) et d’outils de coupe résistants à chaud.",
+    "source": "curated"
+  }
+]

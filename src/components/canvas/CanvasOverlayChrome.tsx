@@ -1,4 +1,5 @@
 import {
+  Box,
   Combine,
   Copy,
   Filter,
@@ -25,10 +26,13 @@ export interface CanvasNotice {
 export function CanvasSelectionBar({
   selectedCount,
   canMergeSelected,
+  mergeLabel = 'Fusionner',
   canIonizeSelected,
   canIonizeMinus = true,
   canIonizePlus = true,
   selectedChargeSum,
+  canConvertSolidAtom = false,
+  onConvertSolidAtom,
   selectedFlask = null,
   onToggleFlaskFilter,
   onEmptyFlask,
@@ -39,10 +43,13 @@ export function CanvasSelectionBar({
 }: {
   selectedCount: number
   canMergeSelected: boolean
+  mergeLabel?: string
   canIonizeSelected: boolean
   canIonizeMinus?: boolean
   canIonizePlus?: boolean
   selectedChargeSum: number
+  canConvertSolidAtom?: boolean
+  onConvertSolidAtom?: () => void
   selectedFlask?: { hasFilter: boolean; hasContent: boolean } | null
   onToggleFlaskFilter?: () => void
   onEmptyFlask?: () => void
@@ -66,13 +73,32 @@ export function CanvasSelectionBar({
                 className="h-7 gap-1.5 px-2.5 text-xs font-medium"
               >
                 <Combine className="h-3.5 w-3.5" strokeWidth={1.75} />
-                <span>Fusionner</span>
+                <span>{mergeLabel}</span>
                 <span className="inline-block min-w-[18px] rounded bg-black/15 px-1 text-center text-[10px] tabular-nums">
                   {selectedCount}
                 </span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fusionner (V)</TooltipContent>
+            <TooltipContent>{mergeLabel} (V)</TooltipContent>
+          </Tooltip>
+          <Separator orientation="vertical" className="mx-0.5 h-4" />
+        </>
+      )}
+
+      {canConvertSolidAtom && onConvertSolidAtom && (
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onConvertSolidAtom}
+                aria-label="Convertir en bloc solide"
+              >
+                <Box className="h-3.5 w-3.5" strokeWidth={1.6} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Convertir en bloc solide (S)</TooltipContent>
           </Tooltip>
           <Separator orientation="vertical" className="mx-0.5 h-4" />
         </>

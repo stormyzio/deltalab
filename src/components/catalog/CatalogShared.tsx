@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ChemText } from '@/components/ui/chem-text'
 
-export type CatalogSection = 'species' | 'solutions' | 'reactions' | 'vessels'
+export type CatalogSection = 'species' | 'solutions' | 'reactions' | 'vessels' | 'alloys'
 export type ReactionSubTab = 'named' | 'redox' | 'ks' | 'pka' | 'predictor'
 export type SortDir = 'asc' | 'desc'
 

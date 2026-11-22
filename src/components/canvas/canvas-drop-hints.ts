@@ -1,9 +1,16 @@
 import {
-  ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID,
+  type AlloyRecord,
   type CanvasFlaskNode,
   type CanvasNode,
+  type CanvasSolidNode,
+  type ElementRecord,
 } from '../../../shared/chemistry.ts'
-import { formatSpeciesQuantityBadge, formatVolumeMl } from '@/lib/chemistry-ui'
+import {
+  formatMassG,
+  formatSpeciesQuantityBadge,
+  formatVolumeMl,
+} from '@/lib/chemistry-ui'
+import { forgeAlloyFromNodes, getSolidTotalMassG } from '@/lib/solid-alloys'
 
 export interface FlaskDropHint {
   text: string
@@ -13,18 +20,29 @@ export interface FlaskDropHint {
 export function computeCanvasDropHint(
   draggedNode: CanvasNode | undefined,
   targetFlask: CanvasFlaskNode,
+  elementsBySymbol?: Map<string, ElementRecord>,
 ): FlaskDropHint | null {
   if (!draggedNode) return null
 
   if (draggedNode.kind === 'atom') {
-    const solidId = ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[draggedNode.symbol]
-    if (!solidId) {
-      return { text: `${draggedNode.symbol} non immergeable seul`, valid: false }
+    const el = elementsBySymbol?.get(draggedNode.symbol)
+    if (el && el.defaultState !== 'solid') {
+      return { text: `${draggedNode.symbol} n’est pas solide`, valid: false }
     }
     return {
       text: targetFlask.solution.hasWater
         ? `Immerger ${draggedNode.symbol}(s)`
         : `Ajouter ${draggedNode.symbol}(s)`,
+      valid: true,
+    }
+  }
+
+  if (draggedNode.kind === 'solid') {
+    const massLabel = formatMassG(getSolidTotalMassG(draggedNode))
+    return {
+      text: targetFlask.solution.hasWater
+        ? `Immerger ${draggedNode.nameFr} (${massLabel})`
+        : `Déposer ${draggedNode.nameFr} (${massLabel})`,
       valid: true,
     }
   }
@@ -81,4 +99,33 @@ export function computeCanvasDropHint(
   }
 
   return null
+}
+
+export function computeSolidDropHint(
+  draggedNode: CanvasNode | undefined,
+  targetSolid: CanvasSolidNode,
+  alloys: AlloyRecord[],
+  elementsBySymbol: Map<string, ElementRecord>,
+): FlaskDropHint | null {
+  if (!draggedNode || draggedNode.id === targetSolid.id) return null
+  if (draggedNode.kind === 'atom') {
+    const el = elementsBySymbol.get(draggedNode.symbol)
+    if (!el || el.defaultState !== 'solid') {
+      return { text: `${draggedNode.symbol} n’est pas solide`, valid: false }
+    }
+  } else if (draggedNode.kind !== 'solid') {
+    return null
+  }
+
+  const preview = forgeAlloyFromNodes(
+    [targetSolid, draggedNode],
+    alloys,
+    elementsBySymbol,
+    targetSolid.x,
+    targetSolid.y,
+  )
+  return {
+    text: preview.isAlloy ? `Allier → ${preview.nameFr}` : `Fusionner (${preview.nameFr})`,
+    valid: true,
+  }
 }

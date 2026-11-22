@@ -15,12 +15,14 @@ export function PeriodicElementInspector({
   catalog,
   temperatureC,
   onSpawn,
+  onSpawnSolid,
   onJumpToSpecies,
 }: {
   element: ElementRecord
   catalog: FullCatalogResponse
   temperatureC: number
   onSpawn: () => void
+  onSpawnSolid?: () => void
   onJumpToSpecies: (id: string) => void
 }) {
   const cat = CATEGORY_META[element.category]
@@ -83,6 +85,11 @@ export function PeriodicElementInspector({
         catalog={catalog}
         temperatureC={temperatureC}
         onJumpToSpecies={onJumpToSpecies}
+        solidAction={
+          onSpawnSolid
+            ? { label: 'Bloc sur paillasse', onClick: onSpawnSolid }
+            : undefined
+        }
       />
     </div>
   )

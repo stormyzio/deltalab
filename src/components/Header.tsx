@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   Atom,
   Beaker,
+  Box,
   Database,
   Droplets,
   FlaskConical,
@@ -29,6 +30,7 @@ export type AppView =
   | 'solutions'
   | 'reactions'
   | 'vessels'
+  | 'alloys'
 
 interface HeaderProps {
   activeView: AppView
@@ -185,6 +187,21 @@ export function Header({
             <Beaker className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
             <span>Verrerie</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => onViewChange('alloys')}
+            aria-current={activeView === 'alloys' ? 'page' : undefined}
+            className={cn(
+              'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium',
+              activeView === 'alloys'
+                ? 'bg-accent text-foreground'
+                : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+            )}
+          >
+            <Box className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
+            <span>Alliages</span>
+          </button>
         </nav>
       </div>
 
@@ -242,6 +259,14 @@ export function Header({
                 <dd className="text-right tabular-nums text-foreground">
                   {summary.speciesCount}
                 </dd>
+                {typeof summary.alloysCount === 'number' && (
+                  <>
+                    <dt className="text-muted-foreground">Alliages</dt>
+                    <dd className="text-right tabular-nums text-foreground">
+                      {summary.alloysCount}
+                    </dd>
+                  </>
+                )}
                 <dt className="text-muted-foreground">Solutions</dt>
                 <dd className="text-right tabular-nums text-foreground">
                   {summary.solutionsCount}

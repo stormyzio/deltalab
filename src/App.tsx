@@ -58,6 +58,7 @@ const CONTINUOUS_HISTORY_FIELDS = new Set([
   'heaterTargetC',
   'reactionExtentMol',
   'amountMol',
+  'components',
   'solution',
   'label',
 ])
@@ -93,7 +94,8 @@ function isCatalogSectionView(view: AppView): view is CatalogSection {
     view === 'species' ||
     view === 'solutions' ||
     view === 'reactions' ||
-    view === 'vessels'
+    view === 'vessels' ||
+    view === 'alloys'
   )
 }
 
@@ -469,7 +471,9 @@ export default function App() {
             ? '#reactions'
             : next === 'vessels'
               ? '#verrerie'
-              : next === 'lewis'
+              : next === 'alloys'
+                ? '#alliages'
+                : next === 'lewis'
                 ? '#lewis'
                 : next === 'equations'
                   ? '#equations'
@@ -513,6 +517,7 @@ export default function App() {
 
   const elements = useMemo(() => catalog?.elements ?? [], [catalog])
   const vessels = useMemo(() => catalog?.vessels ?? [], [catalog])
+  const alloys = useMemo(() => catalog?.alloys ?? [], [catalog])
   const summary = catalog?.summary ?? null
 
   const elementsBySymbol = useMemo(() => {
@@ -683,6 +688,7 @@ export default function App() {
 
   const flaskCore = useFlaskCoreActions({
     nodesRef,
+    elementsBySymbol,
     setNodes,
     setSelectedIds,
     showNotice,
@@ -709,6 +715,7 @@ export default function App() {
     elementsBySymbol,
     speciesMap,
     vessels,
+    alloys,
     setNodes,
     setSelectedIds,
     setPendingMerge,
@@ -875,6 +882,11 @@ export default function App() {
     canIonizeMinus: ionizeAvailability.canMinus,
     canIonizePlus: ionizeAvailability.canPlus,
     onUpdateMoleculeAmount: workbench.handleUpdateMoleculeAmount,
+    onConvertAtomToSolid: workbench.handleConvertAtomToSolid,
+    onSetSolidMass: workbench.handleSetSolidMass,
+    onSetSolidVolume: workbench.handleSetSolidVolume,
+    onSetSolidComponentMass: workbench.handleSetSolidComponentMass,
+    onReproportionSolidToAlloy: workbench.handleReproportionSolidToAlloy,
     onAddWaterToFlask: flaskCore.handleAddWaterToFlask,
     onResizeFlask: flaskCore.handleResizeFlask,
     onSetFlaskTemperature: flaskCore.handleSetFlaskTemperature,
@@ -925,7 +937,8 @@ export default function App() {
             {(visitedViews.has('species') ||
               visitedViews.has('solutions') ||
               visitedViews.has('reactions') ||
-              visitedViews.has('vessels')) && (
+              visitedViews.has('vessels') ||
+              visitedViews.has('alloys')) && (
               <div
                 className={
                   isCatalogSectionView(activeView)
@@ -940,6 +953,7 @@ export default function App() {
                   jumpTarget={catalogJumpTarget}
                   active={isCatalogSectionView(activeView)}
                   onSpawnToWorkbench={handleCatalogSpawn}
+                  onSpawnAlloy={workbench.handleSpawnAlloy}
                   onSpawnReactionSetup={handleCatalogSpawnReaction}
                   onOpenInLewisBuilder={handleCatalogOpenLewis}
                   onOpenElementInPeriodic={handleOpenElementInPeriodic}
@@ -960,6 +974,7 @@ export default function App() {
                   jumpTarget={periodicJumpTarget}
                   active={activeView === 'periodic'}
                   onSpawnToWorkbench={handleCatalogSpawn}
+                  onSpawnSolidElement={workbench.handleSpawnSolidElement}
                   onJumpToSpecies={handleOpenSpeciesInCatalog}
                 />
               </div>
@@ -1017,6 +1032,8 @@ export default function App() {
                     active={activeView === 'workbench'}
                     hydrated={hydrated}
                     nodes={nodes}
+                    elementsBySymbol={elementsBySymbol}
+                    alloys={alloys}
                     selectedIds={selectedIds}
                     viewport={viewport}
                     onViewportChange={setViewport}
@@ -1035,6 +1052,11 @@ export default function App() {
                     onEmptyFlask={flaskCore.handleEmptyFlask}
                     onToggleFlaskFilter={flaskCore.handleToggleFlaskFilter}
                     onDropAtomOnFlask={flaskCore.handleDropAtomOnFlask}
+                    onDropSolidOnFlask={(solidId, flaskId) =>
+                      void flaskCore.handleDropSolidOnFlask(solidId, flaskId)
+                    }
+                    onDropSolidOnSolid={workbench.handleDropSolidOnSolid}
+                    onConvertAtomToSolid={workbench.handleConvertAtomToSolid}
                     onDropMoleculeOnFlask={flaskCore.handleDropMoleculeOnFlask}
                     onPourBetweenFlasks={(src, tgt, vol) =>
                       void flaskRxn.handlePourBetweenFlasks(src, tgt, vol)
@@ -1053,10 +1075,20 @@ export default function App() {
                       workbench.handleClearCanvas()
                     }}
                     savedWorkbenches={labSim.savedWorkbenches}
+                    activeWorkbenchId={labSim.activeWorkbenchId}
                     onLoadPreset={(preset) => void labSim.handleLoadPreset(preset)}
                     onSaveCurrentWorkbench={labSim.handleSaveCurrentWorkbench}
+                    onUpdateSavedWorkbench={labSim.handleUpdateSavedWorkbench}
+                    onRenameSavedWorkbench={labSim.handleRenameSavedWorkbench}
+                    onDuplicateSavedWorkbench={labSim.handleDuplicateSavedWorkbench}
+                    onNewWorkbench={labSim.handleNewWorkbench}
                     onLoadSavedWorkbench={labSim.handleLoadSavedWorkbench}
                     onDeleteSavedWorkbench={labSim.handleDeleteSavedWorkbench}
+                    onExportCurrentWorkbench={labSim.handleExportCurrentWorkbench}
+                    onExportSavedWorkbench={labSim.handleExportSavedWorkbench}
+                    onImportWorkbenchFile={(file, mode) =>
+                      void labSim.handleImportWorkbenchFile(file, mode)
+                    }
                     externalHoveredFlaskId={externalHoveredFlaskId}
                     externalHoverHint={externalHoverHint}
                     pulsingFlaskIds={pulsingFlaskIds}

@@ -27,6 +27,12 @@ import {
   findTitrationPairs,
 } from '@/lib/titration-engine'
 import { createNodeId } from '@/lib/workbench-helpers'
+import {
+  buildWorkbenchExportPayload,
+  cloneNodesWithFreshIds,
+  downloadWorkbenchFile,
+  parseWorkbenchFile,
+} from '@/lib/workbench-io'
 import type { CanvasNotice } from '@/components/LabCanvas'
 import type { TitrationSessionState } from '@/components/canvas/TitrationDrawer'
 
@@ -94,6 +100,7 @@ export function useLabSimulation({
   const [savedWorkbenches, setSavedWorkbenches] = useState<SavedWorkbenchRecord[]>(
     () => loadSavedWorkbenches(),
   )
+  const [activeWorkbenchId, setActiveWorkbenchId] = useState<string | null>(null)
 
   const titrationSessionRef = useRef<TitrationSessionState | null>(titrationSession)
   useEffect(() => {
@@ -551,6 +558,7 @@ export function useLabSimulation({
         } else {
           setTitrationSession(null)
         }
+        setActiveWorkbenchId(null)
         showNotice('success', `TP chargé : ${preset.titleFr}`)
       } catch {
         showNotice('warning', 'Erreur lors du chargement du TP.')
@@ -563,23 +571,113 @@ export function useLabSimulation({
     (name: string) => {
       const currentNodes = nodesRef.current
       if (currentNodes.length === 0) return
+      const trimmed = name.trim()
+      if (!trimmed) return
+      const nowIso = new Date().toISOString()
       const record: SavedWorkbenchRecord = {
         id: createNodeId('bench'),
-        name,
-        savedAt: new Date().toISOString(),
+        name: trimmed,
+        savedAt: nowIso,
+        updatedAt: nowIso,
         nodeCount: currentNodes.length,
         nodes: JSON.parse(JSON.stringify(currentNodes)) as CanvasNode[],
         discoveredSpeciesIds: [...discoveredSpeciesIds],
       }
       setSavedWorkbenches((prev) => {
-        const next = [record, ...prev].slice(0, 16)
+        const next = [record, ...prev].slice(0, 50)
         persistSavedWorkbenches(next)
         return next
       })
-      showNotice('success', `Paillasse « ${name} » sauvegardée.`)
+      setActiveWorkbenchId(record.id)
+      showNotice('success', `Paillasse « ${trimmed} » sauvegardée.`)
     },
     [discoveredSpeciesIds, nodesRef, showNotice],
   )
+
+  const handleUpdateSavedWorkbench = useCallback(
+    (id: string) => {
+      const currentNodes = nodesRef.current
+      if (currentNodes.length === 0) {
+        showNotice('warning', 'Impossible d’écraser avec une paillasse vide.')
+        return
+      }
+      const nowIso = new Date().toISOString()
+      let updatedName = ''
+      setSavedWorkbenches((prev) => {
+        const next = prev.map((item) => {
+          if (item.id !== id) return item
+          updatedName = item.name
+          return {
+            ...item,
+            updatedAt: nowIso,
+            nodeCount: currentNodes.length,
+            nodes: JSON.parse(JSON.stringify(currentNodes)) as CanvasNode[],
+            discoveredSpeciesIds: [...discoveredSpeciesIds],
+          }
+        })
+        persistSavedWorkbenches(next)
+        return next
+      })
+      setActiveWorkbenchId(id)
+      if (updatedName) {
+        showNotice('success', `Paillasse « ${updatedName} » mise à jour.`)
+      }
+    },
+    [discoveredSpeciesIds, nodesRef, showNotice],
+  )
+
+  const handleRenameSavedWorkbench = useCallback(
+    (id: string, nextName: string) => {
+      const trimmed = nextName.trim().slice(0, 60)
+      if (!trimmed) return
+      setSavedWorkbenches((prev) => {
+        const next = prev.map((item) =>
+          item.id === id ? { ...item, name: trimmed } : item,
+        )
+        persistSavedWorkbenches(next)
+        return next
+      })
+      showNotice('neutral', `Paillasse renommée en « ${trimmed} ».`)
+    },
+    [showNotice],
+  )
+
+  const handleDuplicateSavedWorkbench = useCallback(
+    (id: string) => {
+      const nowIso = new Date().toISOString()
+      let copyName = ''
+      setSavedWorkbenches((prev) => {
+        const src = prev.find((item) => item.id === id)
+        if (!src) return prev
+        copyName = `${src.name} (copie)`.slice(0, 60)
+        const clone: SavedWorkbenchRecord = {
+          id: createNodeId('bench'),
+          name: copyName,
+          savedAt: nowIso,
+          updatedAt: nowIso,
+          nodeCount: src.nodes.length,
+          nodes: JSON.parse(JSON.stringify(src.nodes)) as CanvasNode[],
+          discoveredSpeciesIds: [...src.discoveredSpeciesIds],
+        }
+        const next = [clone, ...prev].slice(0, 50)
+        persistSavedWorkbenches(next)
+        return next
+      })
+      if (copyName) {
+        showNotice('success', `Paillasse dupliquée : « ${copyName} ».`)
+      }
+    },
+    [showNotice],
+  )
+
+  const handleNewWorkbench = useCallback(() => {
+    setTitrationSession(null)
+    setNodes([])
+    setSelectedIds(new Set())
+    setActiveWorkbenchId(null)
+    onResetView()
+    showNotice('neutral', 'Nouvelle paillasse vierge prête.')
+  }, [onResetView, setNodes, setSelectedIds, showNotice])
 
   const handleLoadSavedWorkbench = useCallback(
     (record: SavedWorkbenchRecord) => {
@@ -589,24 +687,143 @@ export function useLabSimulation({
         setDiscoveredSpeciesIds(record.discoveredSpeciesIds)
       }
       setSelectedIds(new Set())
+      setActiveWorkbenchId(record.id)
       onResetView()
-      showNotice('success', `Paillasse « ${record.name} » rechargée.`)
+      showNotice('success', `Paillasse « ${record.name} » chargée.`)
     },
     [onResetView, setDiscoveredSpeciesIds, setNodes, setSelectedIds, showNotice],
   )
 
-  const handleDeleteSavedWorkbench = useCallback((id: string) => {
-    setSavedWorkbenches((prev) => {
-      const next = prev.filter((item) => item.id !== id)
-      persistSavedWorkbenches(next)
-      return next
-    })
-  }, [])
+  const handleDeleteSavedWorkbench = useCallback(
+    (id: string) => {
+      setSavedWorkbenches((prev) => {
+        const next = prev.filter((item) => item.id !== id)
+        persistSavedWorkbenches(next)
+        return next
+      })
+      setActiveWorkbenchId((curr) => (curr === id ? null : curr))
+    },
+    [],
+  )
+
+  const handleExportCurrentWorkbench = useCallback(
+    (customName?: string) => {
+      const currentNodes = nodesRef.current
+      if (currentNodes.length === 0) {
+        showNotice('warning', 'Ajoutez au moins un élément avant d’exporter la paillasse.')
+        return
+      }
+      const activeBench = savedWorkbenches.find((b) => b.id === activeWorkbenchId)
+      const exportName =
+        customName?.trim() || activeBench?.name || 'Paillasse DeltaLab'
+      const payload = buildWorkbenchExportPayload(
+        exportName,
+        currentNodes,
+        discoveredSpeciesIds,
+      )
+      const filename = downloadWorkbenchFile(payload)
+      showNotice('success', `Exporté : ${filename}`)
+    },
+    [activeWorkbenchId, discoveredSpeciesIds, nodesRef, savedWorkbenches, showNotice],
+  )
+
+  const handleExportSavedWorkbench = useCallback(
+    (record: SavedWorkbenchRecord) => {
+      const payload = buildWorkbenchExportPayload(
+        record.name,
+        record.nodes,
+        record.discoveredSpeciesIds,
+      )
+      const filename = downloadWorkbenchFile(payload)
+      showNotice('success', `Exporté : ${filename}`)
+    },
+    [showNotice],
+  )
+
+  const handleImportWorkbenchFile = useCallback(
+    async (file: File, mode: 'replace' | 'merge' = 'replace') => {
+      let text: string
+      try {
+        text = await file.text()
+      } catch {
+        showNotice('warning', 'Impossible de lire le fichier sélectionné.')
+        return
+      }
+
+      const result = parseWorkbenchFile(text, file.name)
+      if (!result.ok) {
+        showNotice('warning', result.errorFr)
+        return
+      }
+
+      const { name, nodes: importedNodes, discoveredSpeciesIds: importedDiscovered, skippedNodes } =
+        result
+
+      if (mode === 'merge' && nodesRef.current.length > 0) {
+        // Place imported group neatly to the right of existing nodes
+        const maxExistingX = Math.max(...nodesRef.current.map((n) => n.x))
+        const minImportX = Math.min(...importedNodes.map((n) => n.x))
+        const offsetX = maxExistingX - minImportX + 260
+        const freshNodes = cloneNodesWithFreshIds(importedNodes, offsetX, 0)
+        setNodes((prev) => [...prev, ...freshNodes])
+        setSelectedIds(new Set(freshNodes.map((n) => n.id)))
+        if (importedDiscovered.length > 0) {
+          setDiscoveredSpeciesIds((prev) => {
+            const merged = new Set([...prev, ...importedDiscovered])
+            return [...merged]
+          })
+        }
+        showNotice(
+          'success',
+          `« ${name} » fusionnée (+${freshNodes.length} élément${freshNodes.length > 1 ? 's' : ''}).`,
+        )
+        return
+      }
+
+      // Replace mode: load onto canvas AND store in Mes paillasses for quick reuse
+      const nowIso = new Date().toISOString()
+      const freshNodes = cloneNodesWithFreshIds(importedNodes)
+      const savedRec: SavedWorkbenchRecord = {
+        id: createNodeId('bench'),
+        name,
+        savedAt: nowIso,
+        updatedAt: nowIso,
+        nodeCount: freshNodes.length,
+        nodes: JSON.parse(JSON.stringify(freshNodes)) as CanvasNode[],
+        discoveredSpeciesIds: [...importedDiscovered],
+      }
+
+      setTitrationSession(null)
+      setNodes(freshNodes)
+      if (importedDiscovered.length > 0) {
+        setDiscoveredSpeciesIds((prev) => {
+          const merged = new Set([...prev, ...importedDiscovered])
+          return [...merged]
+        })
+      }
+      setSelectedIds(new Set())
+      setSavedWorkbenches((prev) => {
+        const next = [savedRec, ...prev].slice(0, 50)
+        persistSavedWorkbenches(next)
+        return next
+      })
+      setActiveWorkbenchId(savedRec.id)
+      onResetView()
+      showNotice(
+        'success',
+        skippedNodes > 0
+          ? `Paillasse « ${name} » importée (${freshNodes.length} éléments, ${skippedNodes} ignoré${skippedNodes > 1 ? 's' : ''}).`
+          : `Paillasse « ${name} » importée (${freshNodes.length} élément${freshNodes.length > 1 ? 's' : ''}).`,
+      )
+    },
+    [onResetView, nodesRef, setDiscoveredSpeciesIds, setNodes, setSelectedIds, showNotice],
+  )
 
   return {
     titrationSession,
     setTitrationSession,
     savedWorkbenches,
+    activeWorkbenchId,
     handleSetFlaskIndicator,
     handleToggleFlaskProbe,
     handleToggleFlaskStirrer,
@@ -618,7 +835,14 @@ export function useLabSimulation({
     handleResetTitrationSession,
     handleLoadPreset,
     handleSaveCurrentWorkbench,
+    handleUpdateSavedWorkbench,
+    handleRenameSavedWorkbench,
+    handleDuplicateSavedWorkbench,
+    handleNewWorkbench,
     handleLoadSavedWorkbench,
     handleDeleteSavedWorkbench,
+    handleExportCurrentWorkbench,
+    handleExportSavedWorkbench,
+    handleImportWorkbenchFile,
   }
 }

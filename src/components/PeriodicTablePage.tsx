@@ -60,6 +60,7 @@ interface PeriodicTablePageProps {
   jumpTarget?: PeriodicJumpRequest | null
   active?: boolean
   onSpawnToWorkbench: (item: ExternalDragItem) => void
+  onSpawnSolidElement?: (element: ElementRecord) => void
   onJumpToSpecies: (speciesId: string) => void
 }
 
@@ -68,6 +69,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
   jumpTarget = null,
   active = true,
   onSpawnToWorkbench,
+  onSpawnSolidElement,
   onJumpToSpecies,
 }: PeriodicTablePageProps) {
   const elements = useMemo(() => catalog?.elements ?? [], [catalog])
@@ -637,6 +639,11 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
                 catalog={catalog}
                 temperatureC={colorMode === 'state' ? temperatureC : 20}
                 onSpawn={() => onSpawnToWorkbench({ kind: 'atom', element: selectedElement })}
+                onSpawnSolid={
+                  selectedElement.defaultState === 'solid' && onSpawnSolidElement
+                    ? () => onSpawnSolidElement(selectedElement)
+                    : undefined
+                }
                 onJumpToSpecies={onJumpToSpecies}
               />
             </div>

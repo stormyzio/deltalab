@@ -26,6 +26,9 @@ interface CatalogFilterBarProps {
   onSolutionPhFilter: (val: 'all' | 'acid' | 'neutral' | 'base' | 'colored') => void
   reactionSubTab: ReactionSubTab
   onReactionSubTab: (val: ReactionSubTab) => void
+  alloyFamilyFilter?: string
+  onAlloyFamilyFilter?: (val: string) => void
+  alloyFamilies?: string[]
   activeCount: number
 }
 
@@ -43,6 +46,9 @@ export function CatalogFilterBar({
   onSolutionPhFilter,
   reactionSubTab,
   onReactionSubTab,
+  alloyFamilyFilter = 'all',
+  onAlloyFamilyFilter,
+  alloyFamilies = [],
   activeCount,
 }: CatalogFilterBarProps) {
   return (
@@ -157,6 +163,26 @@ export function CatalogFilterBar({
           <span className="text-[11px] text-muted-foreground">
             Verrerie disponible dans la boîte à outils
           </span>
+        )}
+
+        {section === 'alloys' && onAlloyFamilyFilter && (
+          <>
+            <FilterChip
+              active={alloyFamilyFilter === 'all'}
+              onClick={() => onAlloyFamilyFilter('all')}
+            >
+              Toutes familles
+            </FilterChip>
+            {alloyFamilies.map((fam) => (
+              <FilterChip
+                key={fam}
+                active={alloyFamilyFilter === fam}
+                onClick={() => onAlloyFamilyFilter(fam)}
+              >
+                {fam}
+              </FilterChip>
+            ))}
+          </>
         )}
       </div>
 

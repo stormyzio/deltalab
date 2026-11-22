@@ -6,12 +6,19 @@ import type {
   ElementRecord,
   SpeciesRecord,
 } from '../../../shared/chemistry.ts'
-import { formatFrNumber } from '@/lib/chemistry-ui'
-import { formatBehaviorEntry } from '@/lib/chemistry-calc'
+import { SPECIES_SOURCE_LABEL, formatFrNumber } from '@/lib/chemistry-ui'
 import { describeWaterBehavior } from '@/lib/water-behavior'
 import { ChemFormula, ChemText } from '@/components/ui/chem-text'
 import { VesselArtwork } from '@/components/VesselArtwork'
 import type { CatalogJumpTarget } from './InspectorPrimitives'
+
+function UnknownValue({ title = 'Donnée non renseignée en base' }: { title?: string }) {
+  return (
+    <span title={title} className="text-muted-foreground">
+      ?
+    </span>
+  )
+}
 
 export interface MassBreakdownItem {
   sym: string
@@ -24,37 +31,36 @@ export interface MassBreakdownItem {
 export function SpeciesChemistryTab({
   sp,
   enriched,
-  isIon,
   isUnknownSolubility,
   linkedSolution,
   linkedReactions,
   massBreakdown,
-  behaviors,
-  distinctIupac,
+  notableBehaviors,
   elementsBySymbol,
   onOpenInCatalog,
 }: {
   sp: SpeciesRecord
   enriched: CatalogSpeciesRecord | null
-  isIon: boolean
   isUnknownSolubility: boolean
   linkedSolution: CatalogSolutionRecord | null
   linkedReactions: CatalogReactionRecord[]
   massBreakdown: MassBreakdownItem[]
-  behaviors: Array<[string, unknown]>
-  distinctIupac: string | null
+  notableBehaviors: Array<{ key: string; text: string }>
   elementsBySymbol: Map<string, ElementRecord>
   onOpenInCatalog: (target: CatalogJumpTarget) => void
 }) {
   const waterBehavior = describeWaterBehavior(sp, isUnknownSolubility)
-  void isIon
   return (
     <div className="space-y-4">
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2 text-[11px]">
           <span className="font-medium text-muted-foreground">Comportement dans l’eau</span>
           <span className="shrink-0 whitespace-nowrap text-zinc-300">
-            {waterBehavior.tierLabel}
+            {waterBehavior.tier === 'unknown' ? (
+              <UnknownValue title="Solubilité dans l’eau non renseignée" />
+            ) : (
+              waterBehavior.tierLabel
+            )}
           </span>
         </div>
 
@@ -207,56 +213,49 @@ export function SpeciesChemistryTab({
         </section>
       )}
 
-      {behaviors.length > 0 && (
-        <section className="space-y-1.5 border-t border-border/60 pt-3.5">
-          <p className="text-[11px] font-medium text-muted-foreground">Propriétés</p>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            {behaviors.map(([k, v]) => {
-              const formatted = formatBehaviorEntry(k, v)
-              return (
-                <span key={k}>
-                  <ChemText value={formatted.label} /> :{' '}
-                  <span className="text-zinc-200">{formatted.display}</span>
-                </span>
-              )
-            })}
-          </div>
+      {notableBehaviors.length > 0 && (
+        <section className="space-y-1 border-t border-border/60 pt-3.5">
+          <p className="text-[11px] font-medium text-muted-foreground">Particularités</p>
+          <p className="text-[11px] leading-relaxed text-zinc-200">
+            {notableBehaviors.map((b, idx) => (
+              <span key={b.key}>
+                {idx > 0 && ' · '}
+                <ChemText value={b.text} />
+              </span>
+            ))}
+          </p>
         </section>
       )}
 
-      {(distinctIupac || sp.casNumber || sp.pubchemCid) && (
-        <section className="space-y-2 border-t border-border/60 pt-3.5">
-          <p className="text-[11px] font-medium text-muted-foreground">Références</p>
-          {distinctIupac && (
-            <div>
-              <span className="block text-[10.5px] text-muted-foreground">Nom IUPAC</span>
-              <p className="mt-0.5 break-words text-[11.5px] leading-snug text-zinc-200">
-                {distinctIupac}
-              </p>
-            </div>
-          )}
-          {(sp.casNumber || sp.pubchemCid) && (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-              {sp.casNumber && (
-                <div>
-                  <dt className="text-[10.5px] text-muted-foreground">N° CAS</dt>
-                  <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
-                    {sp.casNumber}
-                  </dd>
-                </div>
-              )}
-              {sp.pubchemCid && (
-                <div>
-                  <dt className="text-[10.5px] text-muted-foreground">PubChem CID</dt>
-                  <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
-                    {sp.pubchemCid}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          )}
-        </section>
-      )}
+      <section className="space-y-2 border-t border-border/60 pt-3.5">
+        <p className="text-[11px] font-medium text-muted-foreground">Références</p>
+        <div>
+          <span className="block text-[10.5px] text-muted-foreground">Nom IUPAC</span>
+          <p className="mt-0.5 break-words text-[11.5px] leading-snug text-zinc-200">
+            {sp.iupacName ? sp.iupacName : <UnknownValue />}
+          </p>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+          <div>
+            <dt className="text-[10.5px] text-muted-foreground">N° CAS</dt>
+            <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
+              {sp.casNumber ? sp.casNumber : <UnknownValue />}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10.5px] text-muted-foreground">PubChem CID</dt>
+            <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
+              {sp.pubchemCid ? sp.pubchemCid : <UnknownValue />}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10.5px] text-muted-foreground">Source</dt>
+            <dd className="mt-0.5 text-[11px] text-zinc-300">
+              {SPECIES_SOURCE_LABEL[sp.source]}
+            </dd>
+          </div>
+        </dl>
+      </section>
     </div>
   )
 }

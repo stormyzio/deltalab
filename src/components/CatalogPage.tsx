@@ -1,6 +1,8 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Search, X } from 'lucide-react'
 import type {
+  AlloyRecord,
+  ElementRecord,
   FullCatalogResponse,
   ReactionConstantsResponse,
   SpeciesKind,
@@ -18,6 +20,10 @@ import {
   type SortDir,
 } from '@/components/catalog/CatalogShared'
 import { CatalogFilterBar } from '@/components/catalog/CatalogFilterBar'
+import {
+  AlloyDetail,
+  AlloysCatalogTable,
+} from '@/components/catalog/AlloysCatalogView'
 import {
   NamedReactionsTable,
   ReactionConstantsTables,
@@ -42,6 +48,7 @@ interface CatalogPageProps {
   jumpTarget: CatalogJumpRequest | null
   active?: boolean
   onSpawnToWorkbench: (item: ExternalDragItem) => void
+  onSpawnAlloy?: (alloy: AlloyRecord) => void
   onOpenInLewisBuilder: (species: SpeciesRecord) => void
   onOpenElementInPeriodic?: (atomicNumber: number) => void
   onSpawnReactionSetup?: (setup: ReactionSpawnSetup) => void
@@ -54,6 +61,7 @@ export const CatalogPage = memo(function CatalogPage({
   jumpTarget,
   active = true,
   onSpawnToWorkbench,
+  onSpawnAlloy,
   onOpenInLewisBuilder,
   onOpenElementInPeriodic,
   onSpawnReactionSetup,
@@ -98,9 +106,16 @@ export const CatalogPage = memo(function CatalogPage({
     'all' | 'acid' | 'neutral' | 'base' | 'colored'
   >('all')
   const [reactionSubTab, setReactionSubTab] = useState<ReactionSubTab>('named')
+  const [alloyFamilyFilter, setAlloyFamilyFilter] = useState<string>('all')
   const [reactionConstants, setReactionConstants] =
     useState<ReactionConstantsResponse | null>(null)
   const [visibleSpeciesCount, setVisibleSpeciesCount] = useState(120)
+
+  const elementsBySymbol = useMemo(() => {
+    const map = new Map<string, ElementRecord>()
+    for (const el of catalog?.elements ?? []) map.set(el.symbol, el)
+    return map
+  }, [catalog])
 
   useEffect(() => {
     if (section !== 'reactions' || reactionConstants !== null) return
@@ -123,6 +138,7 @@ export const CatalogPage = memo(function CatalogPage({
     solutions: { key: 'name', dir: 'asc' },
     reactions: { key: 'name', dir: 'asc' },
     vessels: { key: 'name', dir: 'asc' },
+    alloys: { key: 'default', dir: 'asc' },
   })
   const [selectedBySection, setSelectedBySection] = useState<
     Record<CatalogSection, string | null>
@@ -133,6 +149,7 @@ export const CatalogPage = memo(function CatalogPage({
       solutions: initialSec === 'solutions' ? (jumpTarget?.id ?? null) : null,
       reactions: initialSec === 'reactions' ? (jumpTarget?.id ?? null) : null,
       vessels: initialSec === 'vessels' ? (jumpTarget?.id ?? null) : null,
+      alloys: initialSec === 'alloys' ? (jumpTarget?.id ?? null) : null,
     }
   })
 
@@ -358,6 +375,45 @@ export const CatalogPage = memo(function CatalogPage({
     })
   }, [catalog, q, sortKey, sortDir])
 
+  const alloyFamilies = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const al of catalog?.alloys ?? []) {
+      counts.set(al.familyFr, (counts.get(al.familyFr) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .filter(([, count]) => count >= 3)
+      .sort((a, b) => b[1] - a[1])
+      .map(([fam]) => fam)
+  }, [catalog])
+
+  const filteredAlloys = useMemo(() => {
+    if (!catalog) return []
+    const rows = (catalog.alloys ?? []).filter((al) => {
+      if (alloyFamilyFilter !== 'all' && al.familyFr !== alloyFamilyFilter) return false
+      if (!q) return true
+      return (
+        al.nameFr.toLowerCase().includes(q) ||
+        al.familyFr.toLowerCase().includes(q) ||
+        al.usesFr.toLowerCase().includes(q) ||
+        al.components.some(
+          (c) =>
+            c.symbol.toLowerCase() === q ||
+            (elementsBySymbol.get(c.symbol)?.nameFr.toLowerCase().includes(q) ?? false),
+        )
+      )
+    })
+    if (sortKey === 'default') return rows
+    const mult = sortDir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      if (sortKey === 'family') return a.familyFr.localeCompare(b.familyFr, 'fr') * mult
+      if (sortKey === 'density') return (a.densityGPerCm3 - b.densityGPerCm3) * mult
+      if (sortKey === 'melting') {
+        return ((a.meltingPointC ?? -9999) - (b.meltingPointC ?? -9999)) * mult
+      }
+      return a.nameFr.localeCompare(b.nameFr, 'fr') * mult
+    })
+  }, [alloyFamilyFilter, catalog, elementsBySymbol, q, sortDir, sortKey])
+
   const displayedSpecies = useMemo(
     () => filteredSpecies.slice(0, visibleSpeciesCount),
     [filteredSpecies, visibleSpeciesCount],
@@ -379,6 +435,10 @@ export const CatalogPage = memo(function CatalogPage({
     section === 'vessels'
       ? (filteredVessels.find((v) => v.id === selectedId) ?? filteredVessels[0] ?? null)
       : null
+  const selectedAlloy =
+    section === 'alloys'
+      ? (filteredAlloys.find((a) => a.id === selectedId) ?? filteredAlloys[0] ?? null)
+      : null
 
   const activeCount =
     section === 'species'
@@ -395,7 +455,9 @@ export const CatalogPage = memo(function CatalogPage({
                 : reactionSubTab === 'pka'
                   ? filteredAb.length
                   : 1
-          : filteredVessels.length
+          : section === 'alloys'
+            ? filteredAlloys.length
+            : filteredVessels.length
 
   if (!catalog) {
     return (
@@ -414,7 +476,9 @@ export const CatalogPage = memo(function CatalogPage({
         ? 'Rechercher une solution aqueuse ou un soluté…'
         : section === 'reactions'
           ? 'Rechercher une réaction, un couple redox, pKa ou Ks…'
-          : 'Rechercher une verrerie ou une capacité…'
+          : section === 'alloys'
+            ? 'Rechercher un alliage, un métal (Fe, Cu, Ti…) ou un usage…'
+            : 'Rechercher une verrerie ou une capacité…'
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
@@ -474,6 +538,9 @@ export const CatalogPage = memo(function CatalogPage({
         onSolutionPhFilter={setSolutionPhFilter}
         reactionSubTab={reactionSubTab}
         onReactionSubTab={setReactionSubTab}
+        alloyFamilyFilter={alloyFamilyFilter}
+        onAlloyFamilyFilter={setAlloyFamilyFilter}
+        alloyFamilies={alloyFamilies}
         activeCount={activeCount}
       />
 
@@ -550,6 +617,18 @@ export const CatalogPage = memo(function CatalogPage({
             />
           )}
 
+          {section === 'alloys' && (
+            <AlloysCatalogTable
+              alloys={filteredAlloys}
+              selectedAlloyId={selectedAlloy?.id ?? null}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={toggleSort}
+              onSelect={setSelectedId}
+              onSpawnAlloy={onSpawnAlloy}
+            />
+          )}
+
           {activeCount === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-xs font-medium text-foreground">Aucun résultat</p>
@@ -598,6 +677,15 @@ export const CatalogPage = memo(function CatalogPage({
                 onSpawn={() =>
                   onSpawnToWorkbench({ kind: 'vessel', vessel: selectedVessel })
                 }
+              />
+            )}
+
+            {selectedAlloy && (
+              <AlloyDetail
+                alloy={selectedAlloy}
+                elementsBySymbol={elementsBySymbol}
+                onJumpToElement={jumpToElement}
+                onSpawn={onSpawnAlloy ? () => onSpawnAlloy(selectedAlloy) : undefined}
               />
             )}
           </aside>

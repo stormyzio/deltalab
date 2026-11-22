@@ -1068,6 +1068,42 @@ async function main() {
     return solubilityCurves.get(formulaPlain) ?? null
   }
 
+  // Reconcile MP & BP so corrupted PubChem clauses (hydrate dehydration at 100 °C,
+  // vacuum BP, OCR typos) never produce impossible boilingPointC < meltingPointC
+  const parseReconciledThermal = (
+    mpRaw: string[],
+    bpRaw: string[],
+  ): { meltingPointC: number | null; boilingPointC: number | null; thermalNote: ThermalNote } => {
+    const mp = parseTemperatureC(mpRaw)
+    const bp = parseTemperatureC(bpRaw)
+    const thermalNote: ThermalNote = mp.note ?? bp.note ?? null
+    let mpVal = mp.valueC
+    let bpVal = bp.valueC
+
+    if (
+      mpVal !== null &&
+      bpVal !== null &&
+      bpVal < mpVal - 1 &&
+      thermalNote !== 'sublimes' &&
+      thermalNote !== 'decomposes'
+    ) {
+      // Try finding a valid BP >= MP in the raw PubChem BP list
+      const validBp = parseTemperatureC(bpRaw, mpVal)
+      if (validBp.valueC !== null) {
+        bpVal = validBp.valueC
+      } else if (bpVal < -20 && mpVal > 0) {
+        // Clearly a gas whose MP was a corrupted positive value
+        const validMp = parseTemperatureC(mpRaw)
+        mpVal = validMp.valueC !== null && validMp.valueC < bpVal ? validMp.valueC : null
+      } else {
+        // Contradictory BP (usually hydrate water loss or reduced-pressure distillation)
+        bpVal = null
+      }
+    }
+
+    return { meltingPointC: mpVal, boilingPointC: bpVal, thermalNote }
+  }
+
   // 6A. Process all CURATED species first (enriched with PubChem + AqSolDB + IUPAC + curves!)
   for (const cand of curatedCandidates) {
     const seed = cand.curatedId ? curatedById.get(cand.curatedId) : null
@@ -1088,11 +1124,13 @@ async function main() {
         ? extractValidCasFromStrings(casStringsByCid.get(cid) ?? [])
         : null
 
-    const mp = cid ? parseTemperatureC(mpByCid.get(cid) ?? []) : { valueC: null, note: null }
-    const bp = cid ? parseTemperatureC(bpByCid.get(cid) ?? []) : { valueC: null, note: null }
-    const thermalNote: ThermalNote = mp.note ?? bp.note ?? null
+    const thermal = cid
+      ? parseReconciledThermal(mpByCid.get(cid) ?? [], bpByCid.get(cid) ?? [])
+      : { meltingPointC: null, boilingPointC: null, thermalNote: null as ThermalNote }
 
-    const isGas = seed.standardState === 'gas' || (bp.valueC !== null && bp.valueC < 20)
+    const isGas =
+      seed.standardState === 'gas' ||
+      (thermal.boilingPointC !== null && thermal.boilingPointC < 20)
     const density =
       cid ? parseDensityGPerCm3(densityByCid.get(cid) ?? [], isGas) : null
 
@@ -1172,9 +1210,9 @@ async function main() {
       charge,
       molarMass,
       standardState: seed.standardState,
-      meltingPointC: mp.valueC,
-      boilingPointC: bp.valueC,
-      thermalNote,
+      meltingPointC: thermal.meltingPointC,
+      boilingPointC: thermal.boilingPointC,
+      thermalNote: thermal.thermalNote,
       densityGPerCm3: density ?? curatedDensityFallback,
       appearanceFr: parsedApp.appearanceFr,
       colorHex: seed.colorHex ?? parsedApp.colorHex ?? null,
@@ -1276,18 +1314,20 @@ async function main() {
     const kind = inferKind(smiles, charge, parsedLewis.composition)
 
     // Mandatory 2: Melting / Boiling point
-    const mp = parseTemperatureC(mpByCid.get(cid) ?? [])
-    const bp = parseTemperatureC(bpByCid.get(cid) ?? [])
-    if (mp.valueC === null && bp.valueC === null) {
+    const thermal = parseReconciledThermal(mpByCid.get(cid) ?? [], bpByCid.get(cid) ?? [])
+    if (thermal.meltingPointC === null && thermal.boilingPointC === null) {
       rejectionStats.noThermal++
       continue
     }
-    const thermalNote: ThermalNote = mp.note ?? bp.note ?? null
-    const standardState = deriveStandardState(mp.valueC, bp.valueC, 'solid')
+    const standardState = deriveStandardState(
+      thermal.meltingPointC,
+      thermal.boilingPointC,
+      'solid',
+    )
 
-    // Mandatory 3: Experimental density
+    // Mandatory 3: Experimental density (for gases, allow null when only cryogenic liquid density exists)
     const density = parseDensityGPerCm3(densityByCid.get(cid) ?? [], standardState === 'gas')
-    if (density === null) {
+    if (density === null && standardState !== 'gas') {
       rejectionStats.noDensity++
       continue
     }
@@ -1315,10 +1355,10 @@ async function main() {
       continue
     }
 
-    // Mandatory 5: Appearance & pure color
+    // Mandatory 5: Appearance (keep colorHex null if no color stated — never fabricate defaults)
     const appRaw = [...(colorFormByCid.get(cid) ?? []), ...(physDescByCid.get(cid) ?? [])]
     const parsedApp = parseAppearanceAndColor(appRaw, standardState)
-    if (!parsedApp.appearanceFr || !parsedApp.colorHex) {
+    if (!parsedApp.appearanceFr) {
       rejectionStats.noAppearance++
       continue
     }
@@ -1371,9 +1411,9 @@ async function main() {
       charge,
       molarMass,
       standardState,
-      meltingPointC: mp.valueC,
-      boilingPointC: bp.valueC,
-      thermalNote,
+      meltingPointC: thermal.meltingPointC,
+      boilingPointC: thermal.boilingPointC,
+      thermalNote: thermal.thermalNote,
       densityGPerCm3: density,
       appearanceFr: parsedApp.appearanceFr,
       colorHex: parsedApp.colorHex,

@@ -7,20 +7,24 @@ import {
   useRef,
 } from 'react'
 import {
-  ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID,
   type CanvasAtomNode,
   type CanvasFlaskNode,
   type CanvasMoleculeNode,
   type CanvasNode,
+  type CanvasSolidNode,
+  type ElementRecord,
+  getSolidSpeciesIdForElement,
 } from '../../shared/chemistry.ts'
 import { api } from '@/lib/api'
-import { createEmptySolution } from '@/lib/chemistry-ui'
+import { createEmptySolution, formatMassG } from '@/lib/chemistry-ui'
 import { getSelectedFlaskReaction } from '@/lib/flask-reaction-ui'
+import { getSolidTotalMassG } from '@/lib/solid-alloys'
 import { getPendingReactionCommit } from '@/lib/workbench-helpers'
 import type { CanvasNotice } from '@/components/LabCanvas'
 
 interface UseFlaskCoreActionsParams {
   nodesRef: MutableRefObject<CanvasNode[]>
+  elementsBySymbol: Map<string, ElementRecord>
   setNodes: Dispatch<SetStateAction<CanvasNode[]>>
   setSelectedIds: Dispatch<SetStateAction<Set<string>>>
   showNotice: (tone: CanvasNotice['tone'], text: string) => void
@@ -30,6 +34,7 @@ interface UseFlaskCoreActionsParams {
 
 export function useFlaskCoreActions({
   nodesRef,
+  elementsBySymbol,
   setNodes,
   setSelectedIds,
   showNotice,
@@ -120,17 +125,109 @@ export function useFlaskCoreActions({
         (n): n is CanvasAtomNode => n.kind === 'atom' && n.id === atomNodeId,
       )
       if (!atom) return
-      const solidSpeciesId = ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[atom.symbol]
-      if (!solidSpeciesId) {
+      const el = elementsBySymbol.get(atom.symbol)
+      if (el && el.defaultState !== 'solid') {
         triggerShake([atomNodeId, flaskId])
         showNotice('warning', `${atom.symbol} n’est pas un corps simple solide immergeable.`)
         return
       }
+      const solidSpeciesId = getSolidSpeciesIdForElement(atom.symbol)
       void addSpeciesToFlask(flaskId, solidSpeciesId, {
         consumedMoleculeNodeId: atomNodeId,
       })
     },
-    [addSpeciesToFlask, nodesRef, showNotice, triggerShake],
+    [addSpeciesToFlask, elementsBySymbol, nodesRef, showNotice, triggerShake],
+  )
+
+  const handleDropSolidOnFlask = useCallback(
+    async (solidNodeId: string, flaskId: string) => {
+      const solid = nodesRef.current.find(
+        (n): n is CanvasSolidNode => n.kind === 'solid' && n.id === solidNodeId,
+      )
+      const flask = nodesRef.current.find(
+        (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
+      )
+      if (!solid || !flask) return
+
+      const validComponents = solid.components.filter((c) => c.massG > 1e-6)
+      if (validComponents.length === 0) return
+
+      if (validComponents.length === 1) {
+        const comp = validComponents[0]
+        const atomicMass = elementsBySymbol.get(comp.symbol)?.atomicMass ?? 56
+        const amountMol = Math.max(1e-5, comp.massG / atomicMass)
+        void addSpeciesToFlask(flaskId, comp.speciesId, {
+          amountMol,
+          consumedMoleculeNodeId: solidNodeId,
+        })
+        return
+      }
+
+      // Multi-component alloy: evaluate each constituent metal sequentially so exact masses enter the flask
+      try {
+        let currentWater = flask.solution.waterVolumeMl
+        let currentSolutes = { ...flask.solution.solutesMol }
+        let pendingCommit = getPendingReactionCommit(flask)
+        let latestSolution = flask.solution
+
+        for (const comp of validComponents) {
+          const atomicMass = elementsBySymbol.get(comp.symbol)?.atomicMass ?? 56
+          const amountMol = Math.max(1e-5, comp.massG / atomicMass)
+          const res = await api.evaluateFlaskAddition({
+            vesselId: flask.vessel.id,
+            vesselCapacityMl: flask.vessel.capacityMl,
+            temperatureC: flask.temperatureC ?? 20,
+            currentWaterVolumeMl: currentWater,
+            currentSolutesMol: currentSolutes,
+            commitReaction: pendingCommit,
+            incomingSpeciesId: comp.speciesId,
+            incomingAmountMol: amountMol,
+          })
+          if (!res.ok) {
+            triggerShake([flaskId, solidNodeId])
+            showNotice('warning', res.messageFr)
+            return
+          }
+          latestSolution = res.solution
+          currentWater = res.solution.waterVolumeMl
+          currentSolutes = { ...res.solution.solutesMol }
+          pendingCommit = undefined
+        }
+
+        setNodes((prev) =>
+          prev
+            .filter((n) => n.id !== solidNodeId)
+            .map((n) =>
+              n.id === flaskId && n.kind === 'flask'
+                ? {
+                    ...n,
+                    solution: latestSolution,
+                    reactionExtentMol: 0,
+                    selectedReactionId: undefined,
+                  }
+                : n,
+            ),
+        )
+        setSelectedIds(new Set([flaskId]))
+        triggerFlaskPulse(flaskId)
+        showNotice(
+          'success',
+          `${solid.nameFr} (${formatMassG(getSolidTotalMassG(solid))}) ajouté dans la verrerie.`,
+        )
+      } catch {
+        showNotice('warning', 'Erreur lors de l’ajout de l’alliage.')
+      }
+    },
+    [
+      addSpeciesToFlask,
+      elementsBySymbol,
+      nodesRef,
+      setNodes,
+      setSelectedIds,
+      showNotice,
+      triggerFlaskPulse,
+      triggerShake,
+    ],
   )
 
   const handleDropMoleculeOnFlask = useCallback(
@@ -455,6 +552,7 @@ export function useFlaskCoreActions({
     addSpeciesToFlask,
     handleAddWaterToFlask,
     handleDropAtomOnFlask,
+    handleDropSolidOnFlask,
     handleDropMoleculeOnFlask,
     handleResizeFlask,
     handleSetFlaskTemperature,

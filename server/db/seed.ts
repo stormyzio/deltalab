@@ -2,12 +2,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { DatabaseSync } from 'node:sqlite'
-import type {
-  PhCharacter,
-  PhysicalState,
-  SpeciesKind,
-  SpeciesRecord,
-  ThermalNote,
+import {
+  type AlloyRecord,
+  type PhCharacter,
+  type PhysicalState,
+  type SpeciesKind,
+  type SpeciesRecord,
+  type ThermalNote,
+  getElementSolidColor,
+  getSolidSpeciesIdForElement,
 } from '../../shared/chemistry.ts'
 import { ELEMENTS_SEED } from '../data/elements.ts'
 import { computeLewisTopologyKey, resolveSpeciesLewis } from '../data/lewis.ts'
@@ -29,6 +32,10 @@ export const ENRICHED_SPECIES_PATH = path.resolve(
 export const REACTION_CONSTANTS_PATH = path.resolve(
   __dirname,
   '../data/generated/reaction-constants.json',
+)
+export const ALLOYS_PATH = path.resolve(
+  __dirname,
+  '../data/generated/alloys.json',
 )
 
 export const ATOMIC_MASS_BY_SYMBOL = new Map(
@@ -83,7 +90,7 @@ function fileSig(filePath: string): string {
 }
 
 function computeSeedVersion(): string {
-  return `v11|curated:${SPECIES_SEED.length}|vessels:${VESSELS_SEED.length}|rxn:${CURATED_REACTIONS.length}|enr:${fileSig(ENRICHED_SPECIES_PATH)}|rc:${fileSig(REACTION_CONSTANTS_PATH)}`
+  return `v16|curated:${SPECIES_SEED.length}|vessels:${VESSELS_SEED.length}|rxn:${CURATED_REACTIONS.length}|enr:${fileSig(ENRICHED_SPECIES_PATH)}|rc:${fileSig(REACTION_CONSTANTS_PATH)}|alloys:${fileSig(ALLOYS_PATH)}`
 }
 
 export function seedDatabase(db: DatabaseSync): void {
@@ -111,6 +118,15 @@ export function seedDatabase(db: DatabaseSync): void {
 
   const enrichedById = new Map(enrichedEntries.map((e) => [e.id, e]))
   const reactionConstants = loadReactionConstants()
+
+  let alloysSeed: AlloyRecord[] = []
+  try {
+    if (fs.existsSync(ALLOYS_PATH)) {
+      alloysSeed = JSON.parse(fs.readFileSync(ALLOYS_PATH, 'utf-8')) as AlloyRecord[]
+    }
+  } catch (err) {
+    console.warn('[DeltaLab] Could not read alloys JSON:', err)
+  }
 
   db.exec('BEGIN TRANSACTION')
   try {
@@ -183,6 +199,7 @@ export function seedDatabase(db: DatabaseSync): void {
     `)
 
     const speciesById = new Map(SPECIES_SEED.map((sp) => [sp.id, sp]))
+    const elementsBySymbol = new Map(ELEMENTS_SEED.map((el) => [el.symbol, el]))
     const seededTopoKeys = new Set<string>()
     const seededIds = new Set<string>()
 
@@ -208,13 +225,25 @@ export function seedDatabase(db: DatabaseSync): void {
       const dissolutionType =
         aq?.dissolutionType ??
         (soluble ? (aq?.dissociatesInto ? 'ionic_complete' : 'molecular') : 'none')
+      const compEntries = Object.entries(sp.composition)
+      const monatomicEl =
+        sp.kind === 'element_substance' &&
+        compEntries.length === 1 &&
+        compEntries[0][1] === 1
+          ? elementsBySymbol.get(compEntries[0][0]) ?? null
+          : null
       const densityFallback =
         typeof sp.behaviors?.densityGPerMl === 'number'
           ? sp.behaviors.densityGPerMl
-          : null
+          : (monatomicEl?.densityGPerCm3 ?? null)
       const pkaFallback =
         typeof sp.behaviors?.pKa === 'number' ? [sp.behaviors.pKa] : []
       const pkaValues = enr?.pkaValues?.length ? enr.pkaValues : pkaFallback
+      const finalMp = enr?.meltingPointC ?? monatomicEl?.meltingPointC ?? null
+      const finalBp = enr?.boilingPointC ?? monatomicEl?.boilingPointC ?? null
+      const finalThermalNote =
+        enr?.thermalNote ??
+        (finalMp !== null && finalBp !== null && finalBp < finalMp ? 'sublimes' : null)
 
       insertSpecies.run(
         sp.id,
@@ -227,9 +256,9 @@ export function seedDatabase(db: DatabaseSync): void {
         sp.charge ?? 0,
         computedMass,
         sp.standardState,
-        enr?.meltingPointC ?? null,
-        enr?.boilingPointC ?? null,
-        enr?.thermalNote ?? null,
+        finalMp,
+        finalBp,
+        finalThermalNote,
         enr?.densityGPerCm3 ?? densityFallback,
         enr?.appearanceFr ?? null,
         sp.colorHex ?? enr?.colorHex ?? null,
@@ -258,6 +287,75 @@ export function seedDatabase(db: DatabaseSync): void {
           ...(sp.behaviors ?? {}),
           ...(enr?.densityGPerCm3 ? { densityGPerMl: enr.densityGPerCm3 } : {}),
         }),
+      )
+    }
+
+    // Layer 1B: Ensure every solid element from the periodic table has a solid element_substance species
+    // so ANY solid element (Rh, Pt, Ti, W, etc.) can be converted to a solid block and immersed in vessels.
+    for (const el of ELEMENTS_SEED) {
+      if (el.defaultState !== 'solid') continue
+      const solidId = getSolidSpeciesIdForElement(el.symbol)
+      if (seededIds.has(solidId)) continue
+      seededIds.add(solidId)
+
+      const isMetal =
+        el.category !== 'nonmetal' &&
+        el.category !== 'metalloid' &&
+        el.category !== 'halogen' &&
+        el.category !== 'noble-gas'
+      const comp = { [el.symbol]: 1 }
+      const atomSignature = buildCompositionKey(comp)
+      const solidColor = getElementSolidColor(el.symbol, el.category)
+      const nameFr = isMetal ? `${el.nameFr} métallique` : `${el.nameFr} solide`
+
+      const solidThermalNote =
+        el.meltingPointC !== null &&
+        el.boilingPointC !== null &&
+        el.boilingPointC < el.meltingPointC
+          ? 'sublimes'
+          : null
+
+      insertSpecies.run(
+        solidId,
+        el.symbol,
+        el.symbol,
+        nameFr,
+        null,
+        null,
+        'element_substance',
+        0,
+        el.atomicMass,
+        'solid',
+        el.meltingPointC,
+        el.boilingPointC,
+        solidThermalNote,
+        el.densityGPerCm3,
+        isMetal ? 'Métal solide' : 'Solide élémentaire',
+        solidColor,
+        JSON.stringify(comp),
+        null,
+        atomSignature,
+        null,
+        null,
+        'curated',
+        3500,
+        null,
+        null,
+        null,
+        JSON.stringify([isMetal ? 'Métal' : 'Corps simple']),
+        0,
+        0,
+        0,
+        null,
+        'none',
+        null,
+        'neutral',
+        '[]',
+        '[]',
+        null,
+        JSON.stringify(
+          el.densityGPerCm3 ? { densityGPerMl: el.densityGPerCm3 } : {},
+        ),
       )
     }
 
@@ -519,6 +617,28 @@ export function seedDatabase(db: DatabaseSync): void {
         ab.acidNameFr,
         ab.pKa,
         ab.source,
+      )
+    }
+
+    db.exec('DELETE FROM alloys')
+    const insertAlloy = db.prepare(`
+      INSERT OR REPLACE INTO alloys (
+        id, name_fr, family_fr, base_element, components_json,
+        density_g_per_cm3, melting_point_c, color_hex, uses_fr, source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    for (const al of alloysSeed) {
+      insertAlloy.run(
+        al.id,
+        al.nameFr,
+        al.familyFr,
+        al.baseElement,
+        JSON.stringify(al.components),
+        al.densityGPerCm3,
+        al.meltingPointC,
+        al.colorHex,
+        al.usesFr,
+        al.source,
       )
     }
 
