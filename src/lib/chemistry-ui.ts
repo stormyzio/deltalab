@@ -108,11 +108,18 @@ export function createEmptySolution(): FlaskSolutionState {
   }
 }
 
+const FR_NUMBER_FORMATTERS = new Map<number, Intl.NumberFormat>()
+
 export function formatFrNumber(value: number, maxDecimals = 2): string {
-  return value.toLocaleString('fr-FR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: maxDecimals,
-  })
+  let fmt = FR_NUMBER_FORMATTERS.get(maxDecimals)
+  if (!fmt) {
+    fmt = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: maxDecimals,
+    })
+    FR_NUMBER_FORMATTERS.set(maxDecimals, fmt)
+  }
+  return fmt.format(value)
 }
 
 export function getSpeciesDensityGPerMl(species: SpeciesRecord): number | null {

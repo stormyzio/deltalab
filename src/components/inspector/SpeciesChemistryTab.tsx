@@ -6,8 +6,10 @@ import type {
   ElementRecord,
   SpeciesRecord,
 } from '../../../shared/chemistry.ts'
-import { DISSOLUTION_LABEL, formatFrNumber } from '@/lib/chemistry-ui'
+import { formatFrNumber } from '@/lib/chemistry-ui'
 import { formatBehaviorEntry } from '@/lib/chemistry-calc'
+import { describeWaterBehavior } from '@/lib/water-behavior'
+import { ChemFormula, ChemText } from '@/components/ui/chem-text'
 import { VesselArtwork } from '@/components/VesselArtwork'
 import type { CatalogJumpTarget } from './InspectorPrimitives'
 
@@ -44,23 +46,23 @@ export function SpeciesChemistryTab({
   elementsBySymbol: Map<string, ElementRecord>
   onOpenInCatalog: (target: CatalogJumpTarget) => void
 }) {
+  const waterBehavior = describeWaterBehavior(sp, isUnknownSolubility)
+  void isIon
   return (
     <div className="space-y-4">
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2 text-[11px]">
           <span className="font-medium text-muted-foreground">Comportement dans l’eau</span>
           <span className="shrink-0 whitespace-nowrap text-zinc-300">
-            {sp.isSolvent
-              ? 'Solvant'
-              : isUnknownSolubility
-                ? 'Non renseigné'
-                : DISSOLUTION_LABEL[sp.dissolutionType]}
+            {waterBehavior.tierLabel}
           </span>
         </div>
 
         {enriched && enriched.dissolutionProducts.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1.5 py-1 font-mono text-[11.5px]">
-            <span className="text-muted-foreground">{sp.displayFormula}</span>
+          <div className="flex flex-wrap items-center gap-1.5 py-1 text-[11.5px]">
+            <span className="text-muted-foreground">
+              <ChemFormula value={sp.displayFormula} />
+            </span>
             <ArrowRight className="h-3 w-3 shrink-0 text-zinc-500" />
             {enriched.dissolutionProducts.map((p, idx) => (
               <button
@@ -77,32 +79,22 @@ export function SpeciesChemistryTab({
                   />
                 )}
                 {p.stoichiometry > 1 ? `${p.stoichiometry} ` : ''}
-                {p.displayFormula}
+                <ChemFormula value={p.displayFormula} />
               </button>
             ))}
           </div>
         ) : (
-          <p className="text-[11px] text-muted-foreground">
-            {sp.isSolvent
-              ? 'Solvant aqueux principal pour préparer des solutions.'
-              : isIon
-                ? sp.canDissolveInWater
-                  ? 'Soluble dans H₂O (espèce ionique hydratée).'
-                  : 'Espèce ionique (solubilité non renseignée).'
-                : isUnknownSolubility
-                  ? 'Solubilité aqueuse non renseignée dans la base étendue.'
-                  : sp.standardState === 'solid'
-                    ? 'Insoluble dans l’eau : peut être immergé comme solide réactif.'
-                    : 'Ne se dissout pas dans l’eau.'}
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <ChemText value={waterBehavior.descriptionFr} />
           </p>
         )}
 
         {sp.solubilityByTempC && Object.keys(sp.solubilityByTempC).length >= 2 && (
           <div className="pt-1">
             <span className="block text-[10.5px] text-muted-foreground">
-              Solubilité dans H₂O (g/L)
+              Solubilité dans <ChemFormula value="H2O" /> (g/L)
             </span>
-            <dl className="mt-1.5 grid grid-cols-4 divide-x divide-border/60 border-y border-border/60 py-1.5 text-center font-mono">
+            <dl className="mt-1.5 grid grid-cols-4 divide-x divide-border/60 border-y border-border/60 py-1.5 text-center">
               {['0', '20', '60', '100']
                 .filter((t) => sp.solubilityByTempC?.[t] !== undefined)
                 .map((t) => (
@@ -142,8 +134,8 @@ export function SpeciesChemistryTab({
             <p className="truncate text-xs font-medium text-foreground">
               {linkedSolution.nameFr}
             </p>
-            <p className="truncate font-mono text-[10.5px] text-muted-foreground">
-              {linkedSolution.formulaLabel}
+            <p className="truncate text-[10.5px] text-muted-foreground">
+              <ChemFormula value={linkedSolution.formulaLabel} />
               {linkedSolution.phEstimate !== null
                 ? ` · pH ${formatFrNumber(linkedSolution.phEstimate, 1)}`
                 : ''}
@@ -172,12 +164,12 @@ export function SpeciesChemistryTab({
                   className="inline-flex min-w-0 items-center gap-1.5 text-foreground hover:text-white"
                 >
                   <span className="shrink-0 font-semibold">{item.sym}</span>
-                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  <span className="shrink-0 text-[10px] text-muted-foreground">
                     ×{item.count}
                   </span>
                   <span className="truncate text-muted-foreground">{item.nameFr}</span>
                 </button>
-                <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
+                <span className="shrink-0 whitespace-nowrap text-[10.5px] tabular-nums text-muted-foreground">
                   {formatFrNumber(item.pct, 1)} %
                 </span>
               </div>
@@ -206,8 +198,8 @@ export function SpeciesChemistryTab({
                 className="w-full py-2 text-left hover:text-white"
               >
                 <p className="text-[11px] font-medium text-foreground">{r.nameFr}</p>
-                <p className="mt-0.5 break-words font-mono text-[10.5px] text-muted-foreground">
-                  {r.equationDisplay}
+                <p className="mt-0.5 break-words text-[10.5px] text-muted-foreground">
+                  <ChemFormula value={r.equationDisplay} />
                 </p>
               </button>
             ))}
@@ -223,8 +215,8 @@ export function SpeciesChemistryTab({
               const formatted = formatBehaviorEntry(k, v)
               return (
                 <span key={k}>
-                  {formatted.label} :{' '}
-                  <span className="font-mono text-zinc-200">{formatted.display}</span>
+                  <ChemText value={formatted.label} /> :{' '}
+                  <span className="text-zinc-200">{formatted.display}</span>
                 </span>
               )
             })}
@@ -248,7 +240,7 @@ export function SpeciesChemistryTab({
               {sp.casNumber && (
                 <div>
                   <dt className="text-[10.5px] text-muted-foreground">N° CAS</dt>
-                  <dd className="mt-0.5 font-mono text-[11px] tabular-nums text-foreground">
+                  <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
                     {sp.casNumber}
                   </dd>
                 </div>
@@ -256,7 +248,7 @@ export function SpeciesChemistryTab({
               {sp.pubchemCid && (
                 <div>
                   <dt className="text-[10.5px] text-muted-foreground">PubChem CID</dt>
-                  <dd className="mt-0.5 font-mono text-[11px] tabular-nums text-foreground">
+                  <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
                     {sp.pubchemCid}
                   </dd>
                 </div>

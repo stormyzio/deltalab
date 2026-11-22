@@ -14,7 +14,7 @@ import {
   type CanvasNode,
 } from '../../shared/chemistry.ts'
 import { api } from '@/lib/api'
-import { createEmptySolution, formatCapacityMl } from '@/lib/chemistry-ui'
+import { createEmptySolution } from '@/lib/chemistry-ui'
 import { getSelectedFlaskReaction } from '@/lib/flask-reaction-ui'
 import { getPendingReactionCommit } from '@/lib/workbench-helpers'
 import type { CanvasNotice } from '@/components/LabCanvas'
@@ -63,11 +63,6 @@ export function useFlaskCoreActions({
       if (!flask) return
 
       const consumedId = options?.consumedMoleculeNodeId
-      if (flask.stoppered) {
-        triggerShake(consumedId ? [flaskId, consumedId] : [flaskId])
-        showNotice('warning', 'Verrerie bouchée : retirez le bouchon avant tout ajout.')
-        return
-      }
 
       try {
         const res = await api.evaluateFlaskAddition({
@@ -154,16 +149,16 @@ export function useFlaskCoreActions({
 
   const handleResizeFlask = useCallback(
     (flaskId: string, newCapacityMl: number) => {
-      const cleanCap = Math.min(5000, Math.max(5, Math.round(newCapacityMl)))
       const flask = nodesRef.current.find(
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
       )
       if (!flask) return
-      if (cleanCap < flask.solution.totalVolumeMl - 0.05) {
-        triggerShake([flaskId])
-        showNotice('warning', 'Le volume présent dépasse la capacité demandée.')
-        return
-      }
+      const caps = flask.vessel.availableCapacitiesMl
+      const minCap = caps[0] ?? 5
+      const maxCap = caps[caps.length - 1] ?? 5000
+      const floorCap = Math.max(minCap, Math.ceil(flask.solution.totalVolumeMl))
+      const cleanCap = Math.min(maxCap, Math.max(floorCap, Math.round(newCapacityMl)))
+      if (Math.abs(cleanCap - flask.vessel.capacityMl) < 0.05) return
       setNodes((prev) =>
         prev.map((n) =>
           n.id === flaskId && n.kind === 'flask'
@@ -171,14 +166,13 @@ export function useFlaskCoreActions({
             : n,
         ),
       )
-      showNotice('neutral', `${flask.vessel.nameFr} · ${formatCapacityMl(cleanCap)}.`)
     },
-    [nodesRef, setNodes, showNotice, triggerShake],
+    [nodesRef, setNodes],
   )
 
   const handleSetFlaskTemperature = useCallback(
     (flaskId: string, temperatureC: number) => {
-      const clamped = Math.max(0, Math.min(100, Math.round(temperatureC)))
+      const clamped = Math.max(0, Math.min(200, Math.round(temperatureC)))
       const current = nodesRef.current.find(
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
       )
@@ -248,19 +242,19 @@ export function useFlaskCoreActions({
     [nodesRef, setNodes, showNotice, triggerFlaskPulse],
   )
 
-  const handleToggleFlaskStopper = useCallback(
+  const handleToggleFlaskFilter = useCallback(
     (flaskId: string) => {
       const flask = nodesRef.current.find(
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
       )
-      if (!flask || !flask.vessel.stopperable) return
-      const next = !flask.stoppered
+      if (!flask) return
+      const next = !flask.hasFilter
       setNodes((prev) =>
         prev.map((n) =>
-          n.id === flaskId && n.kind === 'flask' ? { ...n, stoppered: next } : n,
+          n.id === flaskId && n.kind === 'flask' ? { ...n, hasFilter: next } : n,
         ),
       )
-      showNotice('neutral', next ? 'Bouchon posé.' : 'Bouchon retiré.')
+      showNotice('neutral', next ? 'Filtre posé au-dessus de la verrerie.' : 'Filtre retiré.')
     },
     [nodesRef, setNodes, showNotice],
   )
@@ -296,11 +290,6 @@ export function useFlaskCoreActions({
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
       )
       if (!flask) return
-      if (flask.stoppered) {
-        triggerShake([flaskId])
-        showNotice('warning', 'Retirez le bouchon avant d’évaporer le solvant.')
-        return
-      }
       if ((flask.temperatureC ?? 20) < 45) {
         triggerShake([flaskId])
         showNotice('warning', 'Chauffez à au moins 45 °C pour évaporer l’eau.')
@@ -349,11 +338,6 @@ export function useFlaskCoreActions({
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
       )
       if (!flask) return
-      if (flask.stoppered) {
-        triggerShake([flaskId])
-        showNotice('warning', 'Verrerie bouchée : retirez le bouchon pour modifier le contenu.')
-        return
-      }
       const nextSolutes: Record<string, number> = { ...flask.solution.solutesMol }
       const cleanMol = Number.isFinite(newAmountMol) ? Math.max(0, newAmountMol) : 0
       if (cleanMol <= 1e-8) {
@@ -403,11 +387,6 @@ export function useFlaskCoreActions({
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
       )
       if (!flask) return
-      if (flask.stoppered) {
-        triggerShake([flaskId])
-        showNotice('warning', 'Verrerie bouchée : retirez le bouchon pour modifier le volume.')
-        return
-      }
       const clamped = Math.max(
         0,
         Math.min(
@@ -460,6 +439,7 @@ export function useFlaskCoreActions({
             ? {
                 ...n,
                 solution: createEmptySolution(),
+                filteredSolids: [],
                 reactionExtentMol: 0,
                 selectedReactionId: undefined,
               }
@@ -478,7 +458,7 @@ export function useFlaskCoreActions({
     handleDropMoleculeOnFlask,
     handleResizeFlask,
     handleSetFlaskTemperature,
-    handleToggleFlaskStopper,
+    handleToggleFlaskFilter,
     handleSetFlaskLabel,
     handleSetFlaskPourStep,
     handleEvaporateFlaskWater,

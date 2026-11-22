@@ -3,11 +3,13 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import type {
   FlaskActiveReaction,
   FlaskReactionParticipant,
+  FlaskSolutionState,
 } from '../../shared/chemistry.ts'
 import type { ProjectedFlaskState } from '@/lib/flask-reaction-ui'
-import { formatMol } from '@/lib/chemistry-ui'
+import { formatMassG, formatMol, formatVolumeMl } from '@/lib/chemistry-ui'
 import { cn } from '@/lib/utils'
-import { ChemFormula, ChemVar, StateTag } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText, ChemVar, StateTag } from '@/components/ui/chem-text'
+import { InlineNumberInput } from '@/components/ui/inline-number-input'
 import { Slider } from '@/components/ui/slider'
 import {
   ReactionBarChart,
@@ -64,6 +66,7 @@ interface ReactionControlCardProps {
   reaction: FlaskActiveReaction
   availableReactions: FlaskActiveReaction[]
   projected: ProjectedFlaskState
+  solution?: FlaskSolutionState
   onChangeExtent: (xMol: number) => void
   onSelectReaction: (reactionId: string) => void
   onCommit: () => void
@@ -76,6 +79,7 @@ export function ReactionControlCard({
   reaction,
   availableReactions,
   projected,
+  solution,
   onChangeExtent,
   onSelectReaction,
   onCommit,
@@ -144,6 +148,14 @@ export function ReactionControlCard({
     [reaction.xMaxMol],
   )
 
+  const spectatorSpecies = useMemo(() => {
+    const activeIds = new Set([
+      ...reaction.reactants.map((r) => r.speciesId),
+      ...reaction.products.map((p) => p.speciesId),
+    ])
+    return projected.dissolvedSpecies.filter((d) => !activeIds.has(d.speciesId))
+  }, [projected.dissolvedSpecies, reaction.products, reaction.reactants])
+
   return (
     <div
       data-reaction-bar={dataReactionBarId}
@@ -177,8 +189,8 @@ export function ReactionControlCard({
           )}
 
           {reaction.equilibriumLabel && (
-            <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
-              {reaction.equilibriumLabel}
+            <span className="shrink-0 whitespace-nowrap text-[10.5px] tabular-nums text-muted-foreground">
+              <ChemText value={reaction.equilibriumLabel} />
             </span>
           )}
         </div>
@@ -199,7 +211,7 @@ export function ReactionControlCard({
         )}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono leading-snug">
+      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 leading-snug">
         {reaction.reactants.map((r, idx) => (
           <span key={`eq-r-${r.speciesId}`} className="inline-flex items-baseline gap-0.5 whitespace-nowrap">
             {idx > 0 && <span className="mr-1 text-[11px] text-zinc-500">+</span>}
@@ -230,7 +242,7 @@ export function ReactionControlCard({
       </div>
 
       {collapsed && (
-        <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-2 font-mono text-[10.5px] tabular-nums text-muted-foreground">
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/60 pt-2 text-[10.5px] tabular-nums text-muted-foreground">
           <span className="truncate">
             x = <span className="text-foreground">{formatMol(projected.xMol)}</span> /{' '}
             {formatMol(reaction.xMaxMol)}
@@ -249,13 +261,30 @@ export function ReactionControlCard({
           />
 
           <div className="mt-2.5 border-t border-border/60 pt-2.5">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 font-mono text-[11px] tabular-nums">
-              <span className="whitespace-nowrap text-muted-foreground">
-                x = <strong className="font-semibold text-foreground">{formatMol(projected.xMol)}</strong>
+            <div className="flex flex-nowrap items-center justify-between gap-2 text-[11px] tabular-nums">
+              <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
+                <span>x =</span>
+                <InlineNumberInput
+                  value={
+                    reaction.xMaxMol < 0.5 ? projected.xMol * 1000 : projected.xMol
+                  }
+                  onChange={(v) =>
+                    onChangeExtent(reaction.xMaxMol < 0.5 ? v / 1000 : v)
+                  }
+                  min={0}
+                  max={reaction.xMaxMol < 0.5 ? reaction.xMaxMol * 1000 : reaction.xMaxMol}
+                  step={reaction.xMaxMol < 0.5 ? 0.1 : 0.01}
+                  decimals={reaction.xMaxMol < 0.5 ? 2 : 3}
+                  unit={reaction.xMaxMol < 0.5 ? 'mmol' : 'mol'}
+                  inputWidthClass="w-[5.5ch]"
+                  ariaLabel="Avancement de la réaction x"
+                />
               </span>
-              <span className="whitespace-nowrap text-muted-foreground">
+              <span className="shrink-0 whitespace-nowrap text-muted-foreground">
                 <ChemVar base="x" sub="max" /> = {formatMol(reaction.xMaxMol)} ·{' '}
-                <span className="text-zinc-300">{pct} %</span>
+                <span className="inline-block w-[4.5ch] text-right text-zinc-300">
+                  {pct} %
+                </span>
               </span>
             </div>
 
@@ -300,6 +329,84 @@ export function ReactionControlCard({
               </button>
             </div>
           </div>
+
+          {isCanvas && solution && (
+            <div className="mt-2.5 space-y-1 border-t border-border/60 pt-2 text-[10px]">
+              {/* Live beaker state at current x: reserve line whenever solids/gas can form or spectators exist */}
+              {(projected.solidSpecies.length > 0 ||
+                projected.gasProduced.length > 0 ||
+                spectatorSpecies.length > 0 ||
+                reaction.products.some((p) => p.state === 'solid' || p.state === 'gas')) && (
+                <div className="flex min-h-[16px] flex-wrap items-center gap-x-2 gap-y-0.5 tabular-nums text-muted-foreground">
+                  <span className="shrink-0 font-medium text-zinc-300">Dans le bécher :</span>
+                  {projected.solidSpecies.length === 0 &&
+                    projected.gasProduced.length === 0 &&
+                    spectatorSpecies.length === 0 && (
+                      <span className="text-muted-foreground/70">
+                        aucun produit formé (x = 0)
+                      </span>
+                    )}
+                  {projected.solidSpecies.map((s) => (
+                    <span
+                      key={`cs-${s.speciesId}`}
+                      className="inline-flex items-center gap-1 text-foreground"
+                    >
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full border border-white/15"
+                        style={{ backgroundColor: s.colorHex ?? '#d4d4d8' }}
+                      />
+                      <ChemFormula value={s.displayFormula} state="s" />
+                      <span className="inline-block min-w-[5.5ch] text-right text-zinc-400">
+                        {formatMassG(s.massG)}
+                      </span>
+                    </span>
+                  ))}
+                  {projected.gasProduced.map((g) => (
+                    <span
+                      key={`cg-${g.speciesId}`}
+                      className="inline-flex items-baseline gap-1 text-foreground"
+                    >
+                      ↑<ChemFormula value={g.displayFormula} state="g" />
+                      <span className="inline-block min-w-[6ch] text-right text-zinc-400">
+                        {formatVolumeMl(g.volumeMl)}
+                      </span>
+                    </span>
+                  ))}
+                  {spectatorSpecies.length > 0 && (
+                    <span className="inline-flex items-baseline gap-1 text-muted-foreground">
+                      <span className="font-sans text-[9.5px]">spectateurs :</span>
+                      {spectatorSpecies.slice(0, 4).map((sp, i) => (
+                        <span key={sp.speciesId}>
+                          {i > 0 && ', '}
+                          <ChemFormula value={sp.displayFormula} />
+                        </span>
+                      ))}
+                      {spectatorSpecies.length > 4 && `+${spectatorSpecies.length - 4}`}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Raw user inputs reminder */}
+              <div className="flex items-baseline justify-between gap-2 text-muted-foreground">
+                <span className="shrink-0">Ajouts</span>
+                <span className="truncate text-[9.5px] tabular-nums text-zinc-400">
+                  {solution.hasWater && (
+                    <>
+                      <ChemFormula value="H2O" /> {formatVolumeMl(solution.waterVolumeMl)}
+                    </>
+                  )}
+                  {solution.hasWater && solution.solutes.length > 0 ? ' · ' : ''}
+                  {solution.solutes.map((s, idx) => (
+                    <span key={s.speciesId}>
+                      {idx > 0 && ' · '}
+                      <ChemFormula value={s.displayFormula} />
+                    </span>
+                  ))}
+                </span>
+              </div>
+            </div>
+          )}
 
           {!isCanvas && (
             <ReactionStoichiometryTable

@@ -25,6 +25,7 @@ import {
   getAtomBondOrderSum,
   getLewisAtomColor,
 } from '@/lib/lewis-geometry'
+import { ChemText } from '@/components/ui/chem-text'
 import { Molecule3DViewer } from '@/components/Molecule3DViewer'
 import {
   COMMON_PALETTE_SYMBOLS,
@@ -634,7 +635,9 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
 
             {addedFeedback && (
               <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-lg border border-border bg-panel/95 px-3 py-1.5 text-xs text-foreground shadow-lg animate-dl-pop">
-                <span>{addedFeedback}</span>
+                <span>
+                  <ChemText value={addedFeedback} />
+                </span>
               </div>
             )}
 

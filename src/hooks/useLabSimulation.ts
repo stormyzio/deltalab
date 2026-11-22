@@ -153,7 +153,7 @@ export function useLabSimulation({
             ? {
                 ...n,
                 heaterTargetC:
-                  targetC === null ? null : Math.max(0, Math.min(100, Math.round(targetC))),
+                  targetC === null ? null : Math.max(0, Math.min(200, Math.round(targetC))),
               }
             : n,
         ),
@@ -206,7 +206,6 @@ export function useLabSimulation({
           if (
             curT >= 98 &&
             targetT >= 98 &&
-            !n.stoppered &&
             n.solution.hasWater &&
             n.solution.waterVolumeMl > 6 &&
             boilTick % 4 === 0
@@ -307,11 +306,6 @@ export function useLabSimulation({
       const analyte = flasks.find((f) => f.id === sess.analyteId)
       if (!burette || !analyte) {
         setTitrationSession((prev) => (prev ? { ...prev, running: false } : null))
-        return
-      }
-      if (burette.stoppered || analyte.stoppered) {
-        setTitrationSession((prev) => (prev ? { ...prev, running: false } : null))
-        showNotice('warning', 'Retirez le bouchon avant de verser depuis la burette.')
         return
       }
 

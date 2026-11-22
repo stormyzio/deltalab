@@ -3,6 +3,7 @@ import { ChevronDown, Search, X } from 'lucide-react'
 import type { CatalogSpeciesRecord } from '../../../shared/chemistry.ts'
 import { STATE_META } from '@/lib/chemistry-ui'
 import { cn } from '@/lib/utils'
+import { ChemFormula } from '@/components/ui/chem-text'
 
 type PredictorPickerCategory =
   | 'all'
@@ -145,14 +146,14 @@ export function PredictorSpeciesPicker({
                   }}
                 />
               )}
-              <span className="shrink-0 font-mono text-xs font-semibold text-foreground">
-                {selectedSpecies.displayFormula}
+              <span className="shrink-0 text-xs font-semibold text-foreground">
+                <ChemFormula value={selectedSpecies.displayFormula} />
               </span>
               <span className="truncate text-xs text-zinc-300">
                 {selectedSpecies.nameFr}
               </span>
               {selectedSpecies.kind !== 'ion' && (
-                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                <span className="shrink-0 text-[10px] text-muted-foreground">
                   {STATE_META[selectedSpecies.standardState].tag}
                 </span>
               )}
@@ -275,12 +276,12 @@ export function PredictorSpeciesPicker({
                           }}
                         />
                       )}
-                      <span className="shrink-0 font-mono font-semibold text-foreground">
-                        {sp.displayFormula}
+                      <span className="shrink-0 font-semibold text-foreground">
+                        <ChemFormula value={sp.displayFormula} />
                       </span>
                       <span className="truncate text-zinc-300">{sp.nameFr}</span>
                     </div>
-                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
                       {sp.kind === 'ion' ? 'Ion' : STATE_META[sp.standardState].tag}
                     </span>
                   </button>
@@ -301,13 +302,13 @@ export function PredictorSpeciesPicker({
                 type="button"
                 onClick={() => onSelect(sp.id)}
                 className={cn(
-                  'shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10.5px] font-medium',
+                  'shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10.5px] font-medium',
                   active
                     ? 'bg-accent text-foreground'
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                 )}
               >
-                {sp.displayFormula}
+                <ChemFormula value={sp.displayFormula} />
               </button>
             )
           })}

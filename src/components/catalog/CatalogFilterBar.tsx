@@ -4,6 +4,7 @@ import type {
   SpeciesKind,
   SpeciesSource,
 } from '../../../shared/chemistry.ts'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { Separator } from '@/components/ui/separator'
 import {
   type CatalogSection,
@@ -84,21 +85,24 @@ export function CatalogFilterBar({
               </FilterChip>
             ))}
             <Separator orientation="vertical" className="mx-1.5 h-3.5" />
-            {(
-              [
-                ['all', 'Toute solubilité'],
-                ['soluble', 'Solubles H₂O'],
-                ['insoluble', 'Insolubles'],
-              ] as const
-            ).map(([val, label]) => (
-              <FilterChip
-                key={val}
-                active={solubilityFilter === val}
-                onClick={() => onSolubilityFilter(val)}
-              >
-                {label}
-              </FilterChip>
-            ))}
+            <FilterChip
+              active={solubilityFilter === 'all'}
+              onClick={() => onSolubilityFilter('all')}
+            >
+              Toute solubilité
+            </FilterChip>
+            <FilterChip
+              active={solubilityFilter === 'soluble'}
+              onClick={() => onSolubilityFilter('soluble')}
+            >
+              Solubles <ChemFormula value="H2O" />
+            </FilterChip>
+            <FilterChip
+              active={solubilityFilter === 'insoluble'}
+              onClick={() => onSolubilityFilter('insoluble')}
+            >
+              Insolubles
+            </FilterChip>
           </>
         )}
 
@@ -156,7 +160,7 @@ export function CatalogFilterBar({
         )}
       </div>
 
-      <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
+      <span className="inline-block min-w-[88px] shrink-0 whitespace-nowrap text-right text-[10.5px] tabular-nums text-muted-foreground">
         {activeCount} résultat{activeCount > 1 ? 's' : ''}
       </span>
     </div>

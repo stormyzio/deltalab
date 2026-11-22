@@ -1,6 +1,8 @@
-import { BookOpen, Copy, Trash2 } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ChemText } from '@/components/ui/chem-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export type CatalogJumpTarget =
@@ -16,38 +18,32 @@ export function MetricCell({
   mono = false,
   valueClassName,
 }: {
-  label: string
-  value: string
+  label: ReactNode
+  value: ReactNode
   mono?: boolean
   valueClassName?: string
 }) {
   return (
     <div className="min-w-0">
-      <dt className="truncate text-[10.5px] text-muted-foreground">{label}</dt>
+      <dt className="truncate text-[10.5px] text-muted-foreground">
+        {typeof label === 'string' ? <ChemText value={label} /> : label}
+      </dt>
       <dd
         className={cn(
           'mt-0.5 break-words text-foreground',
-          mono && 'font-mono text-[11.5px] tabular-nums',
+          mono && 'text-[11.5px] tabular-nums',
           valueClassName,
         )}
       >
-        {value}
+        {typeof value === 'string' ? <ChemText value={value} /> : value}
       </dd>
     </div>
   )
 }
 
-export function QuickActions({
-  onOpenCatalog,
-  onDuplicate,
-  onDelete,
-}: {
-  onOpenCatalog: () => void
-  onDuplicate: () => void
-  onDelete: () => void
-}) {
+export function QuickActions({ onOpenCatalog }: { onOpenCatalog: () => void }) {
   return (
-    <div className="flex shrink-0 items-center gap-0.5">
+    <div className="flex shrink-0 items-center">
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -60,33 +56,6 @@ export function QuickActions({
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">Voir dans le catalogue</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onDuplicate}
-            aria-label="Dupliquer"
-          >
-            <Copy className="h-3.5 w-3.5" strokeWidth={1.6} />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Dupliquer (⌘D)</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onDelete}
-            className="hover:text-red-400"
-            aria-label="Supprimer"
-          >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.6} />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">Supprimer (X)</TooltipContent>
       </Tooltip>
     </div>
   )

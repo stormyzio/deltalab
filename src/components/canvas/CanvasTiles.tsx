@@ -14,7 +14,7 @@ import {
 } from '@/lib/chemistry-ui'
 import { projectFlaskStateAtExtent } from '@/lib/flask-reaction-ui'
 import { cn } from '@/lib/utils'
-import { ChemFormula, StateTag } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText, StateTag } from '@/components/ui/chem-text'
 import { ReactionControlCard } from '@/components/ReactionControlCard'
 import { VesselArtwork } from '@/components/VesselArtwork'
 import { FlaskContentSubcard } from './FlaskContentSubcard'
@@ -63,7 +63,7 @@ export const AtomTile = memo(function AtomTile({
           fresh && 'animate-dl-pop',
         )}
       >
-        <span className="absolute left-1.5 top-1 font-mono text-[9px] leading-none tabular-nums text-muted-foreground">
+        <span className="absolute left-1.5 top-1 text-[9px] leading-none tabular-nums text-muted-foreground">
           {node.atomicNumber}
         </span>
         <span
@@ -120,7 +120,7 @@ export const MoleculeTile = memo(function MoleculeTile({
     >
       <div
         className={cn(
-          'flex items-center gap-2.5 rounded-xl border bg-card px-3 py-2 shadow-md',
+          'flex min-w-[172px] items-center gap-2.5 rounded-xl border bg-card px-3 py-2 shadow-md',
           selected
             ? 'border-zinc-200 ring-2 ring-zinc-200/25'
             : 'border-border hover:border-zinc-600',
@@ -128,7 +128,7 @@ export const MoleculeTile = memo(function MoleculeTile({
           fresh && 'animate-dl-pop',
         )}
       >
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center gap-1.5">
             {tintDot && (
               <span
@@ -145,7 +145,7 @@ export const MoleculeTile = memo(function MoleculeTile({
             <span className="max-w-[116px] truncate text-muted-foreground">
               {sp.nameFr}
             </span>
-            <span className="shrink-0 font-mono text-[9.5px] tabular-nums text-zinc-400">
+            <span className="inline-block min-w-[54px] shrink-0 whitespace-nowrap text-right text-[9.5px] tabular-nums text-zinc-400">
               {qtyLabel}
             </span>
           </div>
@@ -203,12 +203,23 @@ export const FlaskTile = memo(function FlaskTile({
   onBalanceStoichiometry?: () => void
 }) {
   const { vessel, solution } = node
-  const hasContent = solution.hasWater || solution.solutes.length > 0
-  const canPourOut = solution.hasWater && !node.stoppered && solution.totalVolumeMl > 0.1
+  const filteredSolids = node.filteredSolids ?? []
+  const hasFilterCake = filteredSolids.length > 0
+  const filterCakeColorHex = filteredSolids[0]?.colorHex ?? '#e4e4e7'
+  const hasContent =
+    solution.hasWater || solution.solutes.length > 0 || hasFilterCake
+  const canPourOut = solution.hasWater && solution.totalVolumeMl > 0.1
   const temperatureC = node.temperatureC ?? 20
   const probes = node.probes ?? []
   const fillRatio =
     vessel.capacityMl > 0 ? Math.min(1, solution.totalVolumeMl / vessel.capacityMl) : 0
+  const immiscibleVisual =
+    solution.immisciblePhase && solution.totalVolumeMl > 0
+      ? {
+          ...solution.immisciblePhase,
+          volumeRatio: solution.immisciblePhase.volumeMl / solution.totalVolumeMl,
+        }
+      : null
 
   const projected = useMemo(
     () =>
@@ -299,7 +310,7 @@ export const FlaskTile = memo(function FlaskTile({
             </button>
           )}
           {temperatureC !== 20 && !probes.includes('thermometer') && (
-            <span className="pointer-events-none font-mono text-[9.5px] leading-tight tabular-nums text-muted-foreground">
+            <span className="pointer-events-none text-[9.5px] leading-tight tabular-nums text-muted-foreground">
               {Math.round(temperatureC)} °C
             </span>
           )}
@@ -312,7 +323,7 @@ export const FlaskTile = memo(function FlaskTile({
               dropHint.valid ? 'text-zinc-100' : 'text-amber-200',
             )}
           >
-            {dropHint.text}
+            <ChemText value={dropHint.text} />
           </div>
         )}
 
@@ -352,13 +363,16 @@ export const FlaskTile = memo(function FlaskTile({
           fillRatio={fillRatio}
           liquidColorHex={projected.liquidColorHex}
           liquidOpacity={projected.liquidOpacity}
+          immisciblePhase={immiscibleVisual}
           hasSediment={projected.hasUndissolvedSolid}
           sedimentColorHex={projected.sedimentColorHex}
           sedimentRatio={projected.sedimentRatio}
+          hasFilter={Boolean(node.hasFilter)}
+          hasFilterCake={hasFilterCake}
+          filterCakeColorHex={filterCakeColorHex}
           precipitating={projected.isPrecipitating}
           bubbling={pulsing}
           continuousBubbling={projected.evolvingGas}
-          stoppered={node.stoppered}
           temperatureC={temperatureC}
           stirrerOn={node.stirrerOn}
           heatingActive={heatingActive}
@@ -369,9 +383,14 @@ export const FlaskTile = memo(function FlaskTile({
 
         {/* Live digital probe readout strip when probes are immersed */}
         {probes.length > 0 && (
-          <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-y border-border/60 py-1 font-mono text-[10px] tabular-nums text-zinc-200">
+          <div
+            className={cn(
+              'mt-1 grid w-full gap-x-1.5 gap-y-0.5 border-y border-border/60 py-1 text-center text-[10px] tabular-nums text-zinc-200',
+              probes.length === 1 ? 'grid-cols-1' : 'grid-cols-2',
+            )}
+          >
             {probes.includes('ph') && (
-              <span>
+              <span className="whitespace-nowrap">
                 pH{' '}
                 {solution.hasWater && projected.phEstimate !== null
                   ? formatFrNumber(projected.phEstimate, 2)
@@ -379,10 +398,15 @@ export const FlaskTile = memo(function FlaskTile({
               </span>
             )}
             {probes.includes('thermometer') && (
-              <span>{formatFrNumber(temperatureC, 1)} °C</span>
+              <span className="whitespace-nowrap">{formatFrNumber(temperatureC, 1)} °C</span>
             )}
             {probes.includes('conductimeter') && (
-              <span>
+              <span
+                className={cn(
+                  'whitespace-nowrap',
+                  probes.length === 3 && 'col-span-2',
+                )}
+              >
                 {solution.hasWater && projected.conductivityMsCm !== null
                   ? `${formatFrNumber(projected.conductivityMsCm, 2)} mS`
                   : '—'}
@@ -393,16 +417,16 @@ export const FlaskTile = memo(function FlaskTile({
 
         <div className="mt-1.5 w-full text-center">
           {node.customLabel && (
-            <p className="mb-0.5 truncate font-mono text-[9.5px] font-medium text-zinc-400">
-              {node.customLabel}
+            <p className="mb-0.5 truncate text-[9.5px] font-medium text-zinc-400">
+              <ChemText value={node.customLabel} />
             </p>
           )}
           <div className="flex items-center justify-center gap-1">
             <p className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
-              {hasContent ? solution.labelFr : vessel.nameFr}
+              <ChemText value={hasContent ? solution.labelFr : vessel.nameFr} />
             </p>
           </div>
-          <p className="mt-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+          <p className="mt-0.5 truncate whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">
             {solution.hasWater
               ? `${formatVolumeMl(solution.totalVolumeMl)} / ${formatCapacityMl(vessel.capacityMl)}${
                   projected.phEstimate !== null && !probes.includes('ph')
@@ -425,6 +449,7 @@ export const FlaskTile = memo(function FlaskTile({
             reaction={rxn}
             availableReactions={availableReactions}
             projected={projected}
+            solution={solution}
             onChangeExtent={onChangeReactionExtent}
             onSelectReaction={onSelectReaction}
             onCommit={onCommitReaction}

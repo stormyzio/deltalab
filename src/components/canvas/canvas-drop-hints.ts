@@ -14,9 +14,6 @@ export function computeCanvasDropHint(
   draggedNode: CanvasNode | undefined,
   targetFlask: CanvasFlaskNode,
 ): FlaskDropHint | null {
-  if (targetFlask.stoppered) {
-    return { text: 'Retirez le bouchon', valid: false }
-  }
   if (!draggedNode) return null
 
   if (draggedNode.kind === 'atom') {
@@ -65,9 +62,6 @@ export function computeCanvasDropHint(
   }
 
   if (draggedNode.kind === 'flask') {
-    if (draggedNode.stoppered) {
-      return { text: 'Source bouchée', valid: false }
-    }
     if (!draggedNode.solution.hasWater && draggedNode.solution.solutes.length === 0) {
       return { text: 'Verrerie vide', valid: false }
     }

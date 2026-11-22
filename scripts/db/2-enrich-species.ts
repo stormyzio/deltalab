@@ -1101,7 +1101,13 @@ async function main() {
       ? (aqSolDb.byInchiKey.get(inchikey) ?? aqSolDb.byConnectivity.get(inchikey.split('-')[0]) ?? null)
       : null
     const parsedSol = cid
-      ? parseSolubilityWater(solubilityByCid.get(cid) ?? [], molarMass, aqLogS, curve?.['20'] ?? null)
+      ? parseSolubilityWater(
+          solubilityByCid.get(cid) ?? [],
+          molarMass,
+          aqLogS,
+          curve?.['20'] ?? null,
+          seed.standardState,
+        )
       : { solubilityGPerL: null, miscible: false, insoluble: false, source: null }
 
     let iupacVals: number[] = []
@@ -1286,7 +1292,8 @@ async function main() {
       continue
     }
 
-    // Mandatory 4: Experimental water solubility & dissolution type
+    // Mandatory 4: Experimental water solubility (AqSolDB priority -> PubChem exact numeric,
+    // or explicitly miscible liquid; reject species without exact data)
     const curve = lookupCurve(formula)
     const aqLogS =
       aqSolDb.byInchiKey.get(inchikey) ??
@@ -1297,8 +1304,13 @@ async function main() {
       molarMass,
       aqLogS,
       curve?.['20'] ?? null,
+      standardState,
     )
-    if (!parsedSol.miscible && parsedSol.solubilityGPerL === null) {
+    const hasValidSolubility =
+      (parsedSol.solubilityGPerL !== null &&
+        (parsedSol.source === 'aqsoldb' || parsedSol.source === 'pubchem')) ||
+      (standardState === 'liquid' && parsedSol.miscible)
+    if (!hasValidSolubility) {
       rejectionStats.noSolubility++
       continue
     }
@@ -1324,7 +1336,7 @@ async function main() {
     const dissolutionType = deriveDissolutionType(kind, parsedSol, pkaValues)
     const canDissolveInWater =
       dissolutionType !== 'none' &&
-      (parsedSol.miscible || (parsedSol.solubilityGPerL ?? 0) >= 0.1)
+      (parsedSol.miscible || (parsedSol.solubilityGPerL ?? 0) >= 1)
     const phCharacter = derivePhCharacter(pkaValues, parsedLewis.families, smiles)
     const dissociatesInto =
       kind === 'ionic_compound' && canDissolveInWater

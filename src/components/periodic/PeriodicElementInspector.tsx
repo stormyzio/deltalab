@@ -33,7 +33,7 @@ export function PeriodicElementInspector({
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative flex h-16 w-16 shrink-0 flex-col items-center justify-between rounded-xl border border-border bg-card px-1.5 py-1">
             <div className="flex w-full items-center justify-between leading-none">
-              <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
+              <span className="text-[9.5px] tabular-nums text-muted-foreground">
                 {element.atomicNumber}
               </span>
             </div>
@@ -44,7 +44,7 @@ export function PeriodicElementInspector({
               {element.symbol}
             </span>
             <div className="flex w-full items-baseline justify-between leading-none">
-              <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
+              <span className="text-[9.5px] tabular-nums text-muted-foreground">
                 {massNumber}
               </span>
             </div>
@@ -57,7 +57,7 @@ export function PeriodicElementInspector({
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
               {cat.labelFr} · Bloc {element.block}
             </p>
-            <p className="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground">
+            <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground">
               {currentPhase === 'solid'
                 ? 'Solide'
                 : currentPhase === 'liquid'

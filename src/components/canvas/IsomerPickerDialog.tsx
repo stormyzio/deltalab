@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-react'
 import type { SpeciesRecord } from '../../../shared/chemistry.ts'
 import { STATE_META } from '@/lib/chemistry-ui'
 import { Button } from '@/components/ui/button'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { LewisDiagram } from '@/components/LewisDiagram'
 
 export interface PendingMergeIsomers {
@@ -51,10 +52,10 @@ export function IsomerPickerDialog({
           <span className="shrink-0 text-xs font-semibold text-foreground">
             Choisir l’isomère
           </span>
-          <span className="truncate font-mono text-[11px] text-zinc-300">
-            {pending.compositionFormula}
+          <span className="truncate text-[11px] text-zinc-300">
+            <ChemFormula value={pending.compositionFormula} />
           </span>
-          <span className="shrink-0 whitespace-nowrap font-mono text-[10px] tabular-nums text-muted-foreground">
+          <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">
             · {totalCount} en base
           </span>
         </div>
@@ -112,8 +113,8 @@ export function IsomerPickerDialog({
                     ariaLabel={`Schéma de Lewis de ${cand.nameFr}`}
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center font-mono text-sm text-foreground">
-                    {cand.displayFormula}
+                  <div className="flex h-full items-center justify-center text-sm text-foreground">
+                    <ChemFormula value={cand.displayFormula} />
                   </div>
                 )}
               </div>
@@ -122,15 +123,16 @@ export function IsomerPickerDialog({
                   <p className="truncate text-xs font-semibold text-foreground">
                     {cand.nameFr}
                   </p>
-                  <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                    {cand.displayFormula} · {STATE_META[cand.standardState].tag}
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    <ChemFormula value={cand.displayFormula} /> ·{' '}
+                    {STATE_META[cand.standardState].tag}
                     {cand.source !== 'curated'
                       ? ` · ${cand.source === 'pubchem_live' ? 'PubChem' : 'Étendue'}`
                       : ''}
                   </p>
                 </div>
                 {!q && idx < 9 && (
-                  <kbd className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  <kbd className="shrink-0 text-[10px] text-muted-foreground">
                     {idx + 1}
                   </kbd>
                 )}

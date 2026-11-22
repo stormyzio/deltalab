@@ -1,15 +1,18 @@
 import {
   Combine,
   Copy,
+  Filter,
   Hand,
   Maximize2,
   Minus,
   MousePointer2,
   Plus,
+  RotateCcw,
   Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ChemText, ChemVar } from '@/components/ui/chem-text'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -26,6 +29,9 @@ export function CanvasSelectionBar({
   canIonizeMinus = true,
   canIonizePlus = true,
   selectedChargeSum,
+  selectedFlask = null,
+  onToggleFlaskFilter,
+  onEmptyFlask,
   onMergeSelected,
   onIonizeSelected,
   onDuplicateSelected,
@@ -37,6 +43,9 @@ export function CanvasSelectionBar({
   canIonizeMinus?: boolean
   canIonizePlus?: boolean
   selectedChargeSum: number
+  selectedFlask?: { hasFilter: boolean; hasContent: boolean } | null
+  onToggleFlaskFilter?: () => void
+  onEmptyFlask?: () => void
   onMergeSelected: () => void
   onIonizeSelected: (direction: 1 | -1) => void
   onDuplicateSelected: () => void
@@ -58,7 +67,7 @@ export function CanvasSelectionBar({
               >
                 <Combine className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span>Fusionner</span>
-                <span className="rounded bg-black/15 px-1 font-mono text-[10px] tabular-nums">
+                <span className="inline-block min-w-[18px] rounded bg-black/15 px-1 text-center text-[10px] tabular-nums">
                   {selectedCount}
                 </span>
               </Button>
@@ -86,14 +95,18 @@ export function CanvasSelectionBar({
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              {canIonizeMinus
-                ? 'Gagner e⁻ · charge − (−)'
-                : 'Aucun état plus réduit répertorié'}
+              {canIonizeMinus ? (
+                <>
+                  Gagner <ChemVar base="e" sup="−" /> · charge − (−)
+                </>
+              ) : (
+                'Aucun état plus réduit répertorié'
+              )}
             </TooltipContent>
           </Tooltip>
 
           <span
-            className="min-w-[26px] text-center font-mono text-[11px] font-medium tabular-nums text-foreground"
+            className="min-w-[26px] text-center text-[11px] font-medium tabular-nums text-foreground"
             title="Charge électrique"
           >
             {selectedChargeSum > 0 ? `+${selectedChargeSum}` : selectedChargeSum}
@@ -114,19 +127,74 @@ export function CanvasSelectionBar({
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              {canIonizePlus
-                ? 'Perdre e⁻ · charge + (+)'
-                : 'Aucun état plus oxydé répertorié'}
+              {canIonizePlus ? (
+                <>
+                  Perdre <ChemVar base="e" sup="−" /> · charge + (+)
+                </>
+              ) : (
+                'Aucun état plus oxydé répertorié'
+              )}
             </TooltipContent>
           </Tooltip>
         </div>
       ) : (
-        <span className="whitespace-nowrap px-2 font-mono text-[11px] tabular-nums text-muted-foreground">
+        <span className="inline-block min-w-[86px] whitespace-nowrap px-2 text-center text-[11px] tabular-nums text-muted-foreground">
           {selectedCount} sélection{selectedCount > 1 ? 's' : ''}
         </span>
       )}
 
       <Separator orientation="vertical" className="mx-0.5 h-4" />
+
+      {selectedFlask && (
+        <>
+          {onToggleFlaskFilter && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={selectedFlask.hasFilter ? 'secondary' : 'ghost'}
+                  size="icon"
+                  onClick={onToggleFlaskFilter}
+                  aria-label={
+                    selectedFlask.hasFilter ? 'Retirer le filtre' : 'Poser un filtre'
+                  }
+                >
+                  <Filter
+                    className={cn(
+                      'h-3.5 w-3.5',
+                      selectedFlask.hasFilter && 'text-zinc-100',
+                    )}
+                    strokeWidth={1.6}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {selectedFlask.hasFilter
+                  ? 'Retirer le filtre'
+                  : 'Poser un filtre au-dessus'}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {onEmptyFlask && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={!selectedFlask.hasContent}
+                    onClick={onEmptyFlask}
+                    aria-label="Vider la verrerie"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.6} />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Vider la verrerie</TooltipContent>
+            </Tooltip>
+          )}
+          <Separator orientation="vertical" className="mx-0.5 h-4" />
+        </>
+      )}
 
       <Tooltip>
         <TooltipTrigger asChild>
@@ -178,7 +246,9 @@ export function CanvasNoticeBanner({
         notice.tone === 'warning' ? 'text-amber-200' : 'text-foreground',
       )}
     >
-      <span>{notice.text}</span>
+      <span>
+        <ChemText value={notice.text} />
+      </span>
     </div>
   )
 }
@@ -249,7 +319,7 @@ export function CanvasViewportHud({
       <button
         type="button"
         onClick={onResetView}
-        className="min-w-[42px] whitespace-nowrap rounded px-1 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="min-w-[42px] whitespace-nowrap rounded px-1 py-0.5 text-[10px] tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
         title="Réinitialiser le zoom"
       >
         {Math.round(zoom * 100)}%

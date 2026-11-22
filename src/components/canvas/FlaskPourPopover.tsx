@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import type { CanvasFlaskNode } from '../../../shared/chemistry.ts'
 import { formatFrNumber, formatVolumeMl } from '@/lib/chemistry-ui'
-import { VOLUME_UNITS } from '@/lib/quantity-units'
 import { Button } from '@/components/ui/button'
-import { ScrubNumberInput } from '@/components/ui/scrub-number-input'
+import { InlineNumberInput, type InlineUnitOption } from '@/components/ui/inline-number-input'
 import { Slider } from '@/components/ui/slider'
+
+const POUR_INLINE_UNITS: InlineUnitOption[] = [
+  { id: 'mL', label: 'mL', toBase: 1, decimals: 1 },
+  { id: 'L', label: 'L', toBase: 1000, decimals: 3 },
+]
 
 interface FlaskPourPopoverProps {
   source: CanvasFlaskNode
@@ -91,7 +95,7 @@ export function FlaskPourPopover({
           <p className="truncate text-[11.5px] font-medium text-foreground">
             Verser depuis {sourceTitle}
           </p>
-          <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
+          <p className="text-[10px] tabular-nums text-muted-foreground">
             Disponible : {formatVolumeMl(maxMl)}
           </p>
         </div>
@@ -106,7 +110,31 @@ export function FlaskPourPopover({
         </Button>
       </div>
 
-      <div className="mt-2.5 space-y-2">
+      <div className="mt-2.5 space-y-1.5">
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <span className="font-medium text-muted-foreground">Volume</span>
+          <div className="flex items-center gap-1.5">
+            <InlineNumberInput
+              value={volumeMl}
+              onChange={setVolumeMl}
+              min={0}
+              max={maxMl}
+              step={step}
+              units={POUR_INLINE_UNITS}
+              defaultUnitId="mL"
+              inputWidthClass="w-[5.5ch]"
+              ariaLabel="Volume à verser"
+            />
+            <button
+              type="button"
+              onClick={() => setVolumeMl(maxMl)}
+              className="h-[22px] shrink-0 whitespace-nowrap rounded px-1.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Tout
+            </button>
+          </div>
+        </div>
+
         <Slider
           min={0}
           max={Math.max(0.1, maxMl)}
@@ -116,28 +144,6 @@ export function FlaskPourPopover({
           onChange={setVolumeMl}
           ariaLabel="Volume à verser en millilitres"
         />
-
-        <div className="flex items-center gap-1.5">
-          <ScrubNumberInput
-            prefixLabel="V"
-            value={volumeMl}
-            units={VOLUME_UNITS}
-            defaultUnitId="mL"
-            min={0}
-            max={maxMl}
-            step={step}
-            ariaLabel="Volume à verser"
-            onChange={setVolumeMl}
-            className="flex-1"
-          />
-          <button
-            type="button"
-            onClick={() => setVolumeMl(maxMl)}
-            className="h-7 shrink-0 whitespace-nowrap rounded-md px-2 font-mono text-[10.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            Tout
-          </button>
-        </div>
       </div>
 
       <div className="mt-2.5 flex items-center justify-end gap-1.5">
@@ -153,7 +159,7 @@ export function FlaskPourPopover({
           size="sm"
           disabled={volumeMl <= 0.04}
           onClick={() => onConfirm(volumeMl)}
-          className="h-7 px-3 text-[11px]"
+          className="h-7 min-w-[116px] justify-center px-3 text-[11px] tabular-nums"
         >
           Verser {formatFrNumber(volumeMl, volumeMl < 10 ? 1 : 0)} mL
         </Button>

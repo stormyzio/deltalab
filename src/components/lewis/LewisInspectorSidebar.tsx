@@ -8,7 +8,7 @@ import { STATE_META, formatFrNumber } from '@/lib/chemistry-ui'
 import { formatChargeLabel } from '@/lib/chemistry-calc'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ChemFormula } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText } from '@/components/ui/chem-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LewisValidationResult } from './lewis-validation'
 
@@ -69,12 +69,12 @@ export function LewisInspectorSidebar({
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border px-3.5">
         <span className="truncate text-xs font-medium text-foreground">Inspecteur</span>
         {matching ? (
-          <span className="shrink-0 whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+          <span className="shrink-0 whitespace-nowrap text-[10px] text-muted-foreground">
             Analyse…
           </span>
         ) : (
           headerFormula && (
-            <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-zinc-300">
+            <span className="shrink-0 whitespace-nowrap text-[11px] text-zinc-300">
               <ChemFormula value={headerFormula} />
             </span>
           )
@@ -92,7 +92,7 @@ export function LewisInspectorSidebar({
               </span>
               <span
                 className={cn(
-                  'shrink-0 whitespace-nowrap font-mono text-[10px] tabular-nums',
+                  'shrink-0 whitespace-nowrap text-[10px] tabular-nums',
                   strictValidation.errorCount > 0 ? 'text-red-300' : 'text-amber-300',
                 )}
               >
@@ -119,14 +119,14 @@ export function LewisInspectorSidebar({
                   >
                     <span
                       className={cn(
-                        'mt-0.5 w-4 shrink-0 font-mono text-[10.5px] font-semibold',
+                        'mt-0.5 w-4 shrink-0 text-[10.5px] font-semibold',
                         diag.severity === 'error' ? 'text-red-400' : 'text-amber-300',
                       )}
                     >
                       {diag.symbol}
                     </span>
                     <span className="min-w-0 flex-1 text-zinc-300">
-                      {diag.detailsFr.join(' · ')}
+                      <ChemText value={diag.detailsFr.join(' · ')} />
                     </span>
                   </button>
                 </li>
@@ -163,7 +163,7 @@ export function LewisInspectorSidebar({
                   <p className="mt-0.5 text-xs text-zinc-200">
                     {activeMatch.species.nameFr}
                   </p>
-                  <p className="mt-0.5 font-mono text-[10.5px] tabular-nums text-muted-foreground">
+                  <p className="mt-0.5 text-[10.5px] tabular-nums text-muted-foreground">
                     {activeMatch.species.kind === 'ion'
                       ? 'Ion'
                       : STATE_META[activeMatch.species.standardState].labelFr}{' '}
@@ -195,7 +195,9 @@ export function LewisInspectorSidebar({
                 <div className="space-y-2 border-t border-border/60 pt-2.5">
                   <ul className="space-y-1 text-[11px] leading-snug text-zinc-300">
                     {activeMatch.issuesFr.map((issue, idx) => (
-                      <li key={idx}>• {issue}</li>
+                      <li key={idx}>
+                        • <ChemText value={issue} />
+                      </li>
                     ))}
                   </ul>
                   <Button
@@ -219,17 +221,16 @@ export function LewisInspectorSidebar({
                   <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
                   <span>Paillasse</span>
                 </Button>
-                {activeMatch.exactLewisValid && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => onAddToWorkbench(activeMatch.species, false)}
-                    className="h-7 shrink-0 px-2.5 text-[11px]"
-                    title="Ajouter sur la paillasse sans quitter l’éditeur"
-                  >
-                    + Rester
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!activeMatch.exactLewisValid}
+                  onClick={() => onAddToWorkbench(activeMatch.species, false)}
+                  className="h-7 shrink-0 px-2.5 text-[11px]"
+                  title="Ajouter sur la paillasse sans quitter l’éditeur"
+                >
+                  + Rester
+                </Button>
               </div>
             </div>
           ) : activeMatch ? (
@@ -239,7 +240,7 @@ export function LewisInspectorSidebar({
                   Espèce non répertoriée
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                  {activeMatch.reasonFr}
+                  <ChemText value={activeMatch.reasonFr} />
                 </p>
               </div>
 
@@ -290,7 +291,7 @@ export function LewisInspectorSidebar({
 
       {/* Slim footer summary */}
       {atoms.length > 0 && (
-        <div className="flex h-8 shrink-0 items-center justify-between border-t border-border/70 px-3.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+        <div className="flex h-8 shrink-0 items-center justify-between border-t border-border/70 px-3.5 text-[10px] tabular-nums text-muted-foreground">
           <span>
             {atoms.length} atome{atoms.length > 1 ? 's' : ''} ·{' '}
             {compositionStats.totalBondOrders} liaison

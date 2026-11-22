@@ -5,6 +5,7 @@ import type {
   PhIndicatorId,
 } from '../../../shared/chemistry.ts'
 import { formatConcMolL, formatFrNumber } from '@/lib/chemistry-ui'
+import { cn } from '@/lib/utils'
 import {
   PH_INDICATORS,
   PH_INDICATOR_BY_ID,
@@ -162,16 +163,18 @@ export function TitrationDrawer({
       <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-xs font-medium text-foreground">Titrage</span>
-          {liveColorHex && (
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full border border-white/15"
-              style={{ backgroundColor: liveColorHex }}
-              title={activeIndicator?.nameFr}
-            />
-          )}
-          <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
+          <span className="inline-block min-w-[82px] shrink-0 whitespace-nowrap text-[10.5px] tabular-nums text-muted-foreground">
             V = {formatFrNumber(session.volumeAddedMl, 1)} mL
           </span>
+          <span
+            aria-hidden={!liveColorHex}
+            className={cn(
+              'h-2.5 w-2.5 shrink-0 rounded-full border border-white/15',
+              !liveColorHex && 'invisible',
+            )}
+            style={liveColorHex ? { backgroundColor: liveColorHex } : undefined}
+            title={activeIndicator?.nameFr}
+          />
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">
@@ -258,7 +261,7 @@ export function TitrationDrawer({
             type="button"
             onClick={onCycleSpeed}
             title="Changer le débit continu"
-            className="h-6 shrink-0 whitespace-nowrap rounded px-1.5 font-mono text-[10px] tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="h-6 shrink-0 whitespace-nowrap rounded px-1.5 text-[10px] tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             ×{session.speedMultiplier}
           </button>
@@ -271,12 +274,12 @@ export function TitrationDrawer({
               type="button"
               disabled={buretteEmpty}
               onClick={() => onDispenseMl(step)}
-              className="h-6 shrink-0 whitespace-nowrap rounded px-2 font-mono text-[10.5px] tabular-nums text-zinc-200 hover:bg-accent disabled:opacity-40"
+              className="h-6 shrink-0 whitespace-nowrap rounded px-2 text-[10.5px] tabular-nums text-zinc-200 hover:bg-accent disabled:opacity-40"
             >
               +{formatFrNumber(step, step < 1 ? 1 : 0)}
             </button>
           ))}
-          <span className="ml-0.5 font-mono text-[10px] text-muted-foreground">mL</span>
+          <span className="ml-0.5 text-[10px] text-muted-foreground">mL</span>
         </div>
       </div>
 
@@ -284,19 +287,19 @@ export function TitrationDrawer({
       <dl className="grid grid-cols-3 divide-x divide-border/60 border-b border-border/60 py-1.5 text-center">
         <div className="min-w-0 px-1.5">
           <dt className="text-[9.5px] text-muted-foreground">pH</dt>
-          <dd className="font-mono text-xs font-medium tabular-nums text-foreground">
+          <dd className="text-xs font-medium tabular-nums text-foreground">
             {latestPoint ? formatFrNumber(latestPoint.ph, 2) : '—'}
           </dd>
         </div>
         <div className="min-w-0 px-1.5">
           <dt className="text-[9.5px] text-muted-foreground">Conductivité</dt>
-          <dd className="font-mono text-xs font-medium tabular-nums text-foreground">
+          <dd className="text-xs font-medium tabular-nums text-foreground">
             {latestPoint ? `${formatFrNumber(latestPoint.conductivityMsCm, 2)} mS` : '—'}
           </dd>
         </div>
         <div className="min-w-0 px-1.5">
           <dt className="text-[9.5px] text-muted-foreground">Burette</dt>
-          <dd className="font-mono text-xs font-medium tabular-nums text-zinc-300">
+          <dd className="text-xs font-medium tabular-nums text-zinc-300">
             {formatFrNumber(buretteRemainingMl, 1)} mL
           </dd>
         </div>
@@ -314,7 +317,7 @@ export function TitrationDrawer({
           />
           {chartMode === 'ph' && (
             <div className="inline-flex items-center gap-1.5">
-              <span className="font-mono text-[10px] text-muted-foreground">dpH/dV</span>
+              <span className="text-[10px] text-muted-foreground">dpH/dV</span>
               <Switch
                 checked={showDerivative}
                 onCheckedChange={setShowDerivative}
@@ -392,7 +395,7 @@ export function TitrationDrawer({
                       textAnchor="end"
                       fill="#71717a"
                       fontSize="9"
-                      fontFamily="var(--font-mono)"
+                      fontFamily="var(--font-sans)"
                     >
                       {val}
                     </text>
@@ -418,7 +421,7 @@ export function TitrationDrawer({
                       textAnchor="end"
                       fill="#71717a"
                       fontSize="9"
-                      fontFamily="var(--font-mono)"
+                      fontFamily="var(--font-sans)"
                     >
                       {formatFrNumber(val, 1)}
                     </text>
@@ -446,7 +449,7 @@ export function TitrationDrawer({
                   textAnchor="middle"
                   fill="#71717a"
                   fontSize="9"
-                  fontFamily="var(--font-mono)"
+                  fontFamily="var(--font-sans)"
                 >
                   {v}
                 </text>
@@ -490,7 +493,7 @@ export function TitrationDrawer({
                   y={padT + 9 + idx * 11}
                   fill="#7dd3fc"
                   fontSize="8.5"
-                  fontFamily="var(--font-mono)"
+                  fontFamily="var(--font-sans)"
                 >
                   V
                   <tspan dy="2" fontSize="6.5">
@@ -532,24 +535,30 @@ export function TitrationDrawer({
         </svg>
       </div>
 
-      {/* Equivalence result footer */}
-      {equivalences.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 px-3 py-1.5 font-mono text-[10.5px] tabular-nums">
-          <span className="flex flex-wrap items-baseline gap-x-2 text-zinc-300">
-            {equivalences.map((eq, i) => (
-              <span key={`${eq.volumeMl}-${i}`}>
-                <ChemVar base="V" sub={equivalences.length > 1 ? `E${i + 1}` : 'E'} /> ={' '}
-                {formatFrNumber(eq.volumeMl, 1)} mL (pH {formatFrNumber(eq.ph, 1)})
-              </span>
-            ))}
-          </span>
-          {estimatedAnalyteConc !== null && (
-            <span className="text-sky-300">
-              C ≈ {formatConcMolL(estimatedAnalyteConc)}
+      {/* Fixed-height equivalence footer so dispense buttons never jump vertically */}
+      <div className="flex h-7 shrink-0 flex-nowrap items-center justify-between gap-2 overflow-hidden border-t border-border/60 px-3 text-[10.5px] tabular-nums">
+        {equivalences.length > 0 ? (
+          <>
+            <span className="min-w-0 truncate text-zinc-300">
+              {equivalences.map((eq, i) => (
+                <span key={`${eq.volumeMl}-${i}`} className={i > 0 ? 'ml-2' : undefined}>
+                  <ChemVar base="V" sub={equivalences.length > 1 ? `E${i + 1}` : 'E'} /> ={' '}
+                  {formatFrNumber(eq.volumeMl, 1)} mL (pH {formatFrNumber(eq.ph, 1)})
+                </span>
+              ))}
             </span>
-          )}
-        </div>
-      )}
+            {estimatedAnalyteConc !== null && (
+              <span className="shrink-0 whitespace-nowrap text-sky-300">
+                C ≈ {formatConcMolL(estimatedAnalyteConc)}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="truncate font-sans text-[10.5px] text-muted-foreground/75">
+            Équivalence : en attente
+          </span>
+        )}
+      </div>
     </section>
   )
 }

@@ -546,7 +546,6 @@ export function useWorkbenchSelectionActions({
             y: pt.y - 36,
             vessel: { ...defaultVessel },
             temperatureC: 20,
-            stoppered: setup.medium === 'gas',
             pourStepMl: defaultVessel.defaultPourStepMl,
             customLabel: setup.titleFr.slice(0, 32),
             solution: res.solution,

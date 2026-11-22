@@ -6,7 +6,10 @@ import {
 } from 'react'
 import type {
   CanvasFlaskNode,
+  CanvasMoleculeNode,
   CanvasNode,
+  FilteredSolidItem,
+  SpeciesRecord,
   VesselRecord,
 } from '../../shared/chemistry.ts'
 import { api } from '@/lib/api'
@@ -15,8 +18,32 @@ import { getSelectedFlaskReaction } from '@/lib/flask-reaction-ui'
 import { createNodeId, getPendingReactionCommit } from '@/lib/workbench-helpers'
 import type { CanvasNotice } from '@/components/LabCanvas'
 
+function mergeFilteredSolids(
+  existing: FilteredSolidItem[] | undefined,
+  incoming: FilteredSolidItem[] | undefined,
+): FilteredSolidItem[] | undefined {
+  if ((!existing || existing.length === 0) && (!incoming || incoming.length === 0)) {
+    return existing
+  }
+  const map = new Map<string, FilteredSolidItem>()
+  for (const item of existing ?? []) {
+    map.set(item.speciesId, { ...item })
+  }
+  for (const item of incoming ?? []) {
+    const prev = map.get(item.speciesId)
+    if (prev) {
+      prev.amountMol = Math.round((prev.amountMol + item.amountMol) * 1e6) / 1e6
+      prev.massG = Math.round((prev.massG + item.massG) * 1e4) / 1e4
+    } else {
+      map.set(item.speciesId, { ...item })
+    }
+  }
+  return [...map.values()]
+}
+
 interface UseFlaskReactionAndTransferParams {
   nodesRef: MutableRefObject<CanvasNode[]>
+  speciesMap: Map<string, SpeciesRecord>
   setNodes: Dispatch<SetStateAction<CanvasNode[]>>
   setSelectedIds: Dispatch<SetStateAction<Set<string>>>
   showNotice: (tone: CanvasNotice['tone'], text: string) => void
@@ -27,6 +54,7 @@ interface UseFlaskReactionAndTransferParams {
 
 export function useFlaskReactionAndTransfer({
   nodesRef,
+  speciesMap,
   setNodes,
   setSelectedIds,
   showNotice,
@@ -182,17 +210,6 @@ export function useFlaskReactionAndTransfer({
       )
       if (!src || !target) return
 
-      if (src.stoppered) {
-        triggerShake([sourceFlaskId])
-        showNotice('warning', 'Verrerie source bouchée : retirez le bouchon pour verser.')
-        return
-      }
-      if (target.stoppered) {
-        triggerShake([targetFlaskId])
-        showNotice('warning', 'Verrerie cible bouchée : retirez le bouchon avant de verser.')
-        return
-      }
-
       const transferVolumeMl =
         typeof explicitVolumeMl === 'number' && explicitVolumeMl > 0
           ? explicitVolumeMl
@@ -229,6 +246,7 @@ export function useFlaskReactionAndTransfer({
             solutesMol: srcSolutesMol,
             transferVolumeMl,
             sourceTemperatureC: src.temperatureC ?? 20,
+            filterSolids: Boolean(target.hasFilter),
           },
         })
 
@@ -244,6 +262,7 @@ export function useFlaskReactionAndTransfer({
               return {
                 ...n,
                 solution: res.solution,
+                filteredSolids: mergeFilteredSolids(n.filteredSolids, res.filteredSolids),
                 reactionExtentMol: 0,
                 selectedReactionId: undefined,
               }
@@ -274,11 +293,6 @@ export function useFlaskReactionAndTransfer({
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === sourceFlaskId,
       )
       if (!src) return
-      if (src.stoppered) {
-        triggerShake([sourceFlaskId])
-        showNotice('warning', 'Retirez le bouchon de la verrerie source avant de prélever.')
-        return
-      }
       if (!src.solution.hasWater) {
         triggerShake([sourceFlaskId])
         showNotice('warning', 'La verrerie source est vide.')
@@ -388,6 +402,102 @@ export function useFlaskReactionAndTransfer({
     [nodesRef, setNodes, setSelectedIds, showNotice, triggerFlaskPulse, triggerFresh, triggerShake],
   )
 
+  const handleExtractFilteredSolid = useCallback(
+    (flaskId: string, speciesId: string) => {
+      const flask = nodesRef.current.find(
+        (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
+      )
+      if (!flask || !flask.filteredSolids) return
+      const targetItem = flask.filteredSolids.find((s) => s.speciesId === speciesId)
+      if (!targetItem) return
+
+      const catalogSp = speciesMap.get(speciesId)
+      const molarMass =
+        targetItem.amountMol > 1e-8
+          ? Math.round((targetItem.massG / targetItem.amountMol) * 100) / 100
+          : (catalogSp?.molarMass ?? 100)
+      const speciesRecord: SpeciesRecord = catalogSp ?? {
+        id: targetItem.speciesId,
+        formula: targetItem.displayFormula,
+        displayFormula: targetItem.displayFormula,
+        nameFr: targetItem.nameFr,
+        iupacName: null,
+        casNumber: null,
+        inchikey: null,
+        kind: 'ionic_compound',
+        charge: 0,
+        molarMass,
+        standardState: 'solid',
+        meltingPointC: null,
+        boilingPointC: null,
+        thermalNote: null,
+        densityGPerCm3: 3.5,
+        appearanceFr: 'Précipité isolé par filtration',
+        colorHex: targetItem.colorHex,
+        composition: {},
+        compositionKey: null,
+        isSolvent: false,
+        canDissolveInWater: false,
+        solubilityGPerL: 0,
+        solubilityByTempC: null,
+        dissolutionType: 'none',
+        solutionColorHex: null,
+        phCharacter: 'neutral',
+        pkaValues: [],
+        ghsPictograms: [],
+        ghsSignalWord: null,
+        source: 'curated',
+        popularity: 0,
+        smiles: null,
+        pubchemCid: null,
+        families: ['Précipité'],
+        lewis: null,
+        behaviors: {},
+      }
+
+      const newNode: CanvasMoleculeNode = {
+        id: createNodeId('mol'),
+        kind: 'molecule',
+        x: flask.x + 170,
+        y: flask.y - 36,
+        species: speciesRecord,
+        amountMol: Math.max(0.0001, targetItem.amountMol),
+      }
+
+      setNodes((prev) => [
+        ...prev.map((n) =>
+          n.id === flaskId && n.kind === 'flask'
+            ? {
+                ...n,
+                filteredSolids: (n.filteredSolids ?? []).filter(
+                  (s) => s.speciesId !== speciesId,
+                ),
+              }
+            : n,
+        ),
+        newNode,
+      ])
+      setSelectedIds(new Set([newNode.id]))
+      triggerFresh(newNode.id)
+      showNotice('success', `${targetItem.displayFormula}(s) récupéré sur la paillasse.`)
+    },
+    [nodesRef, setNodes, setSelectedIds, showNotice, speciesMap, triggerFresh],
+  )
+
+  const handleClearFilterCake = useCallback(
+    (flaskId: string) => {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === flaskId && n.kind === 'flask'
+            ? { ...n, filteredSolids: [] }
+            : n,
+        ),
+      )
+      showNotice('neutral', 'Papier filtre nettoyé.')
+    },
+    [setNodes, showNotice],
+  )
+
   return {
     handleChangeFlaskReactionExtent,
     handleSelectFlaskReaction,
@@ -395,5 +505,7 @@ export function useFlaskReactionAndTransfer({
     handleBalanceFlaskStoichiometry,
     handlePourBetweenFlasks,
     handleExtractAliquot,
+    handleExtractFilteredSolid,
+    handleClearFilterCake,
   }
 }

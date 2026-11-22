@@ -140,9 +140,7 @@ export function useExternalDockDrag({
           const flask = getFlaskHitTest(nodesRef.current, worldPt.x, worldPt.y)
           if (flask) {
             let nextHint: { text: string; valid: boolean }
-            if (flask.stoppered) {
-              nextHint = { text: 'Verrerie bouchée', valid: false }
-            } else if (meta.item.kind === 'atom') {
+            if (meta.item.kind === 'atom') {
               const el = meta.item.element
               const solidId = ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[el.symbol]
               if (!solidId) {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Combine, Copy, Trash2 } from 'lucide-react'
+import { Combine } from 'lucide-react'
 import type {
   CanvasNode,
   ElementRecord,
@@ -12,6 +12,7 @@ import {
   formatFormulaFromComposition,
 } from '@/lib/chemistry-calc'
 import { Button } from '@/components/ui/button'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { MetricCell } from './InspectorPrimitives'
 
 export function MultiSelectionInspector({
@@ -20,16 +21,12 @@ export function MultiSelectionInspector({
   elementsBySymbol,
   onMerge,
   onIonize,
-  onDuplicate,
-  onDelete,
 }: {
   nodes: CanvasNode[]
   catalog: FullCatalogResponse | null
   elementsBySymbol: Map<string, ElementRecord>
   onMerge: () => void
   onIonize: (direction: 1 | -1) => void
-  onDuplicate: () => void
-  onDelete: () => void
 }) {
   const atomsCount = nodes.filter((n) => n.kind === 'atom').length
   const moleculesCount = nodes.filter(
@@ -93,7 +90,7 @@ export function MultiSelectionInspector({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-xs font-semibold text-foreground">Sélection multiple</h2>
-          <p className="mt-0.5 font-mono text-[10.5px] tabular-nums text-muted-foreground">
+          <p className="mt-0.5 text-[10.5px] tabular-nums text-muted-foreground">
             {[
               atomsCount > 0 ? `${atomsCount} atome${atomsCount > 1 ? 's' : ''}` : null,
               moleculesCount > 0
@@ -105,26 +102,6 @@ export function MultiSelectionInspector({
               .filter(Boolean)
               .join(' · ')}
           </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onDuplicate}
-            aria-label="Dupliquer la sélection"
-          >
-            <Copy className="h-3.5 w-3.5" strokeWidth={1.6} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onDelete}
-            className="hover:text-red-400"
-            aria-label="Supprimer la sélection"
-          >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.6} />
-          </Button>
         </div>
       </div>
 
@@ -162,7 +139,7 @@ export function MultiSelectionInspector({
                 {summary.exactMatches.length === 1 ? (
                   <div className="mt-1 flex items-baseline justify-between gap-2">
                     <span className="shrink-0 text-sm font-semibold text-foreground">
-                      {summary.exactMatches[0].displayFormula}
+                      <ChemFormula value={summary.exactMatches[0].displayFormula} />
                     </span>
                     <span className="truncate text-[11px] text-muted-foreground">
                       {summary.exactMatches[0].nameFr}
@@ -176,13 +153,13 @@ export function MultiSelectionInspector({
                         className="flex items-baseline justify-between gap-2 text-zinc-200"
                       >
                         <span className="truncate font-medium">{cand.nameFr}</span>
-                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                          {cand.displayFormula}
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          <ChemFormula value={cand.displayFormula} />
                         </span>
                       </li>
                     ))}
                     {summary.exactMatches.length > 4 && (
-                      <li className="font-mono text-[10px] text-muted-foreground">
+                      <li className="text-[10px] text-muted-foreground">
                         +{summary.exactMatches.length - 4} autres isomères
                       </li>
                     )}
@@ -216,9 +193,9 @@ export function MultiSelectionInspector({
                           onClick={() =>
                             onIonize(ion.charge > summary.totalCharge ? 1 : -1)
                           }
-                          className="h-7 px-2.5 font-mono text-xs"
+                          className="h-7 px-2.5 text-xs"
                         >
-                          {ion.displayFormula}
+                          <ChemFormula value={ion.displayFormula} />
                         </Button>
                       ))}
                     </div>

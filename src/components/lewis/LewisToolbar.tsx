@@ -129,9 +129,21 @@ export function LewisToolbar({
                   )}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
-                  <span className="hidden sm:inline">{item.label}</span>
+                  <span className="hidden sm:inline">
+                    {item.id === 'build' ? (
+                      <>
+                        Poser (
+                        <span className="inline-block w-[2ch] text-center">
+                          {activeSymbol}
+                        </span>
+                        )
+                      </>
+                    ) : (
+                      item.label
+                    )}
+                  </span>
                   {!split3DOpen && (
-                    <kbd className="hidden rounded border border-border/80 bg-muted/70 px-1 font-mono text-[9.5px] text-muted-foreground md:inline">
+                    <kbd className="hidden rounded border border-border/80 bg-muted/70 px-1 text-[9.5px] text-muted-foreground md:inline">
                       {item.shortcut}
                     </kbd>
                   )}
@@ -202,16 +214,19 @@ export function LewisToolbar({
               <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">
                 Strict
               </span>
-              {strictMode && strictIssueTotal > 0 && (
-                <span
-                  className={cn(
-                    'font-mono text-[10px] tabular-nums',
-                    strictErrorCount > 0 ? 'text-red-300' : 'text-amber-300',
-                  )}
-                >
-                  {strictIssueTotal}
-                </span>
-              )}
+              <span
+                aria-hidden={!(strictMode && strictIssueTotal > 0)}
+                className={cn(
+                  'inline-block w-[2ch] text-center text-[10px] tabular-nums',
+                  strictMode && strictIssueTotal > 0
+                    ? strictErrorCount > 0
+                      ? 'text-red-300'
+                      : 'text-amber-300'
+                    : 'invisible',
+                )}
+              >
+                {strictIssueTotal}
+              </span>
               <Switch
                 checked={strictMode}
                 onCheckedChange={onToggleStrictMode}
@@ -271,7 +286,7 @@ export function LewisToolbar({
               >
                 <Minus className="h-3 w-3" strokeWidth={1.8} />
               </Button>
-              <span className="min-w-[18px] text-center font-mono text-xs tabular-nums text-foreground">
+              <span className="min-w-[18px] text-center text-xs tabular-nums text-foreground">
                 {selectedAtom.lonePairs}
               </span>
               <Button
@@ -312,7 +327,7 @@ export function LewisToolbar({
               >
                 <Minus className="h-3 w-3" strokeWidth={1.8} />
               </Button>
-              <span className="min-w-[22px] text-center font-mono text-xs tabular-nums text-foreground">
+              <span className="min-w-[22px] text-center text-xs tabular-nums text-foreground">
                 {formatChargeLabel(selectedAtom.charge)}
               </span>
               <Button

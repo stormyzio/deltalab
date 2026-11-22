@@ -8,11 +8,13 @@ import {
   Grid3x3,
   Keyboard,
   PanelRight,
+  Scale,
   Share2,
 } from 'lucide-react'
 import type { CatalogSummary } from '../../shared/chemistry.ts'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ChemVar } from '@/components/ui/chem-text'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -21,6 +23,7 @@ import { DeltaLabLogo } from '@/components/DeltaLabLogo'
 export type AppView =
   | 'workbench'
   | 'lewis'
+  | 'equations'
   | 'periodic'
   | 'species'
   | 'solutions'
@@ -88,6 +91,21 @@ export function Header({
           >
             <Share2 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
             <span>Lewis</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onViewChange('equations')}
+            aria-current={activeView === 'equations' ? 'page' : undefined}
+            className={cn(
+              'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium',
+              activeView === 'equations'
+                ? 'bg-accent text-foreground'
+                : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+            )}
+          >
+            <Scale className="h-3.5 w-3.5 shrink-0" strokeWidth={1.6} />
+            <span>Équations</span>
           </button>
 
           <button
@@ -183,7 +201,7 @@ export function Header({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 gap-1.5 px-2 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                  className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                   aria-label="État de la base de données"
                 >
                   <span
@@ -209,7 +227,7 @@ export function Header({
               <span className="text-xs font-medium text-foreground">
                 Base SQLite locale
               </span>
-              <span className="font-mono text-[10px] text-emerald-400">
+              <span className="text-[10px] text-emerald-400">
                 connectée
               </span>
             </div>
@@ -217,23 +235,23 @@ export function Header({
             {summary ? (
               <dl className="grid grid-cols-2 gap-y-1.5 text-xs">
                 <dt className="text-muted-foreground">Éléments</dt>
-                <dd className="text-right font-mono tabular-nums text-foreground">
+                <dd className="text-right tabular-nums text-foreground">
                   {summary.elementsCount}
                 </dd>
                 <dt className="text-muted-foreground">Espèces & ions</dt>
-                <dd className="text-right font-mono tabular-nums text-foreground">
+                <dd className="text-right tabular-nums text-foreground">
                   {summary.speciesCount}
                 </dd>
                 <dt className="text-muted-foreground">Solutions</dt>
-                <dd className="text-right font-mono tabular-nums text-foreground">
+                <dd className="text-right tabular-nums text-foreground">
                   {summary.solutionsCount}
                 </dd>
                 <dt className="text-muted-foreground">Verrerie</dt>
-                <dd className="text-right font-mono tabular-nums text-foreground">
+                <dd className="text-right tabular-nums text-foreground">
                   {summary.vesselsCount}
                 </dd>
                 <dt className="text-muted-foreground">Réactions</dt>
-                <dd className="text-right font-mono tabular-nums text-foreground">
+                <dd className="text-right tabular-nums text-foreground">
                   {summary.reactionsCount}
                 </dd>
               </dl>
@@ -276,49 +294,51 @@ export function Header({
             <ul className="space-y-1.5 text-[11px] text-muted-foreground">
               <li className="flex items-center justify-between gap-2">
                 <span>Annuler / Rétablir</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   ⌘Z / ⇧⌘Z
                 </kbd>
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span>Sélection multiple</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   Glisser / Shift
                 </kbd>
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span>Fusionner</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   V
                 </kbd>
               </li>
               <li className="flex items-center justify-between gap-2">
-                <span>Ioniser (+ / − e⁻)</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <span>
+                  Ioniser (+ / − <ChemVar base="e" sup="−" />)
+                </span>
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   + / −
                 </kbd>
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span>Dupliquer</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   Alt + glisser / ⌘D
                 </kbd>
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span>Déplacer la vue</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   Espace + glisser
                 </kbd>
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span>Rechercher</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   ⌘K / /
                 </kbd>
               </li>
               <li className="flex items-center justify-between gap-2">
                 <span>Supprimer la sélection</span>
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
                   X / ⌫
                 </kbd>
               </li>
@@ -326,17 +346,17 @@ export function Header({
           </PopoverContent>
         </Popover>
 
-        {activeView === 'workbench' && (
-          <Button
-            variant={mobilePanelOpen ? 'secondary' : 'ghost'}
-            size="icon"
-            onClick={onToggleMobilePanel}
-            className="lg:hidden"
-            aria-label="Ouvrir l’inspecteur"
-          >
-            <PanelRight className="h-3.5 w-3.5" strokeWidth={1.6} />
-          </Button>
-        )}
+        <Button
+          variant={mobilePanelOpen ? 'secondary' : 'ghost'}
+          size="icon"
+          onClick={onToggleMobilePanel}
+          tabIndex={activeView === 'workbench' ? 0 : -1}
+          aria-hidden={activeView !== 'workbench'}
+          className={cn('lg:hidden', activeView !== 'workbench' && 'invisible pointer-events-none')}
+          aria-label="Ouvrir l’inspecteur"
+        >
+          <PanelRight className="h-3.5 w-3.5" strokeWidth={1.6} />
+        </Button>
       </div>
     </header>
   )

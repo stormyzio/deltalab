@@ -17,6 +17,7 @@ import { NODE_HALF_SIZE, getFlaskHitTest } from '@/lib/canvas-geometry'
 import { findTitrationPairs } from '@/lib/titration-engine'
 import type { LabPresetDefinition, SavedWorkbenchRecord } from '@/lib/lab-presets'
 import { cn } from '@/lib/utils'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { computeCanvasDropHint } from '@/components/canvas/canvas-drop-hints'
 import { AtomTile, FlaskTile, MoleculeTile } from '@/components/canvas/CanvasTiles'
 import {
@@ -65,6 +66,7 @@ interface LabCanvasProps {
   onDuplicateSelected: () => void
   onDeleteIds: (ids: string[]) => void
   onEmptyFlask: (flaskId: string) => void
+  onToggleFlaskFilter?: (flaskId: string) => void
   onDropAtomOnFlask: (atomNodeId: string, flaskId: string) => void
   onDropMoleculeOnFlask: (moleculeNodeId: string, flaskId: string) => void
   onPourBetweenFlasks: (
@@ -143,6 +145,7 @@ export function LabCanvas({
   onDuplicateSelected,
   onDeleteIds,
   onEmptyFlask,
+  onToggleFlaskFilter,
   onDropAtomOnFlask,
   onDropMoleculeOnFlask,
   onPourBetweenFlasks,
@@ -475,9 +478,7 @@ export function LabCanvas({
       const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, pd.sourceFlaskId)
       let hoveredHint: { text: string; valid: boolean } | null = null
       if (targetFlask) {
-        if (targetFlask.stoppered) {
-          hoveredHint = { text: 'Verrerie bouchée', valid: false }
-        } else if (targetFlask.vessel.capacityMl - targetFlask.solution.totalVolumeMl <= 0.1) {
+        if (targetFlask.vessel.capacityMl - targetFlask.solution.totalVolumeMl <= 0.1) {
           hoveredHint = { text: 'Verrerie pleine', valid: false }
         } else {
           const targetName = targetFlask.customLabel || targetFlask.vessel.nameFr
@@ -633,18 +634,29 @@ export function LabCanvas({
         }
       }
 
-      // Check flask drop target ONLY when dragging a single atom or molecule (flask-to-flask pouring uses the dedicated pour handle)
-      if (
-        drag.origins.size === 1 &&
-        (drag.primaryKind === 'atom' || drag.primaryKind === 'molecule')
-      ) {
+      // Check flask drop target when dragging a single atom/molecule, OR dragging a filled flask onto a filtration funnel
+      if (drag.origins.size === 1) {
         const worldPt = clientToWorld(e.clientX, e.clientY)
         const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
-        if (targetFlask) {
-          const draggedNode =
-            nodes.find((n) => n.id === drag.primaryNodeId) ??
-            nodes.find((n) => n.id === drag.sourcePrimaryNodeId)
-          const nextHint = computeCanvasDropHint(draggedNode, targetFlask)
+        const draggedNode =
+          nodes.find((n) => n.id === drag.primaryNodeId) ??
+          nodes.find((n) => n.id === drag.sourcePrimaryNodeId)
+
+        const canDropOnTarget =
+          targetFlask &&
+          (drag.primaryKind === 'atom' ||
+            drag.primaryKind === 'molecule' ||
+            (drag.primaryKind === 'flask' &&
+              Boolean(targetFlask.hasFilter) &&
+              draggedNode?.kind === 'flask' &&
+              (draggedNode.solution.hasWater ||
+                draggedNode.solution.solutes.length > 0)))
+
+        if (canDropOnTarget && targetFlask) {
+          const nextHint =
+            drag.primaryKind === 'flask' && draggedNode?.kind === 'flask'
+              ? { text: 'Filtrer dans le filtre', valid: true }
+              : computeCanvasDropHint(draggedNode, targetFlask)
 
           const key = `${targetFlask.id}|${nextHint?.text ?? ''}|${nextHint?.valid ?? ''}`
           if (hoveredFlaskKeyRef.current !== key) {
@@ -705,14 +717,13 @@ export function LabCanvas({
       }
 
       let droppedOnFlask = false
-      if (
-        drag.moved &&
-        drag.origins.size === 1 &&
-        (drag.primaryKind === 'atom' || drag.primaryKind === 'molecule')
-      ) {
+      if (drag.moved && drag.origins.size === 1) {
         const worldPt = clientToWorld(e.clientX, e.clientY)
         const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
-        if (targetFlask) {
+        if (
+          targetFlask &&
+          (drag.primaryKind === 'atom' || drag.primaryKind === 'molecule')
+        ) {
           droppedOnFlask = true
           if (drag.lastUpdates.length > 0) {
             onMoveNodes(drag.lastUpdates)
@@ -721,6 +732,28 @@ export function LabCanvas({
             onDropAtomOnFlask(drag.primaryNodeId, targetFlask.id)
           } else if (drag.primaryKind === 'molecule') {
             onDropMoleculeOnFlask(drag.primaryNodeId, targetFlask.id)
+          }
+        } else if (
+          targetFlask &&
+          drag.primaryKind === 'flask' &&
+          Boolean(targetFlask.hasFilter)
+        ) {
+          const srcNode = nodes.find(
+            (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === drag.primaryNodeId,
+          )
+          if (srcNode && (srcNode.solution.hasWater || srcNode.solution.solutes.length > 0)) {
+            droppedOnFlask = true
+            // Snap source flask cleanly back to its origin position rather than overlapping the funnel
+            const origin = drag.origins.get(drag.primaryNodeId)
+            const el = nodeElMapRef.current.get(drag.primaryNodeId)
+            if (origin && el) {
+              el.style.transform = `translate3d(${origin.x}px, ${origin.y}px, 0) translate(-50%, -50%)`
+            }
+            onPourBetweenFlasks(
+              drag.primaryNodeId,
+              targetFlask.id,
+              Math.max(0.1, srcNode.solution.totalVolumeMl),
+            )
           }
         }
       }
@@ -853,7 +886,7 @@ export function LabCanvas({
               Paillasse prête
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              Glissez des atomes depuis le tableau périodique, sélectionnez-les pour les fusionner, puis versez H₂O et vos solutés dans une fiole.
+              Glissez des atomes depuis le tableau périodique, sélectionnez-les pour les fusionner, puis versez <ChemFormula value="H2O" /> et vos solutés dans une fiole.
             </p>
           </div>
         </div>
@@ -1015,20 +1048,46 @@ export function LabCanvas({
       )}
 
       {/* Contextual floating action bar for selected nodes */}
-      {selectedNodes.length > 0 && (
-        <CanvasSelectionBar
-          selectedCount={selectedNodes.length}
-          canMergeSelected={canMergeSelected}
-          canIonizeSelected={canIonizeSelected}
-          canIonizeMinus={canIonizeMinus}
-          canIonizePlus={canIonizePlus}
-          selectedChargeSum={selectedChargeSum}
-          onMergeSelected={onMergeSelected}
-          onIonizeSelected={onIonizeSelected}
-          onDuplicateSelected={onDuplicateSelected}
-          onDeleteSelected={() => onDeleteIds([...selectedIds])}
-        />
-      )}
+      {selectedNodes.length > 0 && (() => {
+        const singleSelectedFlask =
+          selectedNodes.length === 1 && selectedNodes[0].kind === 'flask'
+            ? selectedNodes[0]
+            : null
+        const singleFlaskMeta = singleSelectedFlask
+          ? {
+              hasFilter: Boolean(singleSelectedFlask.hasFilter),
+              hasContent:
+                singleSelectedFlask.solution.hasWater ||
+                singleSelectedFlask.solution.solutes.length > 0 ||
+                (singleSelectedFlask.filteredSolids?.length ?? 0) > 0,
+            }
+          : null
+        return (
+          <CanvasSelectionBar
+            selectedCount={selectedNodes.length}
+            canMergeSelected={canMergeSelected}
+            canIonizeSelected={canIonizeSelected}
+            canIonizeMinus={canIonizeMinus}
+            canIonizePlus={canIonizePlus}
+            selectedChargeSum={selectedChargeSum}
+            selectedFlask={singleFlaskMeta}
+            onToggleFlaskFilter={
+              singleSelectedFlask && onToggleFlaskFilter
+                ? () => onToggleFlaskFilter(singleSelectedFlask.id)
+                : undefined
+            }
+            onEmptyFlask={
+              singleSelectedFlask
+                ? () => onEmptyFlask(singleSelectedFlask.id)
+                : undefined
+            }
+            onMergeSelected={onMergeSelected}
+            onIonizeSelected={onIonizeSelected}
+            onDuplicateSelected={onDuplicateSelected}
+            onDeleteSelected={() => onDeleteIds([...selectedIds])}
+          />
+        )
+      })()}
 
       {/* Floating constitutional isomer picker on multi-match merge */}
       {pendingMergeIsomers && (

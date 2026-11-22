@@ -21,7 +21,23 @@ import {
 } from '@/lib/chemistry-ui'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
+import { Sup } from '@/components/ui/chem-text'
+import { InlineNumberInput } from '@/components/ui/inline-number-input'
+import { Slider, type SliderScaleStop } from '@/components/ui/slider'
+
+// Non-linear temperature track scale: gives generous precision around 0–20–100 °C
+// while compressing extreme temperatures (2000–6000 °C).
+const PERIODIC_TEMP_SCALE_STOPS: SliderScaleStop[] = [
+  { value: -273, position: 0 },
+  { value: -200, position: 0.1 },
+  { value: 0, position: 0.24 },
+  { value: 20, position: 0.36 },
+  { value: 100, position: 0.5 },
+  { value: 1000, position: 0.7 },
+  { value: 2000, position: 0.82 },
+  { value: 3500, position: 0.92 },
+  { value: 6000, position: 1 },
+]
 import {
   type ColorOverlayMode,
   type PeriodicViewMode,
@@ -57,6 +73,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
   const elements = useMemo(() => catalog?.elements ?? [], [catalog])
 
   const [viewMode, setViewMode] = useState<PeriodicViewMode>('table')
+  const [condensed, setCondensed] = useState(false)
   const [colorMode, setColorMode] = useState<ColorOverlayMode>('category')
   const [temperatureC, setTemperatureC] = useState<number>(20)
   const [query, setQuery] = useState('')
@@ -76,9 +93,30 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
   if (jumpTarget && jumpTarget.nonce !== appliedJumpNonce) {
     setAppliedJumpNonce(jumpTarget.nonce)
     setSelectedZ(jumpTarget.atomicNumber)
+    if (jumpTarget.atomicNumber > 18 && condensed) {
+      setCondensed(false)
+    }
   }
   const [sortKey, setSortKey] = useState<RankingSortKey>('atomicNumber')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const visibleElements = useMemo(
+    () => (condensed ? elements.filter((el) => el.atomicNumber <= 18) : elements),
+    [condensed, elements],
+  )
+  const maxVisibleZ = condensed ? 18 : 118
+
+  const handleSetCondensed = (next: boolean) => {
+    setCondensed(next)
+    if (next) {
+      if (selectedZ > 18) setSelectedZ(6)
+      if (periodHighlight !== null && periodHighlight > 3) setPeriodHighlight(null)
+      if (groupHighlight !== null && groupHighlight > 2 && groupHighlight < 13) {
+        setGroupHighlight(null)
+      }
+      if (blockFilter === 'd' || blockFilter === 'f') setBlockFilter('all')
+    }
+  }
 
   const elementsByZ = useMemo(
     () => new Map<number, ElementRecord>(elements.map((e) => [e.atomicNumber, e])),
@@ -115,7 +153,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
     const q = query.trim().toLowerCase()
     const set = new Set<number>()
     const exacts = new Set<number>()
-    for (const el of elements) {
+    for (const el of visibleElements) {
       if (categoryFilter !== 'all' && el.category !== categoryFilter) continue
       if (blockFilter !== 'all' && el.block !== blockFilter) continue
       if (stateFilter !== 'all') {
@@ -151,7 +189,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
     }
     return { matchingZSet: set, exactMatchZSet: exacts }
   }, [
-    elements,
+    visibleElements,
     query,
     categoryFilter,
     blockFilter,
@@ -164,7 +202,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
   ])
 
   const sortedRankingElements = useMemo(() => {
-    const rows = elements.filter((el) => matchingZSet.has(el.atomicNumber))
+    const rows = visibleElements.filter((el) => matchingZSet.has(el.atomicNumber))
     const mult = sortDir === 'asc' ? 1 : -1
     const cmpNum = (a: number | null, b: number | null) => {
       if (a === null && b === null) return 0
@@ -196,7 +234,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
           return (a.atomicNumber - b.atomicNumber) * mult
       }
     })
-  }, [elements, matchingZSet, sortKey, sortDir])
+  }, [visibleElements, matchingZSet, sortKey, sortDir])
 
   const toggleSort = (key: RankingSortKey) => {
     if (sortKey === key) {
@@ -239,7 +277,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
 
       if (e.key === 'ArrowRight') {
         e.preventDefault()
-        setSelectedZ((z) => Math.min(118, z + 1))
+        setSelectedZ((z) => Math.min(maxVisibleZ, z + 1))
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         setSelectedZ((z) => Math.max(1, z - 1))
@@ -247,7 +285,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
         e.preventDefault()
         const deltaRow = e.key === 'ArrowDown' ? 1 : -1
         const targetRow = selectedElement.gridRow + deltaRow
-        const candidate = elements.find(
+        const candidate = visibleElements.find(
           (el) => el.gridRow === targetRow && el.gridCol === selectedElement.gridCol,
         )
         if (candidate) setSelectedZ(candidate.atomicNumber)
@@ -255,7 +293,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [active, elements, selectedElement])
+  }, [active, visibleElements, maxVisibleZ, selectedElement])
 
   const handleSearchKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return
@@ -276,19 +314,19 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
     let solid = 0
     let liquid = 0
     let gas = 0
-    for (const el of elements) {
+    for (const el of visibleElements) {
       const st = getElementStateAtTemperature(el, temperatureC)
       if (st === 'solid') solid++
       else if (st === 'liquid') liquid++
       else if (st === 'gas') gas++
     }
     return { solid, liquid, gas }
-  }, [elements, temperatureC])
+  }, [visibleElements, temperatureC])
 
   if (!catalog) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           Chargement du tableau périodique…
         </span>
       </div>
@@ -324,12 +362,51 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
         hasActiveFilters={hasActiveFilters}
         onResetFilters={resetFilters}
         matchCount={matchingZSet.size}
-        totalCount={elements.length}
+        totalCount={visibleElements.length}
       />
 
       {/* Main split: Periodic Grid / Ranking (left) + Element Inspector (right) */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Floating pill toggle below filters (Complet vs Tableau condensé lycée) */}
+          {viewMode === 'table' && (
+            <div className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 justify-center">
+              <div
+                role="group"
+                aria-label="Format du tableau périodique"
+                className="pointer-events-auto inline-flex items-center rounded-full border border-border bg-panel/95 p-0.5 text-[11px] shadow-lg"
+              >
+                <button
+                  type="button"
+                  aria-pressed={!condensed}
+                  onClick={() => handleSetCondensed(false)}
+                  className={cn(
+                    'h-6 shrink-0 whitespace-nowrap rounded-full px-3 font-medium',
+                    !condensed
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Complet
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={condensed}
+                  onClick={() => handleSetCondensed(true)}
+                  title="Tableau condensé lycée : 18 éléments simples (Z = 1 à 18, blocs s et p)"
+                  className={cn(
+                    'h-6 shrink-0 whitespace-nowrap rounded-full px-3 font-medium',
+                    condensed
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  Tableau condensé
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Ranking mode: search bar below filters, directly above the list */}
           {viewMode === 'ranking' && (
             <div className="flex shrink-0 items-center justify-center border-b border-border/60 bg-background px-4 py-2.5">
@@ -358,7 +435,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
                     <X className="h-3.5 w-3.5" />
                   </button>
                 ) : (
-                  <kbd className="pointer-events-none absolute right-4 font-mono text-[11px] text-muted-foreground/60">
+                  <kbd className="pointer-events-none absolute right-4 text-[11px] text-muted-foreground/60">
                     ⌘K
                   </kbd>
                 )}
@@ -369,7 +446,8 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
           <div className="min-h-0 min-w-0 flex-1 overflow-auto">
             {viewMode === 'table' ? (
               <PeriodicGridView
-                elements={elements}
+                elements={visibleElements}
+                condensed={condensed}
                 selectedZ={selectedElement?.atomicNumber ?? null}
                 onSelectZ={setSelectedZ}
                 matchingZSet={matchingZSet}
@@ -408,7 +486,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
           {showFloatingTableLegend && (
             <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 justify-center">
               {colorMode === 'state' ? (
-                <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 rounded-xl border border-border bg-panel/95 px-3.5 py-2 shadow-2xl">
+                <div className="pointer-events-auto flex flex-nowrap items-center justify-center gap-3.5 rounded-xl border border-border bg-panel/95 px-3.5 py-2 shadow-2xl">
                   <div className="flex items-center gap-2.5">
                     <span className="whitespace-nowrap text-[11px] font-medium text-muted-foreground">
                       Température
@@ -418,49 +496,48 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
                       max={6000}
                       step={1}
                       snapPoints={[-273, -200, 0, 20, 100, 1000, 2000, 3500, 6000]}
+                      scaleStops={PERIODIC_TEMP_SCALE_STOPS}
+                      snapThresholdRatio={0.024}
                       value={temperatureC}
                       onChange={(v) => setTemperatureC(Math.round(v))}
                       ariaLabel="Température du tableau périodique en degrés Celsius"
-                      className="w-40 sm:w-52"
+                      className="w-56 sm:w-72 md:w-88"
                     />
-                    <span className="min-w-[112px] whitespace-nowrap font-mono text-[11.5px] tabular-nums text-foreground">
-                      {formatFrNumber(temperatureC, 0)} °C{' '}
-                      <span className="text-[10.5px] text-muted-foreground">
+                    <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                      <InlineNumberInput
+                        value={temperatureC}
+                        onChange={(v) => setTemperatureC(Math.round(v))}
+                        min={-273}
+                        max={6000}
+                        step={1}
+                        unit="°C"
+                        inputWidthClass="w-[5ch]"
+                        ariaLabel="Température en degrés Celsius"
+                      />
+                      <span className="inline-block w-[8.5ch] text-[10.5px] tabular-nums text-muted-foreground">
                         ({formatFrNumber(temperatureC + 273.15, 0)} K)
                       </span>
-                    </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    {[-200, 20, 100, 1000, 3500].map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setTemperatureC(t)}
-                        className={cn(
-                          'shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums',
-                          temperatureC === t
-                            ? 'bg-accent text-foreground'
-                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                        )}
-                      >
-                        {t} °C
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+                  <div className="flex items-center gap-2.5 text-[10px] tabular-nums text-muted-foreground">
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <span className="h-2 w-2 rounded-full bg-zinc-400" />
-                      {stateCounts.solid}
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-zinc-400" />
+                      <span className="inline-block w-[3ch] text-right">
+                        {stateCounts.solid}
+                      </span>
                     </span>
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <span className="h-2 w-2 rounded-full bg-sky-400" />
-                      {stateCounts.liquid}
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400" />
+                      <span className="inline-block w-[3ch] text-right">
+                        {stateCounts.liquid}
+                      </span>
                     </span>
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      <span className="h-2 w-2 rounded-full bg-amber-400" />
-                      {stateCounts.gas}
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+                      <span className="inline-block w-[3ch] text-right">
+                        {stateCounts.gas}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -469,11 +546,19 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
                   <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                     {colorMode === 'electronegativity' && 'Échelle de Pauling (χ)'}
                     {colorMode === 'radius' && 'Rayon atomique (pm)'}
-                    {colorMode === 'ionization' && '1ʳᵉ énergie d’ionisation (kJ/mol)'}
+                    {colorMode === 'ionization' && (
+                      <>
+                        1<Sup>re</Sup> énergie d’ionisation (kJ/mol)
+                      </>
+                    )}
                     {colorMode === 'melting' && 'Point de fusion (°C)'}
-                    {colorMode === 'density' && 'Masse volumique (échelle log, g/cm³)'}
+                    {colorMode === 'density' && (
+                      <>
+                        Masse volumique (échelle log, g/cm<Sup>3</Sup>)
+                      </>
+                    )}
                   </span>
-                  <div className="flex items-center gap-2 whitespace-nowrap font-mono text-[10px] tabular-nums text-muted-foreground">
+                  <div className="flex items-center gap-2 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">
                     <span>
                       {colorMode === 'electronegativity' &&
                         formatFrNumber(metricRanges.electronegativity.min, 2)}
@@ -481,7 +566,11 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
                       {colorMode === 'ionization' &&
                         `${Math.round(metricRanges.ionization.min)} kJ/mol`}
                       {colorMode === 'melting' && `${Math.round(metricRanges.melting.min)} °C`}
-                      {colorMode === 'density' && '0,00009 g/cm³'}
+                      {colorMode === 'density' && (
+                        <>
+                          0,00009 g/cm<Sup>3</Sup>
+                        </>
+                      )}
                     </span>
                     <span
                       className="h-2 w-32 rounded-full border border-border/60"
@@ -497,7 +586,11 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
                       {colorMode === 'ionization' &&
                         `${Math.round(metricRanges.ionization.max)} kJ/mol`}
                       {colorMode === 'melting' && `${Math.round(metricRanges.melting.max)} °C`}
-                      {colorMode === 'density' && '22,6 g/cm³'}
+                      {colorMode === 'density' && (
+                        <>
+                          22,6 g/cm<Sup>3</Sup>
+                        </>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -512,7 +605,7 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
             className="flex w-84 shrink-0 flex-col border-l border-border bg-panel lg:w-96"
           >
             <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
-              <span className="truncate font-mono text-[11px] tabular-nums text-muted-foreground">
+              <span className="truncate text-[11px] tabular-nums text-muted-foreground">
                 Z = {selectedElement.atomicNumber} · Période {selectedElement.period}
                 {selectedElement.groupNum ? ` · Groupe ${selectedElement.groupNum}` : ' · Bloc f'}
               </span>
@@ -529,8 +622,8 @@ export const PeriodicTablePage = memo(function PeriodicTablePage({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  disabled={selectedElement.atomicNumber >= 118}
-                  onClick={() => setSelectedZ((z) => Math.min(118, z + 1))}
+                  disabled={selectedElement.atomicNumber >= maxVisibleZ}
+                  onClick={() => setSelectedZ((z) => Math.min(maxVisibleZ, z + 1))}
                   aria-label="Élément suivant"
                 >
                   <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.7} />

@@ -83,7 +83,7 @@ function fileSig(filePath: string): string {
 }
 
 function computeSeedVersion(): string {
-  return `v10|curated:${SPECIES_SEED.length}|vessels:${VESSELS_SEED.length}|rxn:${CURATED_REACTIONS.length}|enr:${fileSig(ENRICHED_SPECIES_PATH)}|rc:${fileSig(REACTION_CONSTANTS_PATH)}`
+  return `v11|curated:${SPECIES_SEED.length}|vessels:${VESSELS_SEED.length}|rxn:${CURATED_REACTIONS.length}|enr:${fileSig(ENRICHED_SPECIES_PATH)}|rc:${fileSig(REACTION_CONSTANTS_PATH)}`
 }
 
 export function seedDatabase(db: DatabaseSync): void {

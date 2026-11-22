@@ -1,11 +1,9 @@
+import type { RefObject } from 'react'
 import { Plus } from 'lucide-react'
 import type {
-  AcidBaseCoupleRecord,
   CatalogReactionRecord,
   CatalogSolutionRecord,
   CatalogSpeciesRecord,
-  RedoxCoupleRecord,
-  SolubilityProductRecord,
   VesselRecord,
 } from '../../../shared/chemistry.ts'
 import {
@@ -15,10 +13,13 @@ import {
   formatCapacityMl,
   formatFrNumber,
 } from '@/lib/chemistry-ui'
+import { describeWaterBehavior } from '@/lib/water-behavior'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { ChemFormula } from '@/components/ui/chem-text'
+import { InfiniteScrollSentinel } from '@/components/ui/infinite-scroll-sentinel'
 import { VesselArtwork } from '@/components/VesselArtwork'
 import { type ReactionSpawnSetup, type SortDir, SortTh } from './CatalogShared'
+export { ReactionConstantsTables } from './ReactionConstantsTables'
 
 export function SpeciesCatalogTable({
   displayedSpecies,
@@ -28,8 +29,8 @@ export function SpeciesCatalogTable({
   sortDir,
   onSort,
   onSelect,
-  onShowMore,
-  onShowAll,
+  onLoadMore,
+  scrollRootRef,
 }: {
   displayedSpecies: CatalogSpeciesRecord[]
   totalFilteredCount: number
@@ -38,20 +39,20 @@ export function SpeciesCatalogTable({
   sortDir: SortDir
   onSort: (k: string) => void
   onSelect: (id: string) => void
-  onShowMore: () => void
-  onShowAll: () => void
+  onLoadMore: () => void
+  scrollRootRef?: RefObject<HTMLElement | null>
 }) {
   return (
     <>
-      <table className="w-full border-collapse text-left text-xs">
+      <table className="w-full table-fixed border-collapse text-left text-xs">
         <thead className="sticky top-0 z-10 border-b border-border bg-panel/95 text-[11px] text-muted-foreground">
           <tr>
-            <SortTh label="Formule" activeKey={sortKey} colKey="formula" dir={sortDir} onSort={onSort} className="w-36 pl-4" />
-            <SortTh label="Nom" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} />
-            <SortTh label="Type" activeKey={sortKey} colKey="kind" dir={sortDir} onSort={onSort} className="hidden md:table-cell" />
-            <SortTh label="Masse" activeKey={sortKey} colKey="mass" dir={sortDir} onSort={onSort} align="right" className="hidden sm:table-cell" />
-            <SortTh label="Solubilité H₂O" activeKey={sortKey} colKey="solubility" dir={sortDir} onSort={onSort} className="hidden lg:table-cell" />
-            <th className="hidden whitespace-nowrap px-3 py-2 font-medium xl:table-cell">En solution</th>
+            <SortTh label="Formule" activeKey={sortKey} colKey="formula" dir={sortDir} onSort={onSort} className="w-[15%] pl-4 pr-4" />
+            <SortTh label="Nom" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} className="w-[26%] px-4" />
+            <SortTh label="Type" activeKey={sortKey} colKey="kind" dir={sortDir} onSort={onSort} className="hidden w-[15%] px-4 md:table-cell" />
+            <SortTh label="Masse" activeKey={sortKey} colKey="mass" dir={sortDir} onSort={onSort} align="right" className="hidden w-[12%] pl-4 pr-6 sm:table-cell" />
+            <SortTh label={<>Solubilité <ChemFormula value="H2O" /></>} activeKey={sortKey} colKey="solubility" dir={sortDir} onSort={onSort} className="hidden w-[17%] px-4 lg:table-cell" />
+            <th className="hidden w-[15%] whitespace-nowrap py-2 pl-4 pr-4 font-medium xl:table-cell">En solution</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
@@ -68,70 +69,71 @@ export function SpeciesCatalogTable({
                 onClick={() => onSelect(sp.id)}
                 className={cn(isSel ? 'bg-accent/80' : 'hover:bg-accent/40')}
               >
-                <td className="whitespace-nowrap py-2.5 pl-4 pr-3 font-medium text-foreground">
-                  <div className="flex items-center gap-1.5">
+                <td className="overflow-hidden whitespace-nowrap py-2.5 pl-4 pr-4 font-medium text-foreground">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     {dotColor && (
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: dotColor }}
                       />
                     )}
-                    <span className="text-[13px] font-semibold tracking-tight">
-                      {sp.displayFormula}
+                    <span className="truncate text-[13px] font-semibold tracking-tight">
+                      <ChemFormula value={sp.displayFormula} />
                     </span>
                     {sp.kind !== 'ion' && (
-                      <span className="font-mono text-[9.5px] text-muted-foreground">
+                      <span className="shrink-0 text-[9.5px] text-muted-foreground">
                         {STATE_META[sp.standardState].tag}
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="max-w-[260px] px-3 py-2.5 text-zinc-200">
+                <td className="overflow-hidden px-4 py-2.5 text-zinc-200">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate">{sp.nameFr}</span>
                     {sp.source === 'pubchem_live' && (
-                      <span className="shrink-0 whitespace-nowrap font-mono text-[9.5px] text-muted-foreground">
+                      <span className="shrink-0 whitespace-nowrap text-[9.5px] text-muted-foreground">
                         PubChem
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="hidden whitespace-nowrap px-3 py-2.5 text-muted-foreground md:table-cell">
+                <td className="hidden truncate px-4 py-2.5 text-muted-foreground md:table-cell">
                   {sp.families[0] ?? SPECIES_KIND_LABEL[sp.kind]}
                 </td>
-                <td className="hidden whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px] tabular-nums text-muted-foreground sm:table-cell">
+                <td className="hidden whitespace-nowrap py-2.5 pl-4 pr-6 text-right text-[11px] tabular-nums text-muted-foreground sm:table-cell">
                   {formatFrNumber(sp.molarMass, 2)} g/mol
                 </td>
-                <td className="hidden whitespace-nowrap px-3 py-2.5 lg:table-cell">
-                  {sp.isSolvent ? (
-                    <span className="font-mono text-[10.5px] text-zinc-200">Solvant</span>
-                  ) : sp.canDissolveInWater ? (
-                    <span className="font-mono text-[10.5px] tabular-nums text-zinc-200">
-                      {sp.solubilityGPerL !== null
-                        ? `${formatFrNumber(sp.solubilityGPerL, 2)} g/L`
-                        : sp.dissolutionType === 'miscible'
-                          ? 'Miscible'
-                          : 'Soluble'}
-                    </span>
-                  ) : isUnknownSolubility ? (
-                    <span className="font-mono text-[10.5px] text-muted-foreground">
-                      Non renseigné
-                    </span>
-                  ) : (
-                    <span className="font-mono text-[10.5px] text-muted-foreground">
-                      Insoluble
-                    </span>
-                  )}
+                <td className="hidden truncate px-4 py-2.5 lg:table-cell">
+                  {(() => {
+                    const wb = describeWaterBehavior(sp, isUnknownSolubility)
+                    return (
+                      <span
+                        className={cn(
+                          'text-[10.5px] tabular-nums',
+                          wb.isEffectivelySoluble
+                            ? 'text-zinc-200'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {wb.tierLabel}
+                        {wb.valueLabel && (
+                          <span className="ml-1.5 text-muted-foreground">
+                            {wb.valueLabel}
+                          </span>
+                        )}
+                      </span>
+                    )
+                  })()}
                 </td>
-                <td className="hidden whitespace-nowrap px-3 py-2.5 font-mono text-[11px] text-muted-foreground xl:table-cell">
+                <td className="hidden truncate py-2.5 pl-4 pr-4 text-[11px] text-muted-foreground xl:table-cell">
                   {sp.dissolutionProducts.length > 0
-                    ? sp.dissolutionProducts
-                        .map((p) =>
-                          p.stoichiometry > 1
-                            ? `${p.stoichiometry} ${p.displayFormula}`
-                            : p.displayFormula,
-                        )
-                        .join(' + ')
+                    ? sp.dissolutionProducts.map((p, idx) => (
+                        <span key={p.speciesId}>
+                          {idx > 0 && ' + '}
+                          {p.stoichiometry > 1 ? `${p.stoichiometry} ` : ''}
+                          <ChemFormula value={p.displayFormula} />
+                        </span>
+                      ))
                     : '—'}
                 </td>
               </tr>
@@ -140,18 +142,13 @@ export function SpeciesCatalogTable({
         </tbody>
       </table>
 
-      {totalFilteredCount > displayedSpecies.length && (
-        <div className="flex flex-wrap items-center justify-center gap-2 border-t border-border/70 py-3">
-          <Button size="sm" variant="secondary" onClick={onShowMore}>
-            Afficher plus ({displayedSpecies.length} / {totalFilteredCount})
-          </Button>
-          {totalFilteredCount - displayedSpecies.length <= 600 && (
-            <Button size="sm" variant="ghost" onClick={onShowAll}>
-              Tout afficher
-            </Button>
-          )}
-        </div>
-      )}
+      <InfiniteScrollSentinel
+        hasMore={totalFilteredCount > displayedSpecies.length}
+        onLoadMore={onLoadMore}
+        scrollRootRef={scrollRootRef}
+        loadedCount={displayedSpecies.length}
+        totalCount={totalFilteredCount}
+      />
     </>
   )
 }
@@ -172,13 +169,13 @@ export function SolutionsCatalogTable({
   onSelect: (id: string) => void
 }) {
   return (
-    <table className="w-full border-collapse text-left text-xs">
+    <table className="w-full table-fixed border-collapse text-left text-xs">
       <thead className="sticky top-0 z-10 border-b border-border bg-panel/95 text-[11px] text-muted-foreground">
         <tr>
           <SortTh label="Solution" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} className="pl-4" />
-          <SortTh label="Formule aqueuse" activeKey={sortKey} colKey="formula" dir={sortDir} onSort={onSort} />
-          <th className="hidden whitespace-nowrap px-3 py-2 font-medium md:table-cell">Soluté</th>
-          <SortTh label="pH" activeKey={sortKey} colKey="ph" dir={sortDir} onSort={onSort} align="right" className="pr-4" />
+          <SortTh label="Formule aqueuse" activeKey={sortKey} colKey="formula" dir={sortDir} onSort={onSort} className="w-44" />
+          <th className="hidden w-32 whitespace-nowrap px-3 py-2 font-medium md:table-cell">Soluté</th>
+          <SortTh label="pH" activeKey={sortKey} colKey="ph" dir={sortDir} onSort={onSort} align="right" className="w-16 pr-4" />
         </tr>
       </thead>
       <tbody className="divide-y divide-border/50">
@@ -199,15 +196,20 @@ export function SolutionsCatalogTable({
                   <span className="truncate">{sol.nameFr}</span>
                 </div>
               </td>
-              <td className="whitespace-nowrap px-3 py-2.5 font-mono text-[11.5px] text-zinc-200">
-                {sol.formulaLabel}
+              <td className="whitespace-nowrap px-3 py-2.5 text-[11.5px] text-zinc-200">
+                <ChemFormula value={sol.formulaLabel} />
               </td>
               <td className="hidden whitespace-nowrap px-3 py-2.5 text-muted-foreground md:table-cell">
-                {sol.soluteFormulas.join(' + ')}
+                {sol.soluteFormulas.map((f, idx) => (
+                  <span key={`${sol.id}-s-${idx}`}>
+                    {idx > 0 && ' + '}
+                    <ChemFormula value={f} />
+                  </span>
+                ))}
               </td>
               <td
                 className={cn(
-                  'whitespace-nowrap py-2.5 pl-3 pr-4 text-right font-mono text-[11px] tabular-nums',
+                  'whitespace-nowrap py-2.5 pl-3 pr-4 text-right text-[11px] tabular-nums',
                   sol.phEstimate === null ? 'text-muted-foreground' : 'text-zinc-200',
                 )}
               >
@@ -239,14 +241,14 @@ export function NamedReactionsTable({
   onSpawnReactionSetup?: (setup: ReactionSpawnSetup) => void
 }) {
   return (
-    <table className="w-full border-collapse text-left text-xs">
+    <table className="w-full table-fixed border-collapse text-left text-xs">
       <thead className="sticky top-0 z-10 border-b border-border bg-panel/95 text-[11px] text-muted-foreground">
         <tr>
-          <SortTh label="Réaction" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} className="pl-4" />
-          <th className="hidden whitespace-nowrap px-3 py-2 font-medium sm:table-cell">Type</th>
+          <SortTh label="Réaction" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} className="w-[28%] pl-4" />
+          <th className="hidden w-28 whitespace-nowrap px-3 py-2 font-medium sm:table-cell">Type</th>
           <th className="whitespace-nowrap px-3 py-2 font-medium">Équation</th>
-          <th className="hidden whitespace-nowrap px-3 py-2 font-medium md:table-cell">Milieu</th>
-          <th className="whitespace-nowrap px-3 py-2 pr-4 text-right font-medium">Simulation</th>
+          <th className="hidden w-24 whitespace-nowrap px-3 py-2 font-medium md:table-cell">Milieu</th>
+          <th className="w-28 whitespace-nowrap px-3 py-2 pr-4 text-right font-medium">Simulation</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border/50">
@@ -262,8 +264,8 @@ export function NamedReactionsTable({
               <td className="hidden whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground sm:table-cell">
                 {REACTION_CATEGORY_LABEL[rxn.category] ?? rxn.category}
               </td>
-              <td className="px-3 py-2.5 font-mono text-[11.5px] text-zinc-200">
-                {rxn.equationDisplay}
+              <td className="px-3 py-2.5 text-[11.5px] text-zinc-200">
+                <ChemFormula value={rxn.equationDisplay} />
               </td>
               <td className="hidden whitespace-nowrap px-3 py-2.5 text-muted-foreground md:table-cell">
                 {rxn.medium === 'aqueous'
@@ -304,123 +306,6 @@ export function NamedReactionsTable({
   )
 }
 
-export function ReactionConstantsTables({
-  subTab,
-  redox,
-  ks,
-  ab,
-}: {
-  subTab: 'redox' | 'ks' | 'pka'
-  redox: RedoxCoupleRecord[]
-  ks: SolubilityProductRecord[]
-  ab: AcidBaseCoupleRecord[]
-}) {
-  if (subTab === 'redox') {
-    return (
-      <table className="w-full border-collapse text-left text-xs">
-        <thead className="sticky top-0 z-10 border-b border-border bg-panel/95 text-[11px] text-muted-foreground">
-          <tr>
-            <th className="whitespace-nowrap py-2 pl-4 pr-3 font-medium">Couple Ox / Red</th>
-            <th className="whitespace-nowrap px-3 py-2 font-medium">Demi-équation électronique</th>
-            <th className="whitespace-nowrap px-3 py-2 text-right font-medium">E° (V)</th>
-            <th className="hidden whitespace-nowrap px-3 py-2 font-medium md:table-cell">Source</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/50">
-          {redox.map((c) => (
-            <tr key={c.id} className="hover:bg-accent/40">
-              <td className="whitespace-nowrap py-2 pl-4 pr-3 font-mono text-[11.5px] font-medium text-foreground">
-                {c.coupleLabel}
-              </td>
-              <td className="px-3 py-2 font-mono text-[11px] text-zinc-300">{c.halfEquation}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-[11.5px] tabular-nums text-foreground">
-                {c.e0V > 0 ? `+${formatFrNumber(c.e0V, 2)}` : formatFrNumber(c.e0V, 2)} V
-              </td>
-              <td className="hidden whitespace-nowrap px-3 py-2 text-[11px] text-muted-foreground md:table-cell">
-                {c.source}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )
-  }
-
-  if (subTab === 'ks') {
-    return (
-      <table className="w-full border-collapse text-left text-xs">
-        <thead className="sticky top-0 z-10 border-b border-border bg-panel/95 text-[11px] text-muted-foreground">
-          <tr>
-            <th className="whitespace-nowrap py-2 pl-4 pr-3 font-medium">Précipité</th>
-            <th className="whitespace-nowrap px-3 py-2 font-medium">Nom</th>
-            <th className="hidden whitespace-nowrap px-3 py-2 font-medium lg:table-cell">Ions</th>
-            <th className="whitespace-nowrap px-3 py-2 text-right font-medium">pKs</th>
-            <th className="hidden whitespace-nowrap px-3 py-2 font-medium md:table-cell">Aspect</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/50">
-          {ks.map((k) => (
-            <tr key={k.id} className="hover:bg-accent/40">
-              <td className="whitespace-nowrap py-2 pl-4 pr-3 font-mono text-[12px] font-semibold text-foreground">
-                <div className="flex items-center gap-2">
-                  {k.precipitateColorHex && (
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full border border-white/20"
-                      style={{ backgroundColor: k.precipitateColorHex }}
-                    />
-                  )}
-                  <span>{k.solidFormula}</span>
-                </div>
-              </td>
-              <td className="px-3 py-2 text-zinc-200">{k.solidNameFr}</td>
-              <td className="hidden whitespace-nowrap px-3 py-2 font-mono text-[11px] text-muted-foreground lg:table-cell">
-                {k.cationStoich > 1 ? `${k.cationStoich} ` : ''}
-                {k.cationFormula} + {k.anionStoich > 1 ? `${k.anionStoich} ` : ''}
-                {k.anionFormula}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-[11.5px] tabular-nums text-zinc-200">
-                {formatFrNumber(k.pKs, 2)}
-              </td>
-              <td className="hidden px-3 py-2 text-[11px] text-muted-foreground md:table-cell">
-                {k.precipitateColorFr}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )
-  }
-
-  return (
-    <table className="w-full border-collapse text-left text-xs">
-      <thead className="sticky top-0 z-10 border-b border-border bg-panel/95 text-[11px] text-muted-foreground">
-        <tr>
-          <th className="whitespace-nowrap py-2 pl-4 pr-3 font-medium">Couple Acide / Base</th>
-          <th className="whitespace-nowrap px-3 py-2 font-medium">Espèce</th>
-          <th className="whitespace-nowrap px-3 py-2 text-right font-medium">pKa (25 °C)</th>
-          <th className="hidden whitespace-nowrap px-3 py-2 font-medium md:table-cell">Source</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border/50">
-        {ab.slice(0, 250).map((item) => (
-          <tr key={item.id} className="hover:bg-accent/40">
-            <td className="whitespace-nowrap py-2 pl-4 pr-3 font-mono text-[11.5px] font-medium text-foreground">
-              {item.acidFormula} / {item.baseFormula}
-            </td>
-            <td className="px-3 py-2 text-zinc-200">{item.acidNameFr}</td>
-            <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-[11.5px] tabular-nums text-foreground">
-              {formatFrNumber(item.pKa, 2)}
-            </td>
-            <td className="hidden whitespace-nowrap px-3 py-2 text-[11px] text-muted-foreground md:table-cell">
-              {item.source}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
 export function VesselsCatalogTable({
   vessels,
   selectedVesselId,
@@ -437,11 +322,11 @@ export function VesselsCatalogTable({
   onSelect: (id: string) => void
 }) {
   return (
-    <table className="w-full border-collapse text-left text-xs">
+    <table className="w-full table-fixed border-collapse text-left text-xs">
       <thead className="sticky top-0 z-10 border-b border-border bg-panel/95 text-[11px] text-muted-foreground">
         <tr>
-          <SortTh label="Verrerie" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} className="pl-4" />
-          <SortTh label="Capacité" activeKey={sortKey} colKey="capacity" dir={sortDir} onSort={onSort} align="right" />
+          <SortTh label="Verrerie" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} className="w-52 pl-4" />
+          <SortTh label="Capacité" activeKey={sortKey} colKey="capacity" dir={sortDir} onSort={onSort} align="right" className="w-32" />
           <th className="whitespace-nowrap px-3 py-2 font-medium">Usage</th>
         </tr>
       </thead>
@@ -467,7 +352,7 @@ export function VesselsCatalogTable({
                   <span>{v.nameFr}</span>
                 </div>
               </td>
-              <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-[11px] tabular-nums text-zinc-200">
+              <td className="whitespace-nowrap px-3 py-2.5 text-right text-[11px] tabular-nums text-zinc-200">
                 {v.availableCapacitiesMl.length > 1
                   ? `${formatCapacityMl(v.availableCapacitiesMl[0])} – ${formatCapacityMl(v.availableCapacitiesMl[v.availableCapacitiesMl.length - 1])}`
                   : formatCapacityMl(v.capacityMl)}

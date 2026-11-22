@@ -30,13 +30,18 @@ apiApp.get('/api/health', (c) => {
   return c.json({ ok: true, summary: getCatalogSummary() })
 })
 
+const CATALOG_CACHE_HEADER =
+  process.env.VERCEL === '1'
+    ? 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400'
+    : 'no-store'
+
 apiApp.get('/api/catalog', (c) => {
-  c.header('Cache-Control', 'public, max-age=300, s-maxage=3600')
+  c.header('Cache-Control', CATALOG_CACHE_HEADER)
   return c.json(getFullCatalog())
 })
 
 apiApp.get('/api/elements', (c) => {
-  c.header('Cache-Control', 'public, max-age=300, s-maxage=3600')
+  c.header('Cache-Control', CATALOG_CACHE_HEADER)
   return c.json({ elements: listElements() })
 })
 

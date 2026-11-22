@@ -12,6 +12,7 @@ import {
 import { formatBehaviorEntry } from '@/lib/chemistry-calc'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ChemFormula, ChemText } from '@/components/ui/chem-text'
 import { VesselArtwork } from '@/components/VesselArtwork'
 import type { ReactionSpawnSetup } from './CatalogShared'
 
@@ -40,12 +41,12 @@ export function SolutionDetail({
         />
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-foreground">{solution.nameFr}</h2>
-          <p className="mt-1 break-words font-mono text-xs text-zinc-300">
-            {solution.formulaLabel}
+          <p className="mt-1 break-words text-xs text-zinc-300">
+            <ChemFormula value={solution.formulaLabel} />
           </p>
           <p
             className={cn(
-              'mt-1 font-mono text-[11px] tabular-nums',
+              'mt-1 text-[11px] tabular-nums',
               solution.phEstimate === null ? 'text-muted-foreground' : 'text-zinc-200',
             )}
           >
@@ -62,7 +63,7 @@ export function SolutionDetail({
             onClick={() => onJumpToSpecies(solution.solventId)}
             className="whitespace-nowrap rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            H₂O (solvant)
+            <ChemFormula value="H2O" /> (solvant)
           </button>
           {solution.soluteIds.map((id, idx) => (
             <button
@@ -71,7 +72,7 @@ export function SolutionDetail({
               onClick={() => onJumpToSpecies(id)}
               className="whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium text-foreground hover:bg-accent"
             >
-              {solution.soluteFormulas[idx] ?? id}
+              <ChemFormula value={solution.soluteFormulas[idx] ?? id} />
             </button>
           ))}
         </div>
@@ -85,8 +86,10 @@ export function SolutionDetail({
               const formatted = formatBehaviorEntry(k, v)
               return (
                 <div key={k} className="flex min-w-0 items-baseline justify-between gap-2">
-                  <dt className="truncate text-muted-foreground">{formatted.label}</dt>
-                  <dd className="shrink-0 font-mono text-[10.5px] text-foreground">
+                  <dt className="truncate text-muted-foreground">
+                    <ChemText value={formatted.label} />
+                  </dt>
+                  <dd className="shrink-0 text-[10.5px] text-foreground">
                     {formatted.display}
                   </dd>
                 </div>
@@ -113,7 +116,7 @@ export function ReactionDetail({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">{reaction.nameFr}</h2>
-          <p className="mt-0.5 font-mono text-[10.5px] text-muted-foreground">
+          <p className="mt-0.5 text-[10.5px] text-muted-foreground">
             {REACTION_CATEGORY_LABEL[reaction.category] ?? reaction.category} ·{' '}
             {reaction.medium === 'aqueous'
               ? 'Milieu aqueux'
@@ -147,8 +150,8 @@ export function ReactionDetail({
         )}
       </div>
 
-      <p className="break-words border-t border-border/60 pt-3 font-mono text-[13px] leading-snug text-zinc-100">
-        {reaction.equationDisplay}
+      <p className="break-words border-t border-border/60 pt-3 text-[13px] leading-snug text-zinc-100">
+        <ChemFormula value={reaction.equationDisplay} />
       </p>
 
       <div className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3.5">
@@ -160,10 +163,10 @@ export function ReactionDetail({
                 key={r.speciesId}
                 type="button"
                 onClick={() => onJumpToSpecies(r.speciesId)}
-                className="whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-xs text-foreground hover:bg-accent"
+                className="whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-foreground hover:bg-accent"
               >
                 {r.stoichiometry > 1 ? `${r.stoichiometry} ` : ''}
-                {r.displayFormula}
+                <ChemFormula value={r.displayFormula} />
               </button>
             ))}
           </div>
@@ -176,10 +179,10 @@ export function ReactionDetail({
                 key={p.speciesId}
                 type="button"
                 onClick={() => onJumpToSpecies(p.speciesId)}
-                className="whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-xs text-foreground hover:bg-accent"
+                className="whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-foreground hover:bg-accent"
               >
                 {p.stoichiometry > 1 ? `${p.stoichiometry} ` : ''}
-                {p.displayFormula}
+                <ChemFormula value={p.displayFormula} />
               </button>
             ))}
           </div>
@@ -189,7 +192,9 @@ export function ReactionDetail({
       {reaction.observationsFr && (
         <div className="border-t border-border/60 pt-3.5">
           <p className="mb-1 text-[11px] font-medium text-muted-foreground">Observations</p>
-          <p className="text-xs leading-relaxed text-zinc-300">{reaction.observationsFr}</p>
+          <p className="text-xs leading-relaxed text-zinc-300">
+            <ChemText value={reaction.observationsFr} />
+          </p>
         </div>
       )}
     </div>
@@ -217,7 +222,7 @@ export function VesselDetail({
           />
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{vessel.nameFr}</h2>
-            <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+            <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
               Défaut : {formatCapacityMl(vessel.capacityMl)}
             </p>
             <p className="mt-0.5 text-[10.5px] text-zinc-400">{vessel.precisionLabel}</p>
@@ -238,7 +243,7 @@ export function VesselDetail({
         <p className="mb-1 text-[11px] font-medium text-muted-foreground">
           Capacités standards
         </p>
-        <p className="font-mono text-xs tabular-nums text-foreground">
+        <p className="text-xs tabular-nums text-foreground">
           {vessel.availableCapacitiesMl.map((cap) => formatCapacityMl(cap)).join(' · ')}
         </p>
       </div>
@@ -247,19 +252,13 @@ export function VesselDetail({
         <div>
           <dt className="text-[10.5px] text-muted-foreground">Chauffage</dt>
           <dd className="mt-0.5 text-foreground">
-            {vessel.supportsHeating ? 'Autorisé (0–100 °C)' : 'Déconseillé (étalonnée)'}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[10.5px] text-muted-foreground">Bouchage</dt>
-          <dd className="mt-0.5 text-foreground">
-            {vessel.stopperable ? 'Bouchable' : 'Non bouchable'}
+            {vessel.supportsHeating ? 'Autorisé (0–200 °C)' : 'Déconseillé (étalonnée)'}
           </dd>
         </div>
         {vessel.defaultPourStepMl !== null && (
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Versement dosé</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {formatCapacityMl(vessel.defaultPourStepMl)}
             </dd>
           </div>

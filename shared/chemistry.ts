@@ -218,6 +218,27 @@ export interface SoluteSummaryItem {
   isSaturated: boolean
   colorHex?: string | null
   isImmersedSolid?: boolean
+  isImmiscibleLiquid?: boolean
+}
+
+export interface ImmisciblePhaseInfo {
+  speciesIds: string[]
+  formula: string
+  labelFr: string
+  volumeMl: number
+  densityGPerCm3: number
+  position: 'top' | 'bottom'
+  colorHex: string
+  opacity: number
+}
+
+export interface FilteredSolidItem {
+  speciesId: string
+  displayFormula: string
+  nameFr: string
+  amountMol: number
+  massG: number
+  colorHex: string | null
 }
 
 export interface FlaskReactionParticipant {
@@ -256,6 +277,7 @@ export interface FlaskSolutionState {
   solutes: SoluteSummaryItem[]
   hasUndissolvedSolid: boolean
   sedimentColorHex?: string | null
+  immisciblePhase?: ImmisciblePhaseInfo | null
   recognizedSolutionId: string | null
   labelFr: string
   formulaLabel: string
@@ -379,6 +401,7 @@ export interface EvaluateFlaskAdditionRequest {
     solutesMol: Record<string, number>
     transferVolumeMl?: number
     sourceTemperatureC?: number
+    filterSolids?: boolean
   }
 }
 
@@ -389,6 +412,7 @@ export type EvaluateFlaskAdditionResponse =
       remainingSourceFlask?: {
         solution: FlaskSolutionState
       } | null
+      filteredSolids?: FilteredSolidItem[]
       messageFr: string
       effect:
         | 'water_added'
@@ -397,6 +421,7 @@ export type EvaluateFlaskAdditionResponse =
         | 'solid_immersed'
         | 'diluted'
         | 'mixed'
+        | 'filtered'
         | 'evaporated'
         | 'temperature_changed'
         | 'reaction_committed'
@@ -590,6 +615,8 @@ export interface CanvasFlaskNode {
   probes?: FlaskProbeType[]
   stirrerOn?: boolean
   heaterTargetC?: number | null
+  hasFilter?: boolean
+  filteredSolids?: FilteredSolidItem[]
 }
 
 export type CanvasNode = CanvasAtomNode | CanvasMoleculeNode | CanvasFlaskNode

@@ -139,6 +139,7 @@ export function detectFlaskReactions(
     hasWater,
     totalVolumeL,
     inv,
+    solutes,
     ctx,
     makeParticipant,
     addCandidate,

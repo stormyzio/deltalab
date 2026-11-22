@@ -15,7 +15,7 @@ import {
   formatOxidationState,
   getElementStateAtTemperature,
 } from '@/lib/chemistry-ui'
-import { ElectronConfig, Nuclide } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText, ElectronConfig, Nuclide, Sup } from '@/components/ui/chem-text'
 
 const SHELL_LETTERS = ['K', 'L', 'M', 'N', 'O', 'P', 'Q']
 
@@ -105,10 +105,10 @@ export function BohrAtomSvg({
         textAnchor="middle"
         dominantBaseline="central"
         fontSize="5.8"
-        fontFamily="var(--font-mono)"
+        fontFamily="var(--font-sans)"
         fill="#8f8f9d"
       >
-        {atomicNumber}p⁺
+        {atomicNumber}p<tspan dy="-1.6" fontSize="4.4">+</tspan>
       </text>
     </svg>
   )
@@ -168,7 +168,7 @@ export function ElementDetailsBody({
             Composition de l’atome
           </span>
           <span
-            className="shrink-0 whitespace-nowrap font-mono text-sm text-zinc-200"
+            className="shrink-0 whitespace-nowrap text-sm text-zinc-200"
             title="Notation symbolique de l’isotope principal"
           >
             <Nuclide symbol={element.symbol} A={massNumber} Z={element.atomicNumber} />
@@ -178,25 +178,25 @@ export function ElementDetailsBody({
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           <div className="min-w-0">
             <dt className="text-[10.5px] text-muted-foreground">Protons (Z)</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.atomicNumber}
             </dd>
           </div>
           <div className="min-w-0">
             <dt className="text-[10.5px] text-muted-foreground">Neutrons (N = A − Z)</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {neutronCount}
             </dd>
           </div>
           <div className="min-w-0">
             <dt className="text-[10.5px] text-muted-foreground">Nucléons (A)</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {massNumber}
             </dd>
           </div>
           <div className="min-w-0">
             <dt className="text-[10.5px] text-muted-foreground">Électrons (atome neutre)</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.atomicNumber}{' '}
               <span className="text-[10.5px] text-muted-foreground">
                 (dont {element.valenceElectrons} de valence)
@@ -217,7 +217,7 @@ export function ElementDetailsBody({
             <dt className="text-[10px] text-muted-foreground">
               Configuration complète
             </dt>
-            <dd className="mt-0.5 break-words font-mono text-[11.5px] leading-relaxed text-foreground">
+            <dd className="mt-0.5 break-words text-[11.5px] leading-relaxed text-foreground">
               <ElectronConfig value={fullElectronConfig} />
             </dd>
           </div>
@@ -226,7 +226,7 @@ export function ElementDetailsBody({
               <dt className="text-[10px] text-muted-foreground">
                 Configuration condensée (gaz noble)
               </dt>
-              <dd className="mt-0.5 font-mono text-[11.5px] text-zinc-300">
+              <dd className="mt-0.5 text-[11.5px] text-zinc-300">
                 <ElectronConfig value={element.electronConfiguration} />
               </dd>
             </div>
@@ -246,7 +246,7 @@ export function ElementDetailsBody({
               <span className="block text-[10px] text-muted-foreground">
                 Répartition par couche ({element.electronShells.length})
               </span>
-              <span className="mt-0.5 block break-words font-mono text-[11px] tabular-nums text-foreground">
+              <span className="mt-0.5 block break-words text-[11px] tabular-nums text-foreground">
                 {element.electronShells
                   .map((n, i) => `${SHELL_LETTERS[i] ?? i + 1}(${n})`)
                   .join(' · ')}
@@ -257,7 +257,7 @@ export function ElementDetailsBody({
               <span className="block text-[10px] text-muted-foreground">
                 Électrons de valence · Bloc
               </span>
-              <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-foreground">
+              <span className="mt-0.5 block text-[11px] tabular-nums text-foreground">
                 {element.valenceElectrons} électron{element.valenceElectrons > 1 ? 's' : ''} · Bloc{' '}
                 {element.block}
               </span>
@@ -268,7 +268,7 @@ export function ElementDetailsBody({
                 <span className="block text-[10px] text-muted-foreground">
                   Degrés d’oxydation
                 </span>
-                <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-zinc-200">
+                <span className="mt-0.5 block text-[11px] tabular-nums text-zinc-200">
                   {element.oxidationStates.map(formatOxidationState).join(' · ')}
                 </span>
               </div>
@@ -279,7 +279,7 @@ export function ElementDetailsBody({
                 <span className="block text-[10px] text-muted-foreground">
                   Ions usuels
                 </span>
-                <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-zinc-200">
+                <span className="mt-0.5 block text-[11px] tabular-nums text-zinc-200">
                   {element.commonIonCharges
                     .map((q) => `${element.symbol}${formatElementChargeShort(q)}`)
                     .join(' · ')}
@@ -298,13 +298,13 @@ export function ElementDetailsBody({
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Masse atomique</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {formatFrNumber(element.atomicMass, 4)} g/mol
             </dd>
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Électronégativité (χ)</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.electronegativity !== null
                 ? formatFrNumber(element.electronegativity, 2)
                 : '—'}
@@ -312,19 +312,21 @@ export function ElementDetailsBody({
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Rayon covalent</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.atomicRadiusPm !== null ? `${element.atomicRadiusPm} pm` : '—'}
             </dd>
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Rayon Van der Waals</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.vdwRadiusPm !== null ? `${element.vdwRadiusPm} pm` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[10.5px] text-muted-foreground">1ʳᵉ ionisation</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dt className="text-[10.5px] text-muted-foreground">
+              1<Sup>re</Sup> ionisation
+            </dt>
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.ionizationEnergyKjMol !== null
                 ? `${formatFrNumber(element.ionizationEnergyKjMol, 1)} kJ/mol`
                 : '—'}
@@ -332,7 +334,7 @@ export function ElementDetailsBody({
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Affinité électronique</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.electronAffinityKjMol !== null
                 ? `${formatFrNumber(element.electronAffinityKjMol, 1)} kJ/mol`
                 : '—'}
@@ -355,13 +357,13 @@ export function ElementDetailsBody({
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Position</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               P{element.period} · {element.groupNum ? `G${element.groupNum}` : 'Bloc f'}
             </dd>
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">T° fusion</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {formatElementTempC(element.meltingPointC)}
               {element.meltingPointC !== null && (
                 <span className="ml-1 text-[10px] text-muted-foreground">
@@ -372,7 +374,7 @@ export function ElementDetailsBody({
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">T° ébullition</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {formatElementTempC(element.boilingPointC)}
               {element.boilingPointC !== null && (
                 <span className="ml-1 text-[10px] text-muted-foreground">
@@ -383,10 +385,14 @@ export function ElementDetailsBody({
           </div>
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Masse volumique</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
-              {element.densityGPerCm3 !== null
-                ? formatDensity(element.densityGPerCm3, element.defaultState)
-                : '—'}
+            <dd className="mt-0.5 tabular-nums text-foreground">
+              {element.densityGPerCm3 !== null ? (
+                <ChemText
+                  value={formatDensity(element.densityGPerCm3, element.defaultState)}
+                />
+              ) : (
+                '—'
+              )}
             </dd>
           </div>
           <div>
@@ -406,7 +412,7 @@ export function ElementDetailsBody({
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           <div>
             <dt className="text-[10.5px] text-muted-foreground">Année</dt>
-            <dd className="mt-0.5 font-mono tabular-nums text-foreground">
+            <dd className="mt-0.5 tabular-nums text-foreground">
               {element.discoveryYear ?? 'Antiquité'}
             </dd>
           </div>
@@ -443,9 +449,9 @@ export function ElementDetailsBody({
                   key={sp.id}
                   type="button"
                   onClick={() => onJumpToSpecies?.(sp.id)}
-                  className="rounded px-2 py-0.5 font-mono text-[11px] text-zinc-200 hover:bg-accent hover:text-foreground"
+                  className="rounded px-2 py-0.5 text-[11px] text-zinc-200 hover:bg-accent hover:text-foreground"
                 >
-                  {sp.displayFormula}
+                  <ChemFormula value={sp.displayFormula} />
                 </button>
               ))}
             </div>

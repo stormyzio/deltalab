@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-react'
 import type { ElementRecord, SpeciesRecord } from '../../../shared/chemistry.ts'
 import { CLIENT_VALENCE_ELECTRONS, getLewisAtomColor } from '@/lib/lewis-geometry'
 import { cn } from '@/lib/utils'
+import { ChemFormula, ChemVar } from '@/components/ui/chem-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function LewisElementPalette({
@@ -35,10 +36,10 @@ export function LewisElementPalette({
     >
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
         <span className="truncate text-xs font-medium text-foreground">Atomes</span>
-        <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] text-muted-foreground">
+        <span className="shrink-0 whitespace-nowrap text-[10.5px] text-muted-foreground">
           Actif :{' '}
           <strong
-            className="font-semibold"
+            className="inline-block w-[2ch] text-right font-semibold"
             style={{ color: getLewisAtomColor(activeSymbol) }}
           >
             {activeSymbol}
@@ -71,7 +72,7 @@ export function LewisElementPalette({
               <X className="h-3 w-3" />
             </button>
           ) : (
-            <kbd className="pointer-events-none absolute right-2 font-mono text-[9.5px] text-muted-foreground/60">
+            <kbd className="pointer-events-none absolute right-2 text-[9.5px] text-muted-foreground/60">
               ⌘K
             </kbd>
           )}
@@ -101,7 +102,7 @@ export function LewisElementPalette({
                         : 'border-border bg-card hover:border-zinc-500 hover:bg-accent/70',
                     )}
                   >
-                    <span className="absolute left-1 top-0.5 font-mono text-[8px] tabular-nums text-muted-foreground">
+                    <span className="absolute left-1 top-0.5 text-[8px] tabular-nums text-muted-foreground">
                       {el.atomicNumber}
                     </span>
                     <span
@@ -116,9 +117,14 @@ export function LewisElementPalette({
                   <div className="font-medium text-foreground">
                     {el.nameFr} ({el.symbol})
                   </div>
-                  <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+                  <div className="mt-0.5 text-[10px] text-muted-foreground">
                     Z = {el.atomicNumber}
-                    {valence !== undefined ? ` · ${valence} e⁻ valence` : ''}
+                    {valence !== undefined && (
+                      <>
+                        {' '}
+                        · {valence} <ChemVar base="e" sup="−" /> valence
+                      </>
+                    )}
                   </div>
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
                     Clic : sélectionner · Glisser : poser sur le canevas
@@ -145,9 +151,9 @@ export function LewisElementPalette({
                 key={tpl.id}
                 type="button"
                 onClick={() => onLoadTemplate(tpl)}
-                className="shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10.5px] text-zinc-300 hover:bg-accent hover:text-foreground"
+                className="shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10.5px] text-zinc-300 hover:bg-accent hover:text-foreground"
               >
-                {tpl.displayFormula}
+                <ChemFormula value={tpl.displayFormula} />
               </button>
             ))}
           </div>

@@ -6,6 +6,7 @@ import {
   type SavedWorkbenchRecord,
 } from '@/lib/lab-presets'
 import { Button } from '@/components/ui/button'
+import { ChemText } from '@/components/ui/chem-text'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 
@@ -69,14 +70,14 @@ export function LabPresetsPopover({
                   >
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="truncate text-xs font-medium text-foreground">
-                        {preset.titleFr}
+                        <ChemText value={preset.titleFr} />
                       </span>
-                      <span className="shrink-0 whitespace-nowrap font-mono text-[9.5px] text-muted-foreground">
+                      <span className="shrink-0 whitespace-nowrap text-[9.5px] text-muted-foreground">
                         {preset.categoryFr}
                       </span>
                     </div>
                     <span className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">
-                      {preset.subtitleFr}
+                      <ChemText value={preset.subtitleFr} />
                     </span>
                   </button>
                 </li>
@@ -144,7 +145,7 @@ export function LabPresetsPopover({
                         <p className="truncate text-[11.5px] font-medium text-foreground">
                           {rec.name}
                         </p>
-                        <p className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
+                        <p className="text-[9.5px] tabular-nums text-muted-foreground">
                           {rec.nodeCount} élément{rec.nodeCount > 1 ? 's' : ''}
                         </p>
                       </div>

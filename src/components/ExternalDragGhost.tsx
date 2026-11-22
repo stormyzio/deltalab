@@ -1,6 +1,7 @@
 import type { RefObject } from 'react'
 import type { ActiveExternalDrag } from '@/types/drag'
 import { CATEGORY_META } from '@/lib/chemistry-ui'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { VesselArtwork } from '@/components/VesselArtwork'
 
 interface ExternalDragGhostProps {
@@ -21,7 +22,7 @@ export function ExternalDragGhost({ externalDrag, ghostRef }: ExternalDragGhostP
     >
       {externalDrag.item.kind === 'atom' && (
         <div className="relative flex h-14 w-14 flex-col items-center justify-center rounded-xl border border-zinc-400 bg-card/95 shadow-2xl">
-          <span className="absolute left-1.5 top-1 font-mono text-[9px] tabular-nums text-muted-foreground">
+          <span className="absolute left-1.5 top-1 text-[9px] tabular-nums text-muted-foreground">
             {externalDrag.item.element.atomicNumber}
           </span>
           <span
@@ -58,7 +59,7 @@ export function ExternalDragGhost({ externalDrag, ghostRef }: ExternalDragGhostP
       {externalDrag.item.kind === 'molecule' && (
         <div className="flex items-center gap-2 rounded-xl border border-zinc-400 bg-card/95 px-3 py-2 shadow-2xl">
           <span className="text-sm font-semibold text-foreground">
-            {externalDrag.item.species.displayFormula}
+            <ChemFormula value={externalDrag.item.species.displayFormula} />
           </span>
           <span className="text-[11px] text-muted-foreground">
             {externalDrag.item.species.nameFr}

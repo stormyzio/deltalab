@@ -34,6 +34,8 @@ const UNICODE_SUP_MAP: Record<string, string> = {
   '⁹': '9',
   '⁺': '+',
   '⁻': '−',
+  'ʳ': 'r',
+  'ᵉ': 'e',
 }
 
 function decodeSub(raw: string): string {
@@ -217,7 +219,7 @@ export function StateTag({
   return (
     <span
       className={cn(
-        'relative top-[0.12em] ml-[0.08em] align-baseline font-mono text-[0.72em] leading-none font-normal text-muted-foreground',
+        'relative top-[0.12em] ml-[0.08em] align-baseline text-[0.72em] leading-none font-normal text-muted-foreground',
         className,
       )}
     >
@@ -234,7 +236,7 @@ type FormulaToken =
   | { kind: 'state'; state: 's' | 'l' | 'g' | 'aq' }
 
 const TOKEN_REGEX =
-  /\((aq|s|l|g)\)|([₀-₉]+)([⁰-⁹]*[⁺⁻])|([₀-₉]+)|([⁰-⁹]*[⁺⁻]|[⁰-⁹]+)|\^([0-9]*[+-−]|[0-9]+)|([A-Za-z)\]])([0-9]+)(?:\^([0-9]*[+-−]))?/g
+  /\((aq|s|l|g)\)|([₀-₉₊₋ₑₘₐₓₙ]+)([⁰-⁹]*[⁺⁻])|([₀-₉₊₋ₑₘₐₓₙ]+)|([⁰-⁹]*[⁺⁻]|[⁰-⁹]+)|\^([0-9]*[+-−]|[0-9]+)|([A-Za-z)\]])([0-9]+)(?:\^([0-9]*[+-−]))?/g
 
 function tokenizeChemFormula(input: string): FormulaToken[] {
   const tokens: FormulaToken[] = []
@@ -326,6 +328,73 @@ export function ChemFormula({
       {state && <StateTag state={state} />}
     </span>
   )
+}
+
+const CHEM_TEXT_REGEX =
+  /([₀-₉₊₋ₑₘₐₓₙ]+)([⁰-⁹⁺⁻]+)|([₀-₉₊₋ₑₘₐₓₙ]+)|([⁰-⁹⁺⁻ʳᵉ]+)/g
+
+type ChemTextToken =
+  | { kind: 'text'; text: string }
+  | { kind: 'sub'; text: string }
+  | { kind: 'sup'; text: string }
+  | { kind: 'subsup'; sub: string; sup: string }
+
+function tokenizeChemText(value: string): ChemTextToken[] {
+  const tokens: ChemTextToken[] = []
+  let lastIdx = 0
+  CHEM_TEXT_REGEX.lastIndex = 0
+
+  let match: RegExpExecArray | null
+  while ((match = CHEM_TEXT_REGEX.exec(value)) !== null) {
+    if (match.index > lastIdx) {
+      tokens.push({ kind: 'text', text: value.slice(lastIdx, match.index) })
+    }
+    const [, subWithSup, supAfterSub, subOnly, supOnly] = match
+    if (subWithSup && supAfterSub) {
+      tokens.push({
+        kind: 'subsup',
+        sub: decodeSub(subWithSup),
+        sup: decodeSup(supAfterSub),
+      })
+    } else if (subOnly) {
+      tokens.push({ kind: 'sub', text: decodeSub(subOnly) })
+    } else if (supOnly) {
+      tokens.push({ kind: 'sup', text: decodeSup(supOnly) })
+    }
+    lastIdx = CHEM_TEXT_REGEX.lastIndex
+  }
+
+  if (lastIdx < value.length) {
+    tokens.push({ kind: 'text', text: value.slice(lastIdx) })
+  }
+  return tokens
+}
+
+/**
+ * Renders mixed French prose / scientific text that may contain Unicode
+ * subscripts or superscripts (e.g. "H₂O", "Cu²⁺", "g/cm³", "10⁻⁵", "e⁻", "SO₄²⁻")
+ * by replacing all Unicode sub/superscript glyphs with crisp HTML <sub>/<sup>
+ * without altering normal numbers or prose words.
+ */
+export function ChemText({
+  value,
+  className,
+}: {
+  value: string
+  className?: string
+}) {
+  const tokens = tokenizeChemText(value)
+  const content = tokens.map((tok, idx) => {
+    if (tok.kind === 'text') return <Fragment key={idx}>{tok.text}</Fragment>
+    if (tok.kind === 'sub') return <Sub key={idx}>{tok.text}</Sub>
+    if (tok.kind === 'sup') return <Sup key={idx}>{tok.text}</Sup>
+    return <RightSubSupStack key={idx} sub={tok.sub} sup={tok.sup} />
+  })
+
+  if (className) {
+    return <span className={className}>{content}</span>
+  }
+  return <>{content}</>
 }
 
 /**

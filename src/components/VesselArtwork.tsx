@@ -1,5 +1,9 @@
 import { useId } from 'react'
-import type { FlaskProbeType, VesselType } from '../../shared/chemistry.ts'
+import type {
+  FlaskProbeType,
+  ImmisciblePhaseInfo,
+  VesselType,
+} from '../../shared/chemistry.ts'
 import { cn } from '@/lib/utils'
 
 interface VesselArtworkProps {
@@ -7,13 +11,16 @@ interface VesselArtworkProps {
   fillRatio: number // 0..1
   liquidColorHex: string | null
   liquidOpacity: number
+  immisciblePhase?: (ImmisciblePhaseInfo & { volumeRatio: number }) | null
   hasSediment?: boolean
   sedimentColorHex?: string | null
   sedimentRatio?: number // 0..1
+  hasFilter?: boolean
+  hasFilterCake?: boolean
+  filterCakeColorHex?: string | null
   precipitating?: boolean
   bubbling?: boolean
   continuousBubbling?: boolean
-  stoppered?: boolean
   temperatureC?: number
   stirrerOn?: boolean
   heatingActive?: boolean
@@ -35,6 +42,7 @@ interface VesselGeometry {
   liquidTopY: number
   meniscusX: number
   meniscusRx: number
+  filterSeatY: number
 }
 
 const GEOMETRIES: Record<VesselType, VesselGeometry> = {
@@ -51,6 +59,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 25,
     meniscusX: 40,
     meniscusRx: 23,
+    filterSeatY: 10,
   },
   erlenmeyer: {
     viewBox: '0 0 80 96',
@@ -69,6 +78,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 36,
     meniscusX: 40,
     meniscusRx: 24,
+    filterSeatY: 11,
   },
   beaker: {
     viewBox: '0 0 80 96',
@@ -86,6 +96,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 26,
     meniscusX: 41,
     meniscusRx: 21,
+    filterSeatY: 18,
   },
   test_tube: {
     viewBox: '0 0 80 96',
@@ -104,6 +115,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 24,
     meniscusX: 40,
     meniscusRx: 8,
+    filterSeatY: 11,
   },
   graduated_cylinder: {
     viewBox: '0 0 80 96',
@@ -123,6 +135,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 19,
     meniscusX: 40,
     meniscusRx: 9.5,
+    filterSeatY: 13,
   },
   pipette: {
     viewBox: '0 0 80 96',
@@ -136,6 +149,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 17,
     meniscusX: 40,
     meniscusRx: 6,
+    filterSeatY: 8,
   },
   burette: {
     viewBox: '0 0 80 96',
@@ -157,6 +171,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 18,
     meniscusX: 40,
     meniscusRx: 5,
+    filterSeatY: 8,
   },
   round_bottom_flask: {
     viewBox: '0 0 80 96',
@@ -171,6 +186,7 @@ const GEOMETRIES: Record<VesselType, VesselGeometry> = {
     liquidTopY: 36,
     meniscusX: 40,
     meniscusRx: 25,
+    filterSeatY: 10,
   },
 }
 
@@ -179,13 +195,16 @@ export function VesselArtwork({
   fillRatio,
   liquidColorHex,
   liquidOpacity,
+  immisciblePhase = null,
   hasSediment = false,
   sedimentColorHex = null,
   sedimentRatio = 0.55,
+  hasFilter = false,
+  hasFilterCake = false,
+  filterCakeColorHex = null,
   precipitating = false,
   bubbling = false,
   continuousBubbling = false,
-  stoppered = false,
   temperatureC = 20,
   stirrerOn = false,
   heatingActive = false,
@@ -202,13 +221,13 @@ export function VesselArtwork({
   const liquidY = geo.liquidBottomY - liquidHeight
   const fillColor = liquidColorHex ?? '#bae6fd'
   const isHeated = temperatureC >= 35 || heatingActive
-  const isSteaming = temperatureC >= 70 && !stoppered && clampedRatio > 0
+  const isSteaming = temperatureC >= 70 && clampedRatio > 0
   const isBoiling = temperatureC >= 95
   const isChilled = temperatureC <= 10
   const showBubbles = (bubbling || continuousBubbling || isBoiling) && clampedRatio > 0
   const bubbleClass =
     continuousBubbling || isBoiling ? 'animate-dl-bubble-loop' : 'animate-dl-bubble'
-  const showProbes = size === 'md' && probes.length > 0 && !stoppered
+  const showProbes = size === 'md' && probes.length > 0
 
   return (
     <svg
@@ -312,43 +331,106 @@ export function VesselArtwork({
 
       {/* Liquid body clipped precisely to inner vessel contour */}
       <g clipPath={`url(#${clipId})`}>
-        <g
-          style={{
-            transform: `translateY(${clampedRatio > 0 ? liquidY - geo.liquidTopY : usableHeight + 12}px)`,
-            opacity: clampedRatio > 0 ? 1 : 0,
-            transition:
-              'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease',
-          }}
-        >
-          <rect
-            x="0"
-            y={geo.liquidTopY}
-            width="80"
-            height={usableHeight + 14}
-            fill={fillColor}
-            fillOpacity={liquidOpacity}
-            style={{ transition: 'fill 90ms ease, fill-opacity 90ms ease' }}
-          />
-          {/* Top meniscus rim */}
-          <ellipse
-            cx={geo.meniscusX}
-            cy={geo.liquidTopY}
-            rx={geo.meniscusRx}
-            ry={2.1}
-            fill={fillColor}
-            fillOpacity={Math.min(0.95, liquidOpacity + 0.22)}
-            style={{ transition: 'fill 90ms ease' }}
-          />
-          <line
-            x1="10"
-            y1={geo.liquidTopY}
-            x2="70"
-            y2={geo.liquidTopY}
-            stroke="#ffffff"
-            strokeOpacity="0.22"
-            strokeWidth="0.9"
-          />
-        </g>
+        {immisciblePhase && clampedRatio > 0 ? (
+          (() => {
+            const orgFrac = Math.max(0.22, Math.min(0.78, immisciblePhase.volumeRatio))
+            const topIsOrg = immisciblePhase.position === 'top'
+            const topColor = topIsOrg ? immisciblePhase.colorHex : fillColor
+            const topOpacity = topIsOrg ? immisciblePhase.opacity : liquidOpacity
+            const bottomColor = topIsOrg ? fillColor : immisciblePhase.colorHex
+            const bottomOpacity = topIsOrg ? liquidOpacity : immisciblePhase.opacity
+            const topLayerH = Math.max(4, liquidHeight * (topIsOrg ? orgFrac : 1 - orgFrac))
+            const interfaceY = liquidY + topLayerH
+            return (
+              <g>
+                {/* Bottom liquid layer */}
+                <rect
+                  x="0"
+                  y={interfaceY}
+                  width="80"
+                  height={Math.max(4, geo.liquidBottomY - interfaceY + 4)}
+                  fill={bottomColor}
+                  fillOpacity={bottomOpacity}
+                />
+                {/* Top liquid layer */}
+                <rect
+                  x="0"
+                  y={liquidY}
+                  width="80"
+                  height={topLayerH}
+                  fill={topColor}
+                  fillOpacity={topOpacity}
+                />
+                {/* Crisp liquid-liquid phase interface meniscus */}
+                <line
+                  x1="10"
+                  y1={interfaceY}
+                  x2="70"
+                  y2={interfaceY}
+                  stroke="#ffffff"
+                  strokeOpacity="0.48"
+                  strokeWidth="1.05"
+                />
+                {/* Top surface meniscus */}
+                <ellipse
+                  cx={geo.meniscusX}
+                  cy={liquidY}
+                  rx={geo.meniscusRx}
+                  ry={2.1}
+                  fill={topColor}
+                  fillOpacity={Math.min(0.95, topOpacity + 0.2)}
+                />
+                <line
+                  x1="10"
+                  y1={liquidY}
+                  x2="70"
+                  y2={liquidY}
+                  stroke="#ffffff"
+                  strokeOpacity="0.24"
+                  strokeWidth="0.9"
+                />
+              </g>
+            )
+          })()
+        ) : (
+          <g
+            style={{
+              transform: `translateY(${clampedRatio > 0 ? liquidY - geo.liquidTopY : usableHeight + 12}px)`,
+              opacity: clampedRatio > 0 ? 1 : 0,
+              transition:
+                'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease',
+            }}
+          >
+            <rect
+              x="0"
+              y={geo.liquidTopY}
+              width="80"
+              height={usableHeight + 14}
+              fill={fillColor}
+              fillOpacity={liquidOpacity}
+              style={{ transition: 'fill 90ms ease, fill-opacity 90ms ease' }}
+            />
+            {/* Top meniscus rim */}
+            <ellipse
+              cx={geo.meniscusX}
+              cy={geo.liquidTopY}
+              rx={geo.meniscusRx}
+              ry={2.1}
+              fill={fillColor}
+              fillOpacity={Math.min(0.95, liquidOpacity + 0.22)}
+              style={{ transition: 'fill 90ms ease' }}
+            />
+            <line
+              x1="10"
+              y1={geo.liquidTopY}
+              x2="70"
+              y2={geo.liquidTopY}
+              stroke="#ffffff"
+              strokeOpacity="0.22"
+              strokeWidth="0.9"
+            />
+          </g>
+        )}
 
         {/* Falling precipitate suspension flakes */}
         {precipitating && clampedRatio > 0 && size === 'md' && (
@@ -547,6 +629,61 @@ export function VesselArtwork({
         </g>
       )}
 
+      {/* Optional top funnel + filter paper + retained solid cake on ANY vessel */}
+      {hasFilter && (
+        <g transform={`translate(${geo.meniscusX - 40}, ${geo.filterSeatY - 12})`}>
+          {/* Pleated filter paper cone protruding slightly above funnel rim */}
+          <path
+            d="M23 -10.5 L40 9 L57 -10.5 Q48.5 -13 40 -10.5 Q31.5 -13 23 -10.5 Z"
+            fill="#e4e4e7"
+            fillOpacity="0.18"
+            stroke="#d4d4d8"
+            strokeOpacity="0.6"
+            strokeWidth={size === 'sm' ? '1.2' : '1'}
+            strokeLinejoin="round"
+          />
+          {/* Retained solid cake inside filter paper */}
+          {hasFilterCake && (
+            <g>
+              <path
+                d="M28.5 -1.5 Q40 -4.5 51.5 -1.5 L40 8.5 Z"
+                fill={filterCakeColorHex ?? '#e4e4e7'}
+                fillOpacity="0.92"
+              />
+              {size === 'md' && (
+                <g fill="#ffffff" fillOpacity="0.32">
+                  <circle cx="36.5" cy="1.2" r="1" />
+                  <circle cx="43" cy="0.5" r="0.85" />
+                  <circle cx="40" cy="4" r="0.8" />
+                </g>
+              )}
+            </g>
+          )}
+          {/* Glass funnel body + stem extending into vessel neck */}
+          <path
+            d="M17 -8 H63 M19 -8 L37.5 12 V25 M61 -8 L42.5 12 V23"
+            fill="none"
+            stroke="#e4e4e7"
+            strokeOpacity="0.88"
+            strokeWidth={size === 'sm' ? '2.2' : '1.75'}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Filtrate droplet beneath funnel stem during active filtration */}
+          {bubbling && size === 'md' && (
+            <ellipse
+              cx="40"
+              cy="28"
+              rx="1.5"
+              ry="2.1"
+              fill={fillColor}
+              fillOpacity="0.85"
+              className="animate-dl-drip"
+            />
+          )}
+        </g>
+      )}
+
       {/* Active dripping droplet beneath burette tip */}
       {dripping && vesselType === 'burette' && clampedRatio > 0 && (
         <ellipse
@@ -557,17 +694,6 @@ export function VesselArtwork({
           fill={fillColor}
           fillOpacity="0.9"
           className="animate-dl-drip"
-        />
-      )}
-
-      {/* Optional lab stopper */}
-      {stoppered && geo.stopperPath && (
-        <path
-          d={geo.stopperPath}
-          fill="#27272a"
-          stroke="#d4d4d8"
-          strokeWidth="1.25"
-          strokeLinejoin="round"
         />
       )}
 

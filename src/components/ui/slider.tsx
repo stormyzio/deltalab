@@ -3,10 +3,18 @@ import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
 import { cn } from '@/lib/utils'
+
+export interface SliderScaleStop {
+  /** Domain value within [min, max] */
+  value: number
+  /** Normalized visual track position in [0, 1] */
+  position: number
+}
 
 interface SliderProps {
   value: number
@@ -16,7 +24,11 @@ interface SliderProps {
   step?: number
   /** Optional magnetic snap points along [min, max] */
   snapPoints?: number[]
-  /** Fraction of total track range within which dragging magnetically snaps (default 0.022) */
+  /** Optional piecewise non-linear scale stops mapping domain values to [0, 1] track positions */
+  scaleStops?: SliderScaleStop[]
+  /** Optional lower floor within [min, max] below which the thumb cannot be dragged (keeps scale fixed) */
+  minSelectable?: number
+  /** Fraction of total track width within which dragging magnetically snaps (default 0.022) */
   snapThresholdRatio?: number
   onChange: (value: number) => void
   onCommit?: (value: number) => void
@@ -40,12 +52,97 @@ function quantizeStep(v: number, min: number, step: number): number {
   return Math.round(snapped * factor) / factor
 }
 
+function normalizeScaleStops(
+  min: number,
+  max: number,
+  rawStops?: SliderScaleStop[],
+): SliderScaleStop[] | null {
+  if (!rawStops || rawStops.length < 2 || max <= min) return null
+  const sorted = rawStops
+    .filter(
+      (s) =>
+        Number.isFinite(s.value) &&
+        Number.isFinite(s.position) &&
+        s.value >= min - 1e-9 &&
+        s.value <= max + 1e-9,
+    )
+    .map((s) => ({
+      value: clamp(s.value, min, max),
+      position: clamp(s.position, 0, 1),
+    }))
+    .sort((a, b) => a.value - b.value)
+
+  // Ensure strictly increasing values & positions and anchor both ends
+  const stops: SliderScaleStop[] = []
+  for (const s of sorted) {
+    const prev = stops[stops.length - 1]
+    if (!prev || (s.value > prev.value + 1e-9 && s.position > prev.position + 1e-9)) {
+      stops.push(s)
+    }
+  }
+  if (stops.length === 0) return null
+  if (stops[0].value > min + 1e-9 || stops[0].position > 1e-9) {
+    stops.unshift({ value: min, position: 0 })
+  } else {
+    stops[0] = { value: min, position: 0 }
+  }
+  const last = stops[stops.length - 1]
+  if (last.value < max - 1e-9 || last.position < 1 - 1e-9) {
+    stops.push({ value: max, position: 1 })
+  } else {
+    stops[stops.length - 1] = { value: max, position: 1 }
+  }
+  return stops.length >= 2 ? stops : null
+}
+
+function domainToRatio(
+  v: number,
+  min: number,
+  max: number,
+  stops: SliderScaleStop[] | null,
+): number {
+  const clamped = clamp(v, min, max)
+  if (!stops) return (clamped - min) / Math.max(1e-9, max - min)
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i]
+    const b = stops[i + 1]
+    if (clamped <= b.value || i === stops.length - 2) {
+      const segSpan = Math.max(1e-9, b.value - a.value)
+      const t = clamp((clamped - a.value) / segSpan, 0, 1)
+      return a.position + t * (b.position - a.position)
+    }
+  }
+  return 1
+}
+
+function ratioToDomain(
+  ratio: number,
+  min: number,
+  max: number,
+  stops: SliderScaleStop[] | null,
+): number {
+  const r = clamp(ratio, 0, 1)
+  if (!stops) return min + r * Math.max(1e-9, max - min)
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i]
+    const b = stops[i + 1]
+    if (r <= b.position || i === stops.length - 2) {
+      const segSpan = Math.max(1e-9, b.position - a.position)
+      const t = clamp((r - a.position) / segSpan, 0, 1)
+      return a.value + t * (b.value - a.value)
+    }
+  }
+  return max
+}
+
 export function Slider({
   value,
   min,
   max,
   step,
   snapPoints = [],
+  scaleStops,
+  minSelectable,
   snapThresholdRatio = 0.022,
   onChange,
   onCommit,
@@ -78,8 +175,16 @@ export function Slider({
   }, [])
 
   const span = Math.max(1e-9, max - min)
-  const clampedValue = clamp(value, min, max)
+  const effectiveFloor =
+    minSelectable !== undefined ? clamp(minSelectable, min, max) : min
+  const clampedValue = clamp(value, effectiveFloor, max)
   const keyboardStep = step ?? span / 100
+  const normalizedStops = useMemo(
+    () => normalizeScaleStops(min, max, scaleStops),
+    [min, max, scaleStops],
+  )
+  const floorRatio = domainToRatio(effectiveFloor, min, max, normalizedStops)
+  const currentRatio = domainToRatio(clampedValue, min, max, normalizedStops)
 
   const setVisualRatio = (ratio: number) => {
     const p = `${(clamp(ratio, 0, 1) * 100).toFixed(3)}%`
@@ -89,9 +194,9 @@ export function Slider({
 
   useLayoutEffect(() => {
     if (!dragging) {
-      setVisualRatio((clampedValue - min) / span)
+      setVisualRatio(currentRatio)
     }
-  }, [clampedValue, min, span, dragging])
+  }, [currentRatio, dragging])
 
   const computeFromClientX = (
     clientX: number,
@@ -99,31 +204,35 @@ export function Slider({
   ): { visualRatio: number; emittedValue: number } => {
     const rect = trackRef.current?.getBoundingClientRect()
     if (!rect || rect.width <= 0) {
-      return { visualRatio: (clampedValue - min) / span, emittedValue: clampedValue }
+      return { visualRatio: currentRatio, emittedValue: clampedValue }
     }
-    const rawRatio = clamp((clientX - rect.left) / rect.width, 0, 1)
-    const rawVal = min + rawRatio * span
+    const rawRatio = clamp((clientX - rect.left) / rect.width, floorRatio, 1)
 
     if (!bypassSnap && snapPoints.length > 0) {
       let bestSnap: number | null = null
-      let bestDist = span * snapThresholdRatio
+      let bestSnapRatio = rawRatio
+      let bestRatioDist = snapThresholdRatio
       for (const sp of snapPoints) {
-        if (sp < min - 1e-9 || sp > max + 1e-9) continue
-        const dist = Math.abs(rawVal - sp)
-        if (dist <= bestDist) {
-          bestDist = dist
+        if (sp < effectiveFloor - 1e-9 || sp > max + 1e-9) continue
+        const spRatio = domainToRatio(sp, min, max, normalizedStops)
+        const dist = Math.abs(rawRatio - spRatio)
+        if (dist <= bestRatioDist) {
+          bestRatioDist = dist
           bestSnap = sp
+          bestSnapRatio = spRatio
         }
       }
       if (bestSnap !== null) {
-        const snapped = clamp(bestSnap, min, max)
-        return { visualRatio: (snapped - min) / span, emittedValue: snapped }
+        return {
+          visualRatio: bestSnapRatio,
+          emittedValue: clamp(bestSnap, effectiveFloor, max),
+        }
       }
     }
 
-    // Smooth continuous value outside snap zones (fine precision, never jerky)
+    const rawVal = ratioToDomain(rawRatio, min, max, normalizedStops)
     const fineStep = step !== undefined ? Math.min(step, span / 250) : span / 400
-    const smoothVal = clamp(quantizeStep(rawVal, min, fineStep), min, max)
+    const smoothVal = clamp(quantizeStep(rawVal, min, fineStep), effectiveFloor, max)
     return { visualRatio: rawRatio, emittedValue: smoothVal }
   }
 
@@ -236,9 +345,13 @@ export function Slider({
     }
   }
 
-  const validSnaps = snapPoints.filter(
-    (sp) => sp > min + span * 0.01 && sp < max - span * 0.01,
-  )
+  const validSnaps = snapPoints
+    .filter((sp) => sp >= min - 1e-9 && sp <= max + 1e-9)
+    .map((sp) => ({
+      value: sp,
+      ratio: domainToRatio(sp, min, max, normalizedStops),
+    }))
+    .filter((item) => item.ratio > 0.01 && item.ratio < 0.99)
 
   return (
     <div
@@ -264,18 +377,17 @@ export function Slider({
         <div ref={fillRef} className="h-full rounded-full bg-zinc-200" />
 
         {/* Subtle magnetic snap notches */}
-        {validSnaps.map((sp, i) => {
-          const spPct = ((sp - min) / span) * 100
-          const isReached = clampedValue >= sp - span * 0.005
+        {validSnaps.map((item, i) => {
+          const isReached = currentRatio >= item.ratio - 0.002
           return (
             <span
-              key={`${sp}-${i}`}
+              key={`${item.value}-${i}`}
               aria-hidden="true"
               className={cn(
                 'pointer-events-none absolute top-1/2 h-2 w-[1.5px] -translate-x-1/2 -translate-y-1/2 rounded-full',
                 isReached ? 'bg-zinc-950/65' : 'bg-zinc-600/80',
               )}
-              style={{ left: `${spPct}%` }}
+              style={{ left: `${item.ratio * 100}%` }}
             />
           )
         })}

@@ -22,9 +22,10 @@ import {
   getSpeciesDensityGPerMl,
 } from '@/lib/chemistry-ui'
 import { buildCanonicalSignature, formatChargeLabel } from '@/lib/chemistry-calc'
+import { describeWaterBehavior } from '@/lib/water-behavior'
 import { cn } from '@/lib/utils'
 import { MASS_UNITS, MOL_UNITS, VOLUME_UNITS } from '@/lib/quantity-units'
-import { ChemFormula } from '@/components/ui/chem-text'
+import { ChemFormula, ChemVar } from '@/components/ui/chem-text'
 import { ScrubNumberInput } from '@/components/ui/scrub-number-input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MolecularRepresentationSection } from '@/components/MolecularRepresentationSection'
@@ -44,8 +45,6 @@ export function SpeciesInspector({
   canIonizeMinus = true,
   canIonizePlus = true,
   onUpdateAmount,
-  onDuplicate,
-  onDelete,
   onOpenInCatalog,
   onOpenInLewisBuilder,
 }: {
@@ -57,8 +56,6 @@ export function SpeciesInspector({
   canIonizeMinus?: boolean
   canIonizePlus?: boolean
   onUpdateAmount: (amountMol: number) => void
-  onDuplicate: () => void
-  onDelete: () => void
   onOpenInCatalog: (target: CatalogJumpTarget) => void
   onOpenInLewisBuilder: (species: SpeciesRecord) => void
 }) {
@@ -68,6 +65,7 @@ export function SpeciesInspector({
   const isIon = sp.kind === 'ion'
   const isUnknownSolubility =
     sp.source !== 'curated' && !sp.canDissolveInWater && sp.solubilityGPerL === null
+  const waterBehavior = describeWaterBehavior(sp, isUnknownSolubility)
   const tintDot = sp.solutionColorHex ?? sp.colorHex ?? (sp.isSolvent ? '#bae6fd' : null)
   const density = getSpeciesDensityGPerMl(sp)
   const massG = node.amountMol * sp.molarMass
@@ -177,8 +175,6 @@ export function SpeciesInspector({
 
         <QuickActions
           onOpenCatalog={() => onOpenInCatalog({ section: 'species', id: sp.id })}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
         />
       </div>
 
@@ -193,21 +189,9 @@ export function SpeciesInspector({
           value={`${formatChargeLabel(sp.charge)} · ${PH_CHAR_LABEL[sp.phCharacter]}`}
         />
         <MetricCell
-          label="Solubilité H₂O"
-          value={
-            sp.isSolvent
-              ? 'Solvant'
-              : sp.canDissolveInWater
-                ? sp.solubilityGPerL !== null
-                  ? `${formatFrNumber(sp.solubilityGPerL, 1)} g/L`
-                  : sp.dissolutionType === 'miscible'
-                    ? 'Miscible'
-                    : 'Soluble'
-                : isUnknownSolubility
-                  ? 'Non renseigné'
-                  : 'Insoluble'
-          }
-          mono={sp.solubilityGPerL !== null}
+          label={sp.standardState === 'liquid' ? 'Miscibilité H₂O' : 'Solubilité H₂O'}
+          value={waterBehavior.valueLabel ?? waterBehavior.tierLabel}
+          mono={waterBehavior.valueLabel !== null}
         />
       </dl>
 
@@ -265,7 +249,7 @@ export function SpeciesInspector({
               <span className="text-[11px] font-medium text-muted-foreground">
                 Échantillon & charge
               </span>
-              <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
+              <span className="shrink-0 whitespace-nowrap text-[10.5px] tabular-nums text-muted-foreground">
                 {formatMol(node.amountMol)}
               </span>
             </div>
@@ -309,14 +293,14 @@ export function SpeciesInspector({
             {gasVolMl !== null && (
               <div className="flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
                 <span>Volume gazeux (20 °C)</span>
-                <span className="shrink-0 whitespace-nowrap font-mono tabular-nums text-zinc-200">
+                <span className="shrink-0 whitespace-nowrap tabular-nums text-zinc-200">
                   {formatVolumeMl(gasVolMl)}
                 </span>
               </div>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-0.5 font-mono text-[10px]">
+              <div className="flex flex-wrap items-center gap-0.5 text-[10px]">
                 <button
                   type="button"
                   onClick={() => applyMolNumber(Math.max(0.0001, node.amountMol / 2))}
@@ -390,12 +374,16 @@ export function SpeciesInspector({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="left">
-                    {canIonizeMinus
-                      ? 'Gagner e⁻ (charge −)'
-                      : 'Aucun état plus réduit répertorié'}
+                    {canIonizeMinus ? (
+                      <>
+                        Gagner <ChemVar base="e" sup="−" /> (charge −)
+                      </>
+                    ) : (
+                      'Aucun état plus réduit répertorié'
+                    )}
                   </TooltipContent>
                 </Tooltip>
-                <span className="min-w-[20px] text-center font-mono text-[11px] tabular-nums text-foreground">
+                <span className="min-w-[20px] text-center text-[11px] tabular-nums text-foreground">
                   {formatChargeLabel(sp.charge)}
                 </span>
                 <Tooltip>
@@ -413,9 +401,13 @@ export function SpeciesInspector({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="left">
-                    {canIonizePlus
-                      ? 'Perdre e⁻ (charge +)'
-                      : 'Aucun état plus oxydé répertorié'}
+                    {canIonizePlus ? (
+                      <>
+                        Perdre <ChemVar base="e" sup="−" /> (charge +)
+                      </>
+                    ) : (
+                      'Aucun état plus oxydé répertorié'
+                    )}
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -434,7 +426,7 @@ export function SpeciesInspector({
                   Constantes physico-chimiques
                 </span>
                 {sp.pubchemCid && (
-                  <span className="shrink-0 whitespace-nowrap font-mono text-[10px] text-zinc-500">
+                  <span className="shrink-0 whitespace-nowrap text-[10px] text-zinc-500">
                     CID {sp.pubchemCid}
                   </span>
                 )}
@@ -479,7 +471,7 @@ export function SpeciesInspector({
               </dl>
 
               {sp.pkaValues.length > 0 && (
-                <p className="font-mono text-[11px] tabular-nums text-zinc-300">
+                <p className="text-[11px] tabular-nums text-zinc-300">
                   <span className="font-sans text-[10.5px] text-muted-foreground">pKa · </span>
                   {sp.pkaValues
                     .map((val, idx) =>

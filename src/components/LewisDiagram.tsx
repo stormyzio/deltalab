@@ -131,7 +131,7 @@ export function LewisDiagram({
                   y={y1 + 5}
                   fontSize="11"
                   fontWeight="600"
-                  fontFamily="var(--font-mono)"
+                  fontFamily="var(--font-sans)"
                   fill={comp.totalCharge > 0 ? '#7dd3fc' : '#fda4af'}
                 >
                   {qText}
@@ -177,7 +177,7 @@ export function LewisDiagram({
                   y={y1 + 6}
                   fontSize="12"
                   fontWeight="600"
-                  fontFamily="var(--font-mono)"
+                  fontFamily="var(--font-sans)"
                   fill={(layout.totalCharge ?? 0) > 0 ? '#7dd3fc' : '#fda4af'}
                 >
                   {qText}
@@ -283,7 +283,7 @@ export function LewisDiagram({
                     dominantBaseline="central"
                     fontSize={chargeLabel.length > 1 ? '8.5' : '10'}
                     fontWeight="700"
-                    fontFamily="var(--font-mono)"
+                    fontFamily="var(--font-sans)"
                     fill={atom.charge > 0 ? '#7dd3fc' : '#fda4af'}
                   >
                     {chargeLabel}

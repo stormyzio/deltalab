@@ -4,6 +4,7 @@ import type { LewisStructure } from '../../shared/chemistry.ts'
 import { buildMolecule3DModel } from '@/lib/molecule-3d'
 import { formatFrNumber } from '@/lib/chemistry-ui'
 import { cn } from '@/lib/utils'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { Molecule3DStage, type Molecule3DStyle } from '@/components/Molecule3DStage'
 
 export type { Molecule3DStyle }
@@ -172,7 +173,7 @@ export function Molecule3DViewer({
 
         {scaleBar && (
           <div className="pointer-events-none absolute bottom-2 left-2.5 flex flex-col items-start gap-0.5">
-            <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
+            <span className="text-[9.5px] tabular-nums text-muted-foreground">
               {scaleBar.label}
             </span>
             <div
@@ -187,7 +188,7 @@ export function Molecule3DViewer({
           </div>
         )}
 
-        <div className="pointer-events-none absolute bottom-2 right-2.5 text-right font-mono text-[9.5px] tabular-nums text-muted-foreground">
+        <div className="pointer-events-none absolute bottom-2 right-2.5 text-right text-[9.5px] tabular-nums text-muted-foreground">
           {model.geometryLabelFr && <span>{model.geometryLabelFr}</span>}
           {model.spanAngstrom > 0 && (
             <span>
@@ -214,7 +215,7 @@ export function Molecule3DViewer({
               <div className="flex min-w-0 items-baseline gap-2.5">
                 {formula && (
                   <span className="shrink-0 text-sm font-semibold text-foreground">
-                    {formula}
+                    <ChemFormula value={formula} />
                   </span>
                 )}
                 {title && (

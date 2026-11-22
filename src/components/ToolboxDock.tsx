@@ -2,6 +2,7 @@ import { type PointerEvent, memo } from 'react'
 import type { SpeciesRecord, VesselRecord } from '../../shared/chemistry.ts'
 import type { ExternalDragItem } from '@/types/drag'
 import { STATE_META, formatCapacityMl } from '@/lib/chemistry-ui'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { VesselArtwork } from '@/components/VesselArtwork'
 
@@ -15,7 +16,6 @@ interface ToolboxDockProps {
     event: PointerEvent<HTMLElement>,
   ) => void
   onKeyboardSpawn: (item: ExternalDragItem) => void
-  onOpenLewisBuilder: () => void
 }
 
 export const ToolboxDock = memo(function ToolboxDock({
@@ -25,7 +25,6 @@ export const ToolboxDock = memo(function ToolboxDock({
   onToggleCollapse,
   onStartExternalDrag,
   onKeyboardSpawn,
-  onOpenLewisBuilder,
 }: ToolboxDockProps) {
   return (
     <section
@@ -42,15 +41,6 @@ export const ToolboxDock = memo(function ToolboxDock({
         >
           <span>Outils</span>
         </button>
-
-        <button
-          type="button"
-          onClick={onOpenLewisBuilder}
-          className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-md px-2 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <span className="hidden @min-[340px]:inline">Éditeur Lewis</span>
-          <span className="@min-[340px]:hidden">Lewis</span>
-        </button>
       </div>
 
       {!collapsed && (
@@ -59,7 +49,7 @@ export const ToolboxDock = memo(function ToolboxDock({
           <div className="flex min-w-0 flex-[1.25] flex-col p-2.5">
             <div className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
               <span>Fioles & verrerie</span>
-              <span className="font-mono text-[10px] tabular-nums">
+              <span className="text-[10px] tabular-nums">
                 {vessels.length}
               </span>
             </div>
@@ -97,7 +87,7 @@ export const ToolboxDock = memo(function ToolboxDock({
                           <p className="truncate text-[10.5px] font-medium leading-tight text-foreground">
                             {vessel.nameFr}
                           </p>
-                          <p className="mt-0.5 truncate font-mono text-[9.5px] tabular-nums text-muted-foreground">
+                          <p className="mt-0.5 truncate text-[9.5px] tabular-nums text-muted-foreground">
                             {minCap !== maxCap
                               ? `${formatCapacityMl(minCap)}–${formatCapacityMl(maxCap)}`
                               : formatCapacityMl(vessel.capacityMl)}
@@ -123,7 +113,7 @@ export const ToolboxDock = memo(function ToolboxDock({
           <div className="flex min-w-0 flex-1 flex-col p-2.5">
             <div className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
               <span>Synthétisées</span>
-              <span className="font-mono text-[10px] tabular-nums">
+              <span className="text-[10px] tabular-nums">
                 {discoveredSpecies.length}
               </span>
             </div>
@@ -131,9 +121,9 @@ export const ToolboxDock = memo(function ToolboxDock({
             {discoveredSpecies.length === 0 ? (
               <p className="flex flex-1 items-center justify-center px-2 py-3 text-center text-[11px] text-muted-foreground">
                 <span>
-                  Fusionnez (<kbd className="font-mono text-foreground">V</kbd>) ou ionisez (
-                  <kbd className="font-mono text-foreground">+</kbd>/
-                  <kbd className="font-mono text-foreground">−</kbd>) vos atomes pour les réutiliser ici.
+                  Fusionnez (<kbd className="text-foreground">V</kbd>) ou ionisez (
+                  <kbd className="text-foreground">+</kbd>/
+                  <kbd className="text-foreground">−</kbd>) vos atomes pour les réutiliser ici.
                 </span>
               </p>
             ) : (
@@ -162,9 +152,9 @@ export const ToolboxDock = memo(function ToolboxDock({
                               style={{ backgroundColor: species.solutionColorHex }}
                             />
                           )}
-                          <span>{species.displayFormula}</span>
+                          <ChemFormula value={species.displayFormula} />
                           {!isIon && (
-                            <span className="font-mono text-[9.5px] text-muted-foreground">
+                            <span className="text-[9.5px] text-muted-foreground">
                               {stateTag}
                             </span>
                           )}
@@ -174,14 +164,20 @@ export const ToolboxDock = memo(function ToolboxDock({
                         <div className="font-medium text-foreground">
                           {species.nameFr}
                         </div>
-                        <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                          {species.isSolvent
-                            ? 'Solvant aqueux'
-                            : species.canDissolveInWater
-                              ? 'Soluble dans H₂O'
-                              : species.standardState === 'solid'
-                                ? 'Solide immergeable'
-                                : 'Insoluble dans H₂O'}
+                        <div className="mt-0.5 text-[10px] text-muted-foreground">
+                          {species.isSolvent ? (
+                            'Solvant aqueux'
+                          ) : species.canDissolveInWater ? (
+                            <>
+                              Soluble dans <ChemFormula value="H2O" />
+                            </>
+                          ) : species.standardState === 'solid' ? (
+                            'Solide immergeable'
+                          ) : (
+                            <>
+                              Insoluble dans <ChemFormula value="H2O" />
+                            </>
+                          )}
                         </div>
                       </TooltipContent>
                     </Tooltip>

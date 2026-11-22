@@ -14,6 +14,8 @@ export interface FlaskReactionDetectorContext {
   solubilityProducts: SolubilityProductRecord[]
   acidBaseCouples: AcidBaseCoupleRecord[]
   getSpeciesById: (id: string) => SpeciesRecord | null
+  /** For each saturated solute (with undissolved solid), map of productSpeciesId -> dissolved mol contributed */
+  saturatedSoluteContributions?: Array<Map<string, number>>
 }
 
 export interface InventoryEntry {

@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import { REACTION_CATEGORY_LABEL } from '@/lib/chemistry-ui'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ChemFormula, ChemText, Sup } from '@/components/ui/chem-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ReactionSpawnSetup } from './CatalogShared'
 import { PredictorSpeciesPicker } from './PredictorSpeciesPicker'
@@ -116,7 +117,7 @@ export function ReactionPredictorPane({
           Prédicteur de réactions (aqueux & hors aqueux)
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Sélectionnez deux réactifs (et éventuellement un milieu ou 3ᵉ réactif) pour prédire
+          Sélectionnez deux réactifs (et éventuellement un milieu ou 3<Sup>e</Sup> réactif) pour prédire
           les réactions acide-base (ΔpKa), précipitations (pKs), oxydoréductions (ΔE°),
           combustions et synthèses, puis lancez le montage directement sur la paillasse.
         </p>
@@ -152,7 +153,7 @@ export function ReactionPredictorPane({
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex min-h-[60px] flex-wrap content-start items-center gap-1">
           {visiblePresets.map((p) => {
             const active =
               speciesAId === p.a &&
@@ -168,13 +169,13 @@ export function ReactionPredictorPane({
                   setSpeciesCId(p.c ?? '')
                 }}
                 className={cn(
-                  'shrink-0 whitespace-nowrap rounded px-2 py-1 font-mono text-[11px] font-medium',
+                  'shrink-0 whitespace-nowrap rounded px-2 py-1 text-[11px] font-medium',
                   active
                     ? 'bg-accent text-foreground'
                     : 'text-zinc-300 hover:bg-accent/60 hover:text-foreground',
                 )}
               >
-                {p.label}
+                <ChemText value={p.label} />
               </button>
             )
           })}
@@ -223,7 +224,7 @@ export function ReactionPredictorPane({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
           <div className="flex flex-wrap items-center gap-1">
             <span className="mr-1 whitespace-nowrap text-[11px] text-muted-foreground">
-              Milieu / 3ᵉ réactif :
+              Milieu / 3<Sup>e</Sup> réactif :
             </span>
             {(
               [
@@ -246,16 +247,21 @@ export function ReactionPredictorPane({
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                 )}
               >
-                {cLabel}
+                <ChemText value={cLabel} />
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="border-t border-border/60 pt-4">
-        {loading ? (
-          <p className="font-mono text-xs text-muted-foreground">Calcul en cours…</p>
+      <div
+        className={cn(
+          'min-h-[140px] border-t border-border/60 pt-4 transition-opacity duration-150',
+          loading && 'opacity-55',
+        )}
+      >
+        {loading && !result ? (
+          <p className="text-xs text-muted-foreground">Calcul en cours…</p>
         ) : result && result.reactions.length > 0 ? (
           <div className="divide-y divide-border/60">
             {result.reactions.map((rxn, idx) => (
@@ -265,7 +271,9 @@ export function ReactionPredictorPane({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-baseline gap-2">
-                    <h3 className="text-xs font-semibold text-foreground">{rxn.titleFr}</h3>
+                    <h3 className="text-xs font-semibold text-foreground">
+                      <ChemText value={rxn.titleFr} />
+                    </h3>
                     <span className="text-[10.5px] text-muted-foreground">
                       · {REACTION_CATEGORY_LABEL[rxn.category] ?? rxn.category}
                       {rxn.setupMedium === 'gas'
@@ -275,8 +283,8 @@ export function ReactionPredictorPane({
                           : ''}
                     </span>
                     {rxn.equilibriumLabel && (
-                      <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                        · {rxn.equilibriumLabel}
+                      <span className="text-[11px] tabular-nums text-muted-foreground">
+                        · <ChemText value={rxn.equilibriumLabel} />
                       </span>
                     )}
                   </div>
@@ -302,11 +310,15 @@ export function ReactionPredictorPane({
                     )}
                 </div>
 
-                <p className="mt-2 break-words font-mono text-[13px] text-foreground">
-                  {rxn.equationDisplay}
+                <p className="mt-2 break-words text-[13px] text-foreground">
+                  <ChemFormula value={rxn.equationDisplay} />
                 </p>
-                <p className="mt-1.5 text-xs text-zinc-200">{rxn.observationsFr}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">{rxn.detailsFr}</p>
+                <p className="mt-1.5 text-xs text-zinc-200">
+                  <ChemText value={rxn.observationsFr} />
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <ChemText value={rxn.detailsFr} />
+                </p>
 
                 {onJumpToSpecies &&
                   rxn.setupReactants &&
@@ -323,9 +335,9 @@ export function ReactionPredictorPane({
                             key={sr.speciesId}
                             type="button"
                             onClick={() => onJumpToSpecies(sr.speciesId)}
-                            className="whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10.5px] text-zinc-300 hover:bg-accent hover:text-foreground"
+                            className="whitespace-nowrap rounded px-1.5 py-0.5 text-[10.5px] text-zinc-300 hover:bg-accent hover:text-foreground"
                           >
-                            {sp.displayFormula}
+                            <ChemFormula value={sp.displayFormula} />
                           </button>
                         )
                       })}
@@ -340,9 +352,12 @@ export function ReactionPredictorPane({
               Aucune réaction spontanée prédite entre ces espèces
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Essayez un couple acide/base, deux sels précipitants (AgNO₃ + NaCl), un couple
-              redox (KMnO₄ + FeSO₄ avec + H⁺) ou une réaction hors aqueux (CH₄ + O₂, Al + Fe₂O₃,
-              NH₃ + HCl).
+              Essayez un couple acide/base, deux sels précipitants (
+              <ChemFormula value="AgNO3" /> + NaCl), un couple redox (
+              <ChemFormula value="KMnO4" /> + <ChemFormula value="FeSO4" /> avec +{' '}
+              <ChemFormula value="H^+" />) ou une réaction hors aqueux (
+              <ChemFormula value="CH4" /> + <ChemFormula value="O2" />, Al +{' '}
+              <ChemFormula value="Fe2O3" />, <ChemFormula value="NH3" /> + HCl).
             </p>
           </div>
         )}

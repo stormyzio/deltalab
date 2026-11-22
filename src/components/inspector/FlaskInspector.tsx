@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Lock, LockOpen, RotateCcw } from 'lucide-react'
 import type {
   CanvasFlaskNode,
   FlaskProbeType,
@@ -14,12 +13,10 @@ import {
 } from '@/lib/chemistry-ui'
 import { projectFlaskStateAtExtent } from '@/lib/flask-reaction-ui'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ChemText } from '@/components/ui/chem-text'
 import { VesselArtwork } from '@/components/VesselArtwork'
 import { type CatalogJumpTarget, QuickActions } from './InspectorPrimitives'
 import { FlaskOverviewTab } from './FlaskOverviewTab'
-import { FlaskActionsTab } from './FlaskActionsTab'
 import { FlaskSettingsTab } from './FlaskSettingsTab'
 
 export function FlaskInspector({
@@ -29,16 +26,13 @@ export function FlaskInspector({
   onAddWater,
   onResize,
   onSetTemperature,
-  onToggleStopper,
+  onToggleFilter,
   onSetLabel,
   onEvaporate,
   onChangeReactionExtent,
   onSelectReaction,
   onCommitReaction,
   onBalanceStoichiometry,
-  onEmpty,
-  onDuplicate,
-  onDelete,
   onOpenInCatalog,
   onSetIndicator,
   onToggleProbe,
@@ -47,6 +41,8 @@ export function FlaskInspector({
   onOpenTitration,
   onSetSoluteAmount,
   onSetWaterVolume,
+  onExtractFilteredSolid,
+  onClearFilterCake,
 }: {
   node: CanvasFlaskNode
   otherFlasks: CanvasFlaskNode[]
@@ -54,16 +50,13 @@ export function FlaskInspector({
   onAddWater: (volumeMl: number) => void
   onResize: (newCapacityMl: number) => void
   onSetTemperature: (temperatureC: number) => void
-  onToggleStopper: () => void
+  onToggleFilter: () => void
   onSetLabel: (label: string) => void
   onEvaporate: (volumeMl: number) => void
   onChangeReactionExtent: (xMol: number) => void
   onSelectReaction: (reactionId: string) => void
   onCommitReaction: () => void
   onBalanceStoichiometry?: () => void
-  onEmpty: () => void
-  onDuplicate: () => void
-  onDelete: () => void
   onOpenInCatalog: (target: CatalogJumpTarget) => void
   onSetIndicator: (indicatorId: PhIndicatorId | null) => void
   onToggleProbe: (probe: FlaskProbeType) => void
@@ -72,11 +65,24 @@ export function FlaskInspector({
   onOpenTitration: (buretteId?: string, analyteId?: string) => void
   onSetSoluteAmount: (speciesId: string, amountMol: number) => void
   onSetWaterVolume: (volumeMl: number) => void
+  onExtractFilteredSolid?: (speciesId: string) => void
+  onClearFilterCake?: () => void
 }) {
   const { vessel, solution } = node
-  const hasContent = solution.hasWater || solution.solutes.length > 0
+  const filteredSolids = node.filteredSolids ?? []
+  const hasFilterCake = filteredSolids.length > 0
+  const filterCakeColorHex = filteredSolids[0]?.colorHex ?? '#e4e4e7'
+  const hasContent =
+    solution.hasWater || solution.solutes.length > 0 || hasFilterCake
+  const immiscibleVisual =
+    solution.immisciblePhase && solution.totalVolumeMl > 0
+      ? {
+          ...solution.immisciblePhase,
+          volumeRatio: solution.immisciblePhase.volumeMl / solution.totalVolumeMl,
+        }
+      : null
   const temperatureC = node.temperatureC ?? 20
-  const stoppered = Boolean(node.stoppered)
+  const hasFilter = Boolean(node.hasFilter)
 
   const projected = useMemo(
     () =>
@@ -109,7 +115,6 @@ export function FlaskInspector({
             ? '100'
             : '250',
   )
-  const [customCapInput, setCustomCapInput] = useState(String(vessel.capacityMl))
 
   const fillRatio =
     vessel.capacityMl > 0 ? Math.min(1, solution.totalVolumeMl / vessel.capacityMl) : 0
@@ -147,14 +152,7 @@ export function FlaskInspector({
     if (Number.isFinite(val) && val > 0) onAddWater(val)
   }
 
-  const submitCustomCapacity = () => {
-    const val = Number.parseFloat(customCapInput.replace(',', '.'))
-    if (Number.isFinite(val) && val >= Math.max(5, solution.totalVolumeMl) && val <= 5000) {
-      onResize(Math.round(val))
-    }
-  }
-
-  const [flaskTab, setFlaskTab] = useState<'content' | 'actions' | 'vessel'>('content')
+  const [flaskTab, setFlaskTab] = useState<'content' | 'vessel'>('content')
   const quickWaterSteps =
     vessel.capacityMl <= 30
       ? [5, 10, 20]
@@ -175,109 +173,79 @@ export function FlaskInspector({
               fillRatio={fillRatio}
               liquidColorHex={projected.liquidColorHex}
               liquidOpacity={projected.liquidOpacity}
+              immisciblePhase={immiscibleVisual}
               hasSediment={projected.hasUndissolvedSolid}
               sedimentColorHex={projected.sedimentColorHex}
               sedimentRatio={projected.sedimentRatio}
+              hasFilter={hasFilter}
+              hasFilterCake={hasFilterCake}
+              filterCakeColorHex={filterCakeColorHex}
               bubbling={projected.evolvingGas}
-              stoppered={stoppered}
               temperatureC={temperatureC}
               size="sm"
             />
           </div>
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
-              {node.customLabel || (hasContent ? solution.labelFr : vessel.nameFr)}
+              <ChemText
+                value={node.customLabel || (hasContent ? solution.labelFr : vessel.nameFr)}
+              />
             </h2>
             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
               {vessel.nameFr} ·{' '}
-              <span className="whitespace-nowrap font-mono tabular-nums">
+              <span className="whitespace-nowrap tabular-nums">
                 {formatCapacityMl(vessel.capacityMl)}
               </span>
-              {node.customLabel && hasContent ? ` · ${solution.labelFr}` : ''}
+              {node.customLabel && hasContent && (
+                <>
+                  {' '}
+                  · <ChemText value={solution.labelFr} />
+                </>
+              )}
             </p>
             <p className="truncate text-[10px] text-zinc-400">
-              {stoppered ? 'Bouchée · ' : ''}
+              {hasFilter ? 'Filtre posé · ' : ''}
               {!solution.hasWater && hasContent ? 'Milieu hors solvant · ' : ''}
               {vessel.precisionLabel}
             </p>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-0.5">
-          {vessel.stopperable && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={stoppered ? 'secondary' : 'ghost'}
-                  size="icon-sm"
-                  onClick={onToggleStopper}
-                  aria-label={stoppered ? 'Retirer le bouchon' : 'Boucher la verrerie'}
-                >
-                  {stoppered ? (
-                    <Lock className="h-3.5 w-3.5 text-zinc-200" strokeWidth={1.6} />
-                  ) : (
-                    <LockOpen className="h-3.5 w-3.5" strokeWidth={1.6} />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {stoppered ? 'Retirer le bouchon' : 'Poser un bouchon'}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {hasContent && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={onEmpty}
-                  aria-label="Vider la verrerie"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.6} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Vider la verrerie</TooltipContent>
-            </Tooltip>
-          )}
-          <QuickActions
-            onOpenCatalog={() =>
-              solution.recognizedSolutionId
-                ? onOpenInCatalog({
-                    section: 'solutions',
-                    id: solution.recognizedSolutionId,
-                  })
-                : onOpenInCatalog({ section: 'vessels', id: vessel.id })
-            }
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-          />
-        </div>
+        <QuickActions
+          onOpenCatalog={() =>
+            solution.recognizedSolutionId
+              ? onOpenInCatalog({
+                  section: 'solutions',
+                  id: solution.recognizedSolutionId,
+                })
+              : onOpenInCatalog({ section: 'vessels', id: vessel.id })
+          }
+        />
       </div>
 
       <div>
         <dl className="grid grid-cols-4 divide-x divide-border/60 border-t border-border/60 py-2.5 text-center">
           <div className="min-w-0 px-1.5">
             <dt className="truncate text-[10px] text-muted-foreground">Volume</dt>
-            <dd className="mt-0.5 truncate font-mono text-[11.5px] font-medium tabular-nums text-foreground">
+            <dd className="mt-0.5 truncate text-[11.5px] font-medium tabular-nums text-foreground">
               {hasContent ? formatVolumeMl(solution.totalVolumeMl) : '0 mL'}
             </dd>
           </div>
           <div className="min-w-0 px-1.5">
             <dt className="truncate text-[10px] text-muted-foreground">pH</dt>
-            <dd className="mt-0.5 truncate font-mono text-[11.5px] font-medium tabular-nums text-foreground">
+            <dd className="mt-0.5 truncate text-[11.5px] font-medium tabular-nums text-foreground">
               {phDisplay}
             </dd>
           </div>
           <div className="min-w-0 px-1.5">
             <dt className="truncate text-[10px] text-muted-foreground">Temp.</dt>
-            <dd className="mt-0.5 truncate font-mono text-[11.5px] font-medium tabular-nums text-foreground">
+            <dd className="mt-0.5 truncate text-[11.5px] font-medium tabular-nums text-foreground">
               {Math.round(temperatureC)} °C
             </dd>
           </div>
           <div className="min-w-0 px-1.5">
             <dt className="truncate text-[10px] text-muted-foreground">Masse</dt>
-            <dd className="mt-0.5 truncate font-mono text-[11.5px] font-medium tabular-nums text-zinc-200">
+            <dd className="mt-0.5 truncate text-[11.5px] font-medium tabular-nums text-zinc-200">
               {hasContent ? formatMassG(solution.totalMassG) : '0 g'}
             </dd>
           </div>
@@ -305,30 +273,20 @@ export function FlaskInspector({
           aria-selected={flaskTab === 'content'}
           onClick={() => setFlaskTab('content')}
           className={cn(
-            '-mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 pb-2 text-[11.5px] font-medium',
+            'relative -mb-px inline-flex shrink-0 items-center whitespace-nowrap border-b-2 pb-2 text-[11.5px] font-medium',
             flaskTab === 'content'
               ? 'border-foreground text-foreground'
               : 'border-transparent text-muted-foreground hover:text-foreground',
           )}
         >
           <span>Contenu</span>
-          {activeRxn && (
-            <span className="h-1.5 w-1.5 rounded-full bg-zinc-300" aria-hidden="true" />
-          )}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={flaskTab === 'actions'}
-          onClick={() => setFlaskTab('actions')}
-          className={cn(
-            '-mb-px shrink-0 whitespace-nowrap border-b-2 pb-2 text-[11.5px] font-medium',
-            flaskTab === 'actions'
-              ? 'border-foreground text-foreground'
-              : 'border-transparent text-muted-foreground hover:text-foreground',
-          )}
-        >
-          Manipuler
+          <span
+            aria-hidden="true"
+            className={cn(
+              'absolute -right-2.5 top-1 h-1.5 w-1.5 rounded-full bg-zinc-300',
+              !activeRxn && 'opacity-0',
+            )}
+          />
         </button>
         <button
           type="button"
@@ -349,8 +307,8 @@ export function FlaskInspector({
       {flaskTab === 'content' && (
         <FlaskOverviewTab
           node={node}
+          catalog={catalog}
           hasContent={hasContent}
-          stoppered={stoppered}
           remainingMl={remainingMl}
           waterInput={waterInput}
           onWaterInputChange={setWaterInput}
@@ -368,16 +326,19 @@ export function FlaskInspector({
           onBalanceStoichiometry={onBalanceStoichiometry}
           onSetSoluteAmount={onSetSoluteAmount}
           onSetWaterVolume={onSetWaterVolume}
+          onExtractFilteredSolid={onExtractFilteredSolid}
+          onClearFilterCake={onClearFilterCake}
           onOpenInCatalog={onOpenInCatalog}
         />
       )}
 
-      {flaskTab === 'actions' && (
-        <FlaskActionsTab
+      {flaskTab === 'vessel' && (
+        <FlaskSettingsTab
           node={node}
           otherFlasks={otherFlasks}
-          stoppered={stoppered}
+          hasFilter={hasFilter}
           temperatureC={temperatureC}
+          fillPercent={fillPercent}
           remainingMl={remainingMl}
           dilutionFactor={dilutionFactor}
           waterInput={waterInput}
@@ -385,6 +346,9 @@ export function FlaskInspector({
           onSubmitWater={submitWater}
           onAddWater={onAddWater}
           quickWaterSteps={quickWaterSteps}
+          onSetLabel={onSetLabel}
+          onToggleFilter={onToggleFilter}
+          onResize={onResize}
           onSetTemperature={onSetTemperature}
           onEvaporate={onEvaporate}
           onSetIndicator={onSetIndicator}
@@ -392,20 +356,6 @@ export function FlaskInspector({
           onToggleStirrer={onToggleStirrer}
           onSetHeaterTarget={onSetHeaterTarget}
           onOpenTitration={onOpenTitration}
-        />
-      )}
-
-      {flaskTab === 'vessel' && (
-        <FlaskSettingsTab
-          node={node}
-          stoppered={stoppered}
-          fillPercent={fillPercent}
-          customCapInput={customCapInput}
-          onCustomCapInputChange={setCustomCapInput}
-          onSetLabel={onSetLabel}
-          onToggleStopper={onToggleStopper}
-          onResize={onResize}
-          onSubmitCustomCapacity={submitCustomCapacity}
         />
       )}
     </div>

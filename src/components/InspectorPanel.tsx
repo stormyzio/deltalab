@@ -33,7 +33,7 @@ interface InspectorPanelProps {
   onAddWaterToFlask: (flaskId: string, volumeMl: number) => void
   onResizeFlask: (flaskId: string, newCapacityMl: number) => void
   onSetFlaskTemperature: (flaskId: string, temperatureC: number) => void
-  onToggleFlaskStopper: (flaskId: string) => void
+  onToggleFlaskFilter: (flaskId: string) => void
   onSetFlaskLabel: (flaskId: string, label: string) => void
   onEvaporateFlaskWater: (flaskId: string, volumeMl: number) => void
   onSetFlaskSoluteAmount: (flaskId: string, speciesId: string, amountMol: number) => void
@@ -42,9 +42,8 @@ interface InspectorPanelProps {
   onSelectFlaskReaction: (flaskId: string, reactionId: string) => void
   onCommitFlaskReaction: (flaskId: string) => void
   onBalanceFlaskStoichiometry?: (flaskId: string) => void
-  onDuplicateSelected: () => void
-  onDeleteIds: (ids: string[]) => void
-  onEmptyFlask: (flaskId: string) => void
+  onExtractFilteredSolid?: (flaskId: string, speciesId: string) => void
+  onClearFilterCake?: (flaskId: string) => void
   onSetFlaskIndicator: (flaskId: string, indicatorId: PhIndicatorId | null) => void
   onToggleFlaskProbe: (flaskId: string, probe: FlaskProbeType) => void
   onToggleFlaskStirrer: (flaskId: string) => void
@@ -70,7 +69,7 @@ export function InspectorPanel({
   onAddWaterToFlask,
   onResizeFlask,
   onSetFlaskTemperature,
-  onToggleFlaskStopper,
+  onToggleFlaskFilter,
   onSetFlaskLabel,
   onEvaporateFlaskWater,
   onSetFlaskSoluteAmount,
@@ -79,9 +78,8 @@ export function InspectorPanel({
   onSelectFlaskReaction,
   onCommitFlaskReaction,
   onBalanceFlaskStoichiometry,
-  onDuplicateSelected,
-  onDeleteIds,
-  onEmptyFlask,
+  onExtractFilteredSolid,
+  onClearFilterCake,
   onSetFlaskIndicator,
   onToggleFlaskProbe,
   onToggleFlaskStirrer,
@@ -106,7 +104,7 @@ export function InspectorPanel({
           Inspecteur
         </span>
         {selectedNodes.length > 0 && (
-          <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
+          <span className="shrink-0 whitespace-nowrap text-[10.5px] tabular-nums text-muted-foreground">
             {selectedNodes.length === 1
               ? singleNode?.kind === 'atom'
                 ? 'Atome'
@@ -127,7 +125,7 @@ export function InspectorPanel({
             Cliquez sur un atome, une espèce ou une verrerie pour afficher sa fiche.
           </p>
           {totalNodeCount > 0 && (
-            <p className="mt-4 font-mono text-[10.5px] tabular-nums text-muted-foreground">
+            <p className="mt-4 text-[10.5px] tabular-nums text-muted-foreground">
               {totalNodeCount} élément{totalNodeCount > 1 ? 's' : ''} sur la paillasse
             </p>
           )}
@@ -146,8 +144,6 @@ export function InspectorPanel({
                   : null
               }
               catalog={catalog}
-              onDuplicate={onDuplicateSelected}
-              onDelete={() => onDeleteIds([singleNode.id])}
               onOpenInCatalog={onOpenInCatalog}
             />
           )}
@@ -163,8 +159,6 @@ export function InspectorPanel({
               canIonizeMinus={canIonizeMinus}
               canIonizePlus={canIonizePlus}
               onUpdateAmount={(mol) => onUpdateMoleculeAmount(singleNode.id, mol)}
-              onDuplicate={onDuplicateSelected}
-              onDelete={() => onDeleteIds([singleNode.id])}
               onOpenInCatalog={onOpenInCatalog}
               onOpenInLewisBuilder={onOpenInLewisBuilder}
             />
@@ -179,7 +173,7 @@ export function InspectorPanel({
               onAddWater={(ml) => onAddWaterToFlask(singleNode.id, ml)}
               onResize={(cap) => onResizeFlask(singleNode.id, cap)}
               onSetTemperature={(t) => onSetFlaskTemperature(singleNode.id, t)}
-              onToggleStopper={() => onToggleFlaskStopper(singleNode.id)}
+              onToggleFilter={() => onToggleFlaskFilter(singleNode.id)}
               onSetLabel={(lbl) => onSetFlaskLabel(singleNode.id, lbl)}
               onEvaporate={(ml) => onEvaporateFlaskWater(singleNode.id, ml)}
               onChangeReactionExtent={(xMol) =>
@@ -194,9 +188,6 @@ export function InspectorPanel({
                   ? () => onBalanceFlaskStoichiometry(singleNode.id)
                   : undefined
               }
-              onEmpty={() => onEmptyFlask(singleNode.id)}
-              onDuplicate={onDuplicateSelected}
-              onDelete={() => onDeleteIds([singleNode.id])}
               onOpenInCatalog={onOpenInCatalog}
               onSetIndicator={(ind) => onSetFlaskIndicator(singleNode.id, ind)}
               onToggleProbe={(probe) => onToggleFlaskProbe(singleNode.id, probe)}
@@ -209,6 +200,14 @@ export function InspectorPanel({
                 onSetFlaskSoluteAmount(singleNode.id, spId, mol)
               }
               onSetWaterVolume={(ml) => onSetFlaskWaterVolume(singleNode.id, ml)}
+              onExtractFilteredSolid={
+                onExtractFilteredSolid
+                  ? (spId) => onExtractFilteredSolid(singleNode.id, spId)
+                  : undefined
+              }
+              onClearFilterCake={
+                onClearFilterCake ? () => onClearFilterCake(singleNode.id) : undefined
+              }
             />
           )}
 
@@ -219,8 +218,6 @@ export function InspectorPanel({
               elementsBySymbol={elementsBySymbol}
               onMerge={onMergeSelected}
               onIonize={onIonizeSelected}
-              onDuplicate={onDuplicateSelected}
-              onDelete={() => onDeleteIds(selectedNodes.map((n) => n.id))}
             />
           )}
         </div>

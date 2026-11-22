@@ -144,7 +144,7 @@ export function LewisSvgStage({
               y={liveIonBracket.y1 + 6}
               fontSize="13"
               fontWeight="700"
-              fontFamily="var(--font-mono)"
+              fontFamily="var(--font-sans)"
               fill={liveIonBracket.positive ? '#7dd3fc' : '#fda4af'}
             >
               {liveIonBracket.qText}
@@ -361,7 +361,7 @@ export function LewisSvgStage({
                       dominantBaseline="central"
                       fontSize="8.5"
                       fontWeight="700"
-                      fontFamily="var(--font-mono)"
+                      fontFamily="var(--font-sans)"
                       fill={diagnostic.severity === 'error' ? '#fca5a5' : '#fde68a'}
                     >
                       {diagnostic.shortBadge}
@@ -386,7 +386,7 @@ export function LewisSvgStage({
                       dominantBaseline="central"
                       fontSize={chargeLabel.length > 1 ? '9' : '10.5'}
                       fontWeight="700"
-                      fontFamily="var(--font-mono)"
+                      fontFamily="var(--font-sans)"
                       fill={atom.charge > 0 ? '#7dd3fc' : '#fda4af'}
                     >
                       {chargeLabel}
@@ -401,7 +401,7 @@ export function LewisSvgStage({
       </svg>
 
       {/* Subtle bottom-left status bar */}
-      <div className="pointer-events-none absolute bottom-3 left-3 right-36 truncate font-mono text-[10px] text-muted-foreground/80">
+      <div className="pointer-events-none absolute bottom-3 left-3 right-36 truncate text-[10px] text-muted-foreground/80">
         <span>
           {tool === 'build' &&
             `Construire (${activeSymbol}) · Clic : poser/lier · Molette : zoom · Espace+glisser : naviguer`}
@@ -438,7 +438,7 @@ export function LewisSvgStage({
               type="button"
               onClick={onResetViewport}
               aria-label="Ajuster et centrer la vue"
-              className="h-6 min-w-[42px] whitespace-nowrap rounded px-1.5 font-mono text-[10px] font-medium tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="h-6 w-[48px] whitespace-nowrap rounded px-1 text-center text-[10px] font-medium tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               {Math.round(viewport.zoom * 100)} %
             </button>

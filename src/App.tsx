@@ -44,6 +44,7 @@ import {
   type ViewportTransform,
 } from '@/components/LabCanvas'
 import { LewisBuilderPage } from '@/components/LewisBuilderPage'
+import { EquationSolverPage } from '@/components/EquationSolverPage'
 import { PeriodicTableDock } from '@/components/PeriodicTableDock'
 import {
   type PeriodicJumpRequest,
@@ -335,16 +336,83 @@ export default function App() {
     }, 850)
   }, [])
 
-  // Initial catalog fetch from API
+  // Initial catalog fetch from API + silent re-evaluation of cached localStorage flasks
   useEffect(() => {
     let cancelled = false
     api
       .getCatalog()
-      .then((catRes) => {
+      .then(async (catRes) => {
         if (cancelled) return
         setServerCatalog(catRes)
         hydratedRef.current = true
         setHydrated(true)
+
+        // Sync vessel metadata (min–max capacity ranges, descriptions) for already-placed flasks
+        const vesselById = new Map(catRes.vessels.map((v) => [v.id, v]))
+        setNodesSilent((prev) =>
+          prev.map((n) => {
+            if (n.kind !== 'flask') return n
+            const freshVessel = vesselById.get(n.vessel.id)
+            if (!freshVessel) return n
+            const caps = freshVessel.availableCapacitiesMl
+            const minCap = caps[0] ?? 1
+            const maxCap = caps[caps.length - 1] ?? 10000
+            const clampedCap = Math.min(
+              maxCap,
+              Math.max(minCap, n.vessel.capacityMl),
+            )
+            return {
+              ...n,
+              vessel: {
+                ...freshVessel,
+                capacityMl: clampedCap,
+              },
+            }
+          }),
+        )
+
+        const cachedFlasks = nodesRef.current.filter(
+          (n): n is CanvasFlaskNode =>
+            n.kind === 'flask' &&
+            (n.solution.hasWater || Object.keys(n.solution.solutesMol).length > 0),
+        )
+        if (cachedFlasks.length === 0) return
+
+        const updates = new Map<string, CanvasFlaskNode['solution']>()
+        await Promise.all(
+          cachedFlasks.map(async (f) => {
+            try {
+              const res = await api.evaluateFlaskAddition({
+                vesselId: f.vessel.id,
+                vesselCapacityMl: f.vessel.capacityMl,
+                temperatureC: f.temperatureC ?? 20,
+                currentWaterVolumeMl: f.solution.waterVolumeMl,
+                currentSolutesMol: f.solution.solutesMol,
+                recomputeOnly: true,
+              })
+              if (res.ok) updates.set(f.id, res.solution)
+            } catch {
+              // keep cached solution on network error
+            }
+          }),
+        )
+        if (cancelled || updates.size === 0) return
+        setNodesSilent((prev) =>
+          prev.map((n) => {
+            if (n.kind !== 'flask') return n
+            const refreshed = updates.get(n.id)
+            if (!refreshed) return n
+            const stillHasSelectedRxn =
+              n.selectedReactionId &&
+              refreshed.availableReactions?.some((r) => r.id === n.selectedReactionId)
+            return {
+              ...n,
+              solution: refreshed,
+              reactionExtentMol: stillHasSelectedRxn ? n.reactionExtentMol : 0,
+              selectedReactionId: stillHasSelectedRxn ? n.selectedReactionId : undefined,
+            }
+          }),
+        )
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -357,7 +425,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [setNodesSilent])
 
   const handleRegisterCustomSpecies = useCallback((species: SpeciesRecord) => {
     setCustomSpecies((prev) => {
@@ -403,9 +471,11 @@ export default function App() {
               ? '#verrerie'
               : next === 'lewis'
                 ? '#lewis'
-                : next === 'periodic'
-                  ? '#tableau'
-                  : ''
+                : next === 'equations'
+                  ? '#equations'
+                  : next === 'periodic'
+                    ? '#tableau'
+                    : ''
     if (window.location.hash !== targetHash) {
       window.history.replaceState(null, '', targetHash || window.location.pathname)
     }
@@ -622,6 +692,7 @@ export default function App() {
 
   const flaskRxn = useFlaskReactionAndTransfer({
     nodesRef,
+    speciesMap,
     setNodes,
     setSelectedIds,
     showNotice,
@@ -766,10 +837,6 @@ export default function App() {
     setBottomDockCollapsed((c) => !c)
   }, [])
 
-  const handleOpenEmptyLewisBuilder = useCallback(() => {
-    void handleOpenInLewisBuilder()
-  }, [handleOpenInLewisBuilder])
-
   const handleOpenSpeciesInCatalog = useCallback(
     (id: string) => handleOpenInCatalog({ section: 'species', id }),
     [handleOpenInCatalog],
@@ -811,7 +878,7 @@ export default function App() {
     onAddWaterToFlask: flaskCore.handleAddWaterToFlask,
     onResizeFlask: flaskCore.handleResizeFlask,
     onSetFlaskTemperature: flaskCore.handleSetFlaskTemperature,
-    onToggleFlaskStopper: flaskCore.handleToggleFlaskStopper,
+    onToggleFlaskFilter: flaskCore.handleToggleFlaskFilter,
     onSetFlaskLabel: flaskCore.handleSetFlaskLabel,
     onEvaporateFlaskWater: (id: string, vol: number) =>
       void flaskCore.handleEvaporateFlaskWater(id, vol),
@@ -824,9 +891,8 @@ export default function App() {
     onCommitFlaskReaction: (id: string) => void flaskRxn.handleCommitFlaskReaction(id),
     onBalanceFlaskStoichiometry: (id: string) =>
       void flaskRxn.handleBalanceFlaskStoichiometry(id),
-    onDuplicateSelected: workbench.handleDuplicateSelected,
-    onDeleteIds: workbench.handleDeleteIds,
-    onEmptyFlask: flaskCore.handleEmptyFlask,
+    onExtractFilteredSolid: flaskRxn.handleExtractFilteredSolid,
+    onClearFilterCake: flaskRxn.handleClearFilterCake,
     onSetFlaskIndicator: labSim.handleSetFlaskIndicator,
     onToggleFlaskProbe: labSim.handleToggleFlaskProbe,
     onToggleFlaskStirrer: labSim.handleToggleFlaskStirrer,
@@ -899,6 +965,24 @@ export default function App() {
               </div>
             )}
 
+            {visitedViews.has('equations') && (
+              <div
+                className={
+                  activeView === 'equations'
+                    ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                    : 'hidden'
+                }
+              >
+                <EquationSolverPage
+                  catalog={catalog}
+                  active={activeView === 'equations'}
+                  onSpawnReactionSetup={handleCatalogSpawnReaction}
+                  onOpenSpeciesInCatalog={handleOpenSpeciesInCatalog}
+                  onOpenInLewisBuilder={handleCatalogOpenLewis}
+                />
+              </div>
+            )}
+
             {visitedViews.has('lewis') && (
               <div
                 className={
@@ -949,6 +1033,7 @@ export default function App() {
                     onDuplicateSelected={workbench.handleDuplicateSelected}
                     onDeleteIds={workbench.handleDeleteIds}
                     onEmptyFlask={flaskCore.handleEmptyFlask}
+                    onToggleFlaskFilter={flaskCore.handleToggleFlaskFilter}
                     onDropAtomOnFlask={flaskCore.handleDropAtomOnFlask}
                     onDropMoleculeOnFlask={flaskCore.handleDropMoleculeOnFlask}
                     onPourBetweenFlasks={(src, tgt, vol) =>
@@ -1008,7 +1093,6 @@ export default function App() {
                     onToggleCollapse={handleToggleBottomDock}
                     onStartExternalDrag={handleStartExternalDrag}
                     onKeyboardSpawn={handleKeyboardSpawn}
-                    onOpenLewisBuilder={handleOpenEmptyLewisBuilder}
                   />
                 </div>
               </div>

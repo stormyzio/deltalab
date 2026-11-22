@@ -1,6 +1,7 @@
 import type {
   DissolvedSpeciesItem,
   FlaskSolutionState,
+  ImmisciblePhaseInfo,
   SoluteSummaryItem,
   SpeciesKind,
   SpeciesRecord,
@@ -580,14 +581,23 @@ export function computeSolutionState(
   >()
   const soluteSummaries: SoluteSummaryItem[] = []
   const phSoluteInputs: Array<{ species: SpeciesRecord; concentrationMolPerL: number }> = []
+  const saturatedSoluteContributions: Array<Map<string, number>> = []
   const colorSamples: Array<{ hex: string; weight: number }> = []
   let absorbanceProxy = 0
   let hasUndissolvedSolid = false
   const sedimentColors: Array<{ hex: string; weight: number }> = []
+  const immiscibleLiquids: Array<{
+    species: SpeciesRecord
+    volumeMl: number
+    density: number
+    colorHex: string | null
+  }> = []
 
   for (const { species: solute, addedMol } of loadedSolutes) {
     const addedMassG = addedMol * solute.molarMass
     const isImmersedSolid = !solute.canDissolveInWater && solute.standardState === 'solid'
+    const isImmiscibleLiquid =
+      !solute.canDissolveInWater && solute.standardState === 'liquid'
     let dissolvedMassG = isImmersedSolid ? 0 : addedMassG
     let undissolvedMassG = isImmersedSolid ? addedMassG : 0
     let saturationRatio: number | null = null
@@ -595,7 +605,9 @@ export function computeSolutionState(
 
     const effectiveSolubility = isImmersedSolid
       ? 0
-      : getTemperatureAdjustedSolubility(solute, temperatureC)
+      : isImmiscibleLiquid
+        ? (getTemperatureAdjustedSolubility(solute, temperatureC) ?? 0)
+        : getTemperatureAdjustedSolubility(solute, temperatureC)
 
     if (isImmersedSolid) {
       hasUndissolvedSolid = true
@@ -609,16 +621,24 @@ export function computeSolutionState(
       if (addedMassG > maxMassG + 1e-6) {
         dissolvedMassG = maxMassG
         undissolvedMassG = addedMassG - maxMassG
-        isSaturated = true
+        isSaturated = !isImmiscibleLiquid
         if (solute.standardState === 'solid') {
           hasUndissolvedSolid = true
           sedimentColors.push({
             hex: solute.colorHex ?? '#f4f4f5',
             weight: Math.max(0.01, undissolvedMassG),
           })
+        } else if (solute.standardState === 'liquid' && undissolvedMassG > 1e-4) {
+          const density = getLiquidDensity(solute) ?? 0.78
+          immiscibleLiquids.push({
+            species: solute,
+            volumeMl: undissolvedMassG / Math.max(0.3, density),
+            density,
+            colorHex: solute.colorHex ?? null,
+          })
         }
       } else if (maxMassG > 0 && addedMassG / maxMassG >= 0.999) {
-        isSaturated = true
+        isSaturated = !isImmiscibleLiquid
       }
     }
 
@@ -646,6 +666,7 @@ export function computeSolutionState(
       isSaturated,
       colorHex: solute.colorHex ?? null,
       isImmersedSolid,
+      isImmiscibleLiquid: isImmiscibleLiquid || (solute.standardState === 'liquid' && undissolvedMassG > 1e-4),
     })
 
     phSoluteInputs.push({ species: solute, concentrationMolPerL })
@@ -661,8 +682,18 @@ export function computeSolutionState(
 
     const rules = ruleQuery.all(solute.id) as unknown as RawRuleJoinRow[]
     if (rules.length > 0) {
+      const satContrib =
+        undissolvedMol > 1e-7 && solute.standardState === 'solid'
+          ? new Map<string, number>()
+          : null
       for (const r of rules) {
         const addMol = r.stoichiometry * dissolvedMol
+        if (satContrib) {
+          satContrib.set(
+            r.product_species_id,
+            (satContrib.get(r.product_species_id) ?? 0) + addMol,
+          )
+        }
         const existing = dissolvedMap.get(r.product_species_id)
         if (existing) {
           existing.amountMol += addMol
@@ -679,6 +710,9 @@ export function computeSolutionState(
             colorHex: r.solution_color_hex ?? r.color_hex,
           })
         }
+      }
+      if (satContrib && satContrib.size > 0) {
+        saturatedSoluteContributions.push(satContrib)
       }
     } else {
       const existing = dissolvedMap.get(solute.id)
@@ -753,16 +787,50 @@ export function computeSolutionState(
         ? `(${dissolvedSpecies.map((d) => d.displayFormula).join(' + ')})(aq)`
         : 'H₂O(l)'
 
+  let immisciblePhase: ImmisciblePhaseInfo | null = null
+  if (immiscibleLiquids.length > 0) {
+    const orgVolMl = immiscibleLiquids.reduce((acc, item) => acc + item.volumeMl, 0)
+    const weightedDensity =
+      orgVolMl > 0
+        ? immiscibleLiquids.reduce((acc, item) => acc + item.volumeMl * item.density, 0) /
+          orgVolMl
+        : 0.78
+    const NEUTRAL_HEXES = new Set(['#ffffff', '#f4f4f5', '#e4e4e7', '#d4d4d8'])
+    const orgColorSamples = immiscibleLiquids
+      .filter((item) => Boolean(item.colorHex) && !NEUTRAL_HEXES.has(item.colorHex!.toLowerCase()))
+      .map((item) => ({ hex: item.colorHex!, weight: Math.max(0.01, item.volumeMl) }))
+    const customOrgColor = blendHexColors(orgColorSamples)
+    immisciblePhase = {
+      speciesIds: immiscibleLiquids.map((item) => item.species.id),
+      formula: immiscibleLiquids.map((item) => item.species.displayFormula).join(' + '),
+      labelFr:
+        immiscibleLiquids.length === 1
+          ? immiscibleLiquids[0].species.nameFr
+          : 'Phase organique',
+      volumeMl: roundTo(orgVolMl, 2),
+      densityGPerCm3: roundTo(weightedDensity, 2),
+      position: weightedDensity < 1.0 ? 'top' : 'bottom',
+      colorHex: customOrgColor ?? '#fde68a',
+      opacity: customOrgColor ? 0.56 : 0.38,
+    }
+  }
+
   const singleSolute = soluteIds.length === 1 ? getSpeciesById(soluteIds[0]) : null
   const immersedOnly =
     soluteSummaries.length > 0 && soluteSummaries.every((s) => s.isImmersedSolid)
+  const immiscibleOnly =
+    soluteSummaries.length > 0 && soluteSummaries.every((s) => s.isImmiscibleLiquid)
   const fallbackLabel = immersedOnly
     ? `Eau + ${soluteSummaries.map((s) => `${s.displayFormula}(s)`).join(' + ')}`
-    : singleSolute
-      ? singleSolute.kind === 'ion'
-        ? `Solution d’ions ${singleSolute.displayFormula}`
-        : `Solution de ${singleSolute.nameFr.toLowerCase()}`
-      : 'Mélange aqueux'
+    : immiscibleOnly && immisciblePhase
+      ? `Eau / ${immisciblePhase.formula} (2 phases)`
+      : singleSolute
+        ? singleSolute.kind === 'ion'
+          ? `Solution d’ions ${singleSolute.displayFormula}`
+          : `Solution de ${singleSolute.nameFr.toLowerCase()}`
+        : immisciblePhase
+          ? `Mélange biphasique (H₂O / ${immisciblePhase.formula})`
+          : 'Mélange aqueux'
 
   const sedimentColorHex = hasUndissolvedSolid
     ? blendHexColors(sedimentColors) ?? '#e4e4e7'
@@ -779,6 +847,7 @@ export function computeSolutionState(
       solubilityProducts: constants.solubilityProducts,
       acidBaseCouples: constants.acidBaseCouples,
       getSpeciesById,
+      saturatedSoluteContributions,
     },
   )
 
@@ -792,6 +861,7 @@ export function computeSolutionState(
     solutes: soluteSummaries,
     hasUndissolvedSolid,
     sedimentColorHex,
+    immisciblePhase,
     recognizedSolutionId: matchedSolution?.id ?? null,
     labelFr: matchedSolution?.name_fr ?? fallbackLabel,
     formulaLabel: matchedSolution?.formula_label ?? dynamicFormulaLabel,

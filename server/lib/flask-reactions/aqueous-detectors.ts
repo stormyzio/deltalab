@@ -1,5 +1,6 @@
 import type {
   FlaskReactionParticipant,
+  SoluteSummaryItem,
   SpeciesRecord,
 } from '../../../shared/chemistry.ts'
 import {
@@ -30,6 +31,7 @@ export function detectAqueousAndSolutionReactions(
   hasWater: boolean,
   totalVolumeL: number,
   inv: Map<string, InventoryEntry>,
+  solutes: SoluteSummaryItem[],
   ctx: FlaskReactionDetectorContext,
   makeParticipant: MakeParticipantFn,
   addCandidate: AddCandidateFn,
@@ -68,12 +70,38 @@ export function detectAqueousAndSolutionReactions(
     if (!cat || !an || cat.state !== 'aqueous' || an.state !== 'aqueous') continue
     if (cat.amountMol <= 1e-7 || an.amountMol <= 1e-7) continue
 
+    const solidId = ks.solidSpeciesId ?? `precip_${ks.id}`
+    // Subtract ions contributed by any already-saturated solid that produces BOTH cation & anion
+    // (e.g. Ca(OH)₂(s) or CaO(s) in water, or a committed precipitate) so it never triggers
+    // a phantom precipitation reaction at x = 0 while solid is already sitting at the bottom.
+    let selfCatMol = 0
+    let selfAnMol = 0
+    for (const contrib of ctx.saturatedSoluteContributions ?? []) {
+      const cFromSol = contrib.get(ks.cationSpeciesId) ?? 0
+      const aFromSol = contrib.get(ks.anionSpeciesId) ?? 0
+      if (cFromSol > 1e-8 && aFromSol > 1e-8) {
+        selfCatMol += cFromSol
+        selfAnMol += aFromSol
+      }
+    }
+    const existingSolute = solutes.find((s) => s.speciesId === solidId)
+    if (
+      selfCatMol === 0 &&
+      existingSolute &&
+      existingSolute.undissolvedMol > 1e-7
+    ) {
+      selfCatMol = existingSolute.dissolvedMol * ks.cationStoich
+      selfAnMol = existingSolute.dissolvedMol * ks.anionStoich
+    }
+    const excessCatMol = Math.max(0, cat.amountMol - selfCatMol)
+    const excessAnMol = Math.max(0, an.amountMol - selfAnMol)
+    if (excessCatMol <= 1e-7 || excessAnMol <= 1e-7) continue
+
     const cCat = cat.amountMol / totalVolumeL
     const cAn = an.amountMol / totalVolumeL
     const qr = cCat ** ks.cationStoich * cAn ** ks.anionStoich
     if (qr <= ks.ks * 1.1) continue
 
-    const solidId = ks.solidSpeciesId ?? `precip_${ks.id}`
     addCandidate(
       finalizeReaction(
         {
@@ -218,7 +246,7 @@ export function detectAqueousAndSolutionReactions(
   // 5. Aqueous redox reactions (Gamma rule ΔE° > 0.05 V)
   const activeOxCouples = hasWater
     ? ctx.redoxCouples.filter((c) => {
-        if (!c.oxSpeciesId || !c.redSpeciesId || c.oxSpeciesId === 'h2o') return false
+        if (!c.oxSpeciesId || c.oxSpeciesId === 'h2o') return false
         const entry = inv.get(c.oxSpeciesId)
         return Boolean(entry && entry.amountMol > 1e-7)
       })
@@ -226,7 +254,6 @@ export function detectAqueousAndSolutionReactions(
   const activeRedCouples = hasWater
     ? ctx.redoxCouples.filter((c) => {
         if (
-          !c.oxSpeciesId ||
           !c.redSpeciesId ||
           c.redSpeciesId === 'h2o' ||
           c.redSpeciesId === 'h2' ||
@@ -250,6 +277,7 @@ export function detectAqueousAndSolutionReactions(
   for (const oxC of activeOxCouples) {
     for (const redC of activeRedCouples) {
       if (oxC.id === redC.id) continue
+      if (oxC.oxSpeciesId === redC.redSpeciesId) continue
       const deltaE0 = oxC.e0V - redC.e0V
       if (deltaE0 <= 0.05) continue
       const nElec = lcm(oxC.electrons, redC.electrons)
@@ -257,7 +285,9 @@ export function detectAqueousAndSolutionReactions(
       const mRed = nElec / redC.electrons
       const netHPlus = mOx * oxC.hPlus - mRed * redC.hPlus
       if (netHPlus > 0 && (!h3o || h3o.amountMol <= 1e-7)) continue
-      const pathKey = `${oxC.oxSpeciesId}:${oxC.redSpeciesId}:${redC.redSpeciesId}:${redC.oxSpeciesId}`
+      const oxProdId = oxC.redSpeciesId ?? `redox_red_${oxC.id}`
+      const redProdId = redC.oxSpeciesId ?? `redox_ox_${redC.id}`
+      const pathKey = `${oxC.oxSpeciesId}:${oxProdId}:${redC.redSpeciesId}:${redProdId}`
       const prev = bestRedoxByPath.get(pathKey)
       if (!prev || deltaE0 > prev.deltaE0) {
         bestRedoxByPath.set(pathKey, { oxC, redC, deltaE0 })
@@ -272,10 +302,12 @@ export function detectAqueousAndSolutionReactions(
     const netHPlus = mOx * oxC.hPlus - mRed * redC.hPlus
     const netH2O = mOx * oxC.h2o - mRed * redC.h2o
 
+    const oxProdId = oxC.redSpeciesId ?? `redox_red_${oxC.id}`
+    const redProdId = redC.oxSpeciesId ?? `redox_ox_${redC.id}`
     const oxSp = ctx.getSpeciesById(oxC.oxSpeciesId!)
     const redSp = ctx.getSpeciesById(redC.redSpeciesId!)
-    const oxProdSp = ctx.getSpeciesById(oxC.redSpeciesId!)
-    const redProdSp = ctx.getSpeciesById(redC.oxSpeciesId!)
+    const oxProdSp = oxC.redSpeciesId ? ctx.getSpeciesById(oxC.redSpeciesId) : null
+    const redProdSp = redC.oxSpeciesId ? ctx.getSpeciesById(redC.oxSpeciesId) : null
 
     const toState = (sp: SpeciesRecord | null): 'aqueous' | 'solid' | 'liquid' | 'gas' => {
       if (!sp) return 'aqueous'
@@ -299,15 +331,17 @@ export function detectAqueousAndSolutionReactions(
       }),
     ]
     const products: FlaskReactionParticipant[] = [
-      makeParticipant(oxC.redSpeciesId!, mOx * oxC.redStoich, {
+      makeParticipant(oxProdId, mOx * oxC.redStoich, {
         displayFormula: oxC.redFormula,
         nameFr: oxProdSp?.nameFr ?? oxC.redFormula,
         state: toState(oxProdSp),
+        molarMass: oxProdSp?.molarMass ?? oxSp?.molarMass,
       }),
-      makeParticipant(redC.oxSpeciesId!, mRed * redC.oxStoich, {
+      makeParticipant(redProdId, mRed * redC.oxStoich, {
         displayFormula: redC.oxFormula,
         nameFr: redProdSp?.nameFr ?? redC.oxFormula,
         state: toState(redProdSp),
+        molarMass: redProdSp?.molarMass ?? redSp?.molarMass,
       }),
     ]
 
@@ -426,33 +460,51 @@ export function detectAqueousAndSolutionReactions(
     )
   }
 
-  // 7. Aqueous weak/strong acid-base transfers from acid_base_couples (ΔpKa > 1)
+  // 7. Aqueous weak/strong acid-base transfers from acid_base_couples (ΔpKa > 0)
   const activeAcids = hasWater
     ? ctx.acidBaseCouples.filter(
         (c) =>
           c.acidSpeciesId &&
-          c.baseSpeciesId &&
           c.acidSpeciesId !== 'h2o' &&
-          c.acidSpeciesId !== 'h3o_plus' &&
           (inv.get(c.acidSpeciesId)?.amountMol ?? 0) > 1e-7,
       )
     : []
   const activeBases = hasWater
     ? ctx.acidBaseCouples.filter(
         (c) =>
-          c.acidSpeciesId &&
           c.baseSpeciesId &&
           c.baseSpeciesId !== 'h2o' &&
+          c.pKa > 0 &&
           (inv.get(c.baseSpeciesId)?.amountMol ?? 0) > 1e-7,
       )
     : []
 
+  const h2so4SoluteMol = solutes.find((s) => s.speciesId === 'h2so4')?.dissolvedMol ?? 0
+
   for (const ac of activeAcids) {
     for (const bs of activeBases) {
       if (ac.id === bs.id) continue
+      if (ac.acidSpeciesId === bs.baseSpeciesId) continue
+      // H₃O⁺ + OH⁻ -> 2 H₂O is already handled by Rule 1 (priority 105)
+      if (ac.acidSpeciesId === 'h3o_plus' && bs.baseSpeciesId === 'oh_minus') continue
+      // Avoid phantom H₃O⁺ + SO₄²⁻ when SO₄²⁻ came solely from H₂SO₄ dissociation
+      if (
+        ac.acidSpeciesId === 'h3o_plus' &&
+        bs.baseSpeciesId === 'so4_2minus' &&
+        h2so4SoluteMol > 1e-7 &&
+        (inv.get('so4_2minus')?.amountMol ?? 0) <= h2so4SoluteMol + 1e-7
+      ) {
+        continue
+      }
       const deltaPka = bs.pKa - ac.pKa
-      if (deltaPka < 1.0) continue
+      if (deltaPka < 0.01) continue
       const isTotal = deltaPka >= 3
+      const acidEntry = inv.get(ac.acidSpeciesId!)!
+      const baseEntry = inv.get(bs.baseSpeciesId!)!
+      const conjBaseId = ac.baseSpeciesId ?? `ab_base_${ac.id}`
+      const conjAcidId = bs.acidSpeciesId ?? `ab_acid_${bs.id}`
+      const conjBaseIsWater = conjBaseId === 'h2o'
+      const conjAcidIsWater = conjAcidId === 'h2o'
       addCandidate(
         finalizeReaction(
           {
@@ -467,12 +519,30 @@ export function detectAqueousAndSolutionReactions(
             priority: 76 + Math.min(10, deltaPka),
           },
           [
-            makeParticipant(ac.acidSpeciesId!, 1, { displayFormula: ac.acidFormula, nameFr: ac.acidNameFr, state: 'aqueous' }),
-            makeParticipant(bs.baseSpeciesId!, 1, { displayFormula: bs.baseFormula, nameFr: bs.baseFormula, state: 'aqueous' }),
+            makeParticipant(ac.acidSpeciesId!, 1, {
+              displayFormula: ac.acidFormula,
+              nameFr: ac.acidNameFr,
+              state: 'aqueous',
+            }),
+            makeParticipant(bs.baseSpeciesId!, 1, {
+              displayFormula: bs.baseFormula,
+              nameFr: baseEntry.nameFr || bs.baseFormula,
+              state: 'aqueous',
+            }),
           ],
           [
-            makeParticipant(ac.baseSpeciesId!, 1, { displayFormula: ac.baseFormula, nameFr: ac.baseFormula, state: 'aqueous' }),
-            makeParticipant(bs.acidSpeciesId!, 1, { displayFormula: bs.acidFormula, nameFr: bs.acidNameFr, state: 'aqueous' }),
+            makeParticipant(conjBaseId, 1, {
+              displayFormula: ac.baseFormula,
+              nameFr: conjBaseIsWater ? 'Eau' : ac.baseFormula,
+              state: conjBaseIsWater ? 'liquid' : 'aqueous',
+              molarMass: conjBaseIsWater ? 18.015 : Math.max(1, acidEntry.molarMass - 1.008),
+            }),
+            makeParticipant(conjAcidId, 1, {
+              displayFormula: bs.acidFormula,
+              nameFr: conjAcidIsWater ? 'Eau' : bs.acidNameFr,
+              state: conjAcidIsWater ? 'liquid' : 'aqueous',
+              molarMass: conjAcidIsWater ? 18.015 : baseEntry.molarMass + 1.008,
+            }),
           ],
         ),
       )

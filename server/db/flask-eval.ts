@@ -2,6 +2,7 @@ import {
   ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID,
   type EvaluateFlaskAdditionRequest,
   type EvaluateFlaskAdditionResponse,
+  type FilteredSolidItem,
   type FlaskSolutionState,
   type WorkspaceSnapshot,
 } from '../../shared/chemistry.ts'
@@ -37,11 +38,11 @@ export function evaluateFlaskAddition(
 
   const effectiveCapacityMl =
     typeof req.vesselCapacityMl === 'number' && req.vesselCapacityMl > 0
-      ? Math.min(10000, Math.max(1, req.vesselCapacityMl))
+      ? Math.min(20000, Math.max(1, req.vesselCapacityMl))
       : vessel.capacityMl
   const temperatureC =
     typeof req.temperatureC === 'number' && Number.isFinite(req.temperatureC)
-      ? Math.max(0, Math.min(100, req.temperatureC))
+      ? Math.max(0, Math.min(200, req.temperatureC))
       : 20
 
   let currentWater = Math.max(0, req.currentWaterVolumeMl)
@@ -180,24 +181,29 @@ export function evaluateFlaskAddition(
   }
 
   if (req.incomingFlask) {
+    const shouldFilter = Boolean(req.incomingFlask.filterSolids)
     const srcTempC =
       typeof req.incomingFlask.sourceTemperatureC === 'number' &&
       Number.isFinite(req.incomingFlask.sourceTemperatureC)
-        ? Math.max(0, Math.min(100, req.incomingFlask.sourceTemperatureC))
+        ? Math.max(0, Math.min(200, req.incomingFlask.sourceTemperatureC))
         : 20
     const srcState = computeSolutionState(
       req.incomingFlask.waterVolumeMl,
       req.incomingFlask.solutesMol,
       srcTempC,
     )
-    if (!srcState.hasWater || srcState.totalVolumeMl <= 0) {
+    const hasFilterableContent =
+      srcState.hasWater ||
+      srcState.totalVolumeMl > 0 ||
+      (shouldFilter && srcState.hasUndissolvedSolid)
+    if (!hasFilterableContent) {
       return {
         ok: false,
         code: 'EMPTY_SOURCE',
         messageFr: 'La verrerie source est vide.',
       }
     }
-    if (availableMl <= 0.05) {
+    if (availableMl <= 0.05 && srcState.totalVolumeMl > 0) {
       return {
         ok: false,
         code: 'CAPACITY_EXCEEDED',
@@ -205,24 +211,58 @@ export function evaluateFlaskAddition(
       }
     }
 
+    const effectiveSrcVol = Math.max(srcState.totalVolumeMl, 0.001)
     const requestedVolMl =
       typeof req.incomingFlask.transferVolumeMl === 'number' &&
       req.incomingFlask.transferVolumeMl > 0
-        ? Math.min(req.incomingFlask.transferVolumeMl, srcState.totalVolumeMl)
-        : srcState.totalVolumeMl
+        ? Math.min(req.incomingFlask.transferVolumeMl, effectiveSrcVol)
+        : effectiveSrcVol
 
-    const maxTransferMl = Math.min(requestedVolMl, availableMl)
-    const fraction = Math.min(1, maxTransferMl / srcState.totalVolumeMl)
+    const maxTransferMl =
+      srcState.totalVolumeMl > 0 ? Math.min(requestedVolMl, availableMl) : effectiveSrcVol
+    const fraction = Math.min(1, maxTransferMl / effectiveSrcVol)
     const transferredWaterMl = roundTo(srcState.waterVolumeMl * fraction, 2)
     const remainingWaterMl = roundTo(srcState.waterVolumeMl - transferredWaterMl, 2)
     const remainingSolutes: Record<string, number> = {}
+    const filteredSolids: FilteredSolidItem[] = []
 
-    for (const [soluteId, mol] of Object.entries(srcState.solutesMol)) {
-      if (mol <= 0) continue
-      const movedMol = mol * fraction
-      nextSolutes[soluteId] = (nextSolutes[soluteId] ?? 0) + movedMol
-      const leftMol = mol - movedMol
-      if (fraction < 0.9999 && leftMol > 1e-8) remainingSolutes[soluteId] = leftMol
+    if (shouldFilter) {
+      const soluteById = new Map(srcState.solutes.map((s) => [s.speciesId, s]))
+      for (const [soluteId, mol] of Object.entries(srcState.solutesMol)) {
+        if (mol <= 0) continue
+        const movedMol = mol * fraction
+        const leftMol = mol - movedMol
+        if (fraction < 0.9999 && leftMol > 1e-8) remainingSolutes[soluteId] = leftMol
+
+        const summary = soluteById.get(soluteId)
+        const trappedSolidMol =
+          summary && !summary.isImmiscibleLiquid && summary.undissolvedMol > 1e-8
+            ? Math.min(movedMol, summary.undissolvedMol * fraction)
+            : 0
+        const filtrateMol = Math.max(0, movedMol - trappedSolidMol)
+
+        if (trappedSolidMol > 1e-8 && summary) {
+          filteredSolids.push({
+            speciesId: summary.speciesId,
+            displayFormula: summary.displayFormula,
+            nameFr: summary.nameFr,
+            amountMol: roundTo(trappedSolidMol, 6),
+            massG: roundTo(trappedSolidMol * summary.molarMass, 4),
+            colorHex: summary.colorHex ?? null,
+          })
+        }
+        if (filtrateMol > 1e-8) {
+          nextSolutes[soluteId] = (nextSolutes[soluteId] ?? 0) + filtrateMol
+        }
+      }
+    } else {
+      for (const [soluteId, mol] of Object.entries(srcState.solutesMol)) {
+        if (mol <= 0) continue
+        const movedMol = mol * fraction
+        nextSolutes[soluteId] = (nextSolutes[soluteId] ?? 0) + movedMol
+        const leftMol = mol - movedMol
+        if (fraction < 0.9999 && leftMol > 1e-8) remainingSolutes[soluteId] = leftMol
+      }
     }
 
     const solution = computeSolutionState(
@@ -230,12 +270,29 @@ export function evaluateFlaskAddition(
       nextSolutes,
       temperatureC,
     )
-    const remainingSourceFlask =
-      fraction < 0.9999 && remainingWaterMl > 0.05
-        ? { solution: computeSolutionState(remainingWaterMl, remainingSolutes, srcTempC) }
-        : null
+    const hasRemaining =
+      fraction < 0.9999 &&
+      (remainingWaterMl > 0.05 || Object.keys(remainingSolutes).length > 0)
+    const remainingSourceFlask = hasRemaining
+      ? { solution: computeSolutionState(remainingWaterMl, remainingSolutes, srcTempC) }
+      : null
 
     const transferredTotalMl = roundTo(srcState.totalVolumeMl * fraction, 1)
+    if (shouldFilter) {
+      const solidNames = filteredSolids.map((s) => s.displayFormula).join(', ')
+      return {
+        ok: true,
+        solution,
+        remainingSourceFlask,
+        filteredSolids,
+        effect: filteredSolids.length > 0 ? 'filtered' : currentWater === 0 ? 'water_added' : 'mixed',
+        messageFr:
+          filteredSolids.length > 0
+            ? `Filtration : ${solidNames} retenu sur le filtre · filtrat récupéré (${solution.labelFr}).`
+            : `Filtration terminée (aucun solide retenu) → ${solution.labelFr}.`,
+      }
+    }
+
     return {
       ok: true,
       solution,
@@ -356,6 +413,18 @@ export function evaluateFlaskAddition(
         solution,
         effect: 'solid_immersed',
         messageFr: `${species.displayFormula}(s) immergé (${formatQtyFr(addedMassG, 2)} g)${rxnHint}.`,
+      }
+    }
+    if (species.standardState === 'liquid' && solution.immisciblePhase) {
+      const posLabel =
+        solution.immisciblePhase.position === 'top'
+          ? 'flotte sur l’eau'
+          : 'coule sous l’eau'
+      return {
+        ok: true,
+        solution,
+        effect: 'mixed',
+        messageFr: `${species.displayFormula}(l) non miscible → 2 phases (${posLabel} · d = ${formatQtyFr(solution.immisciblePhase.densityGPerCm3, 2)})${rxnHint}.`,
       }
     }
     return {

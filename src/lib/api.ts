@@ -24,6 +24,7 @@ import {
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
+    ...(import.meta.env.DEV ? { cache: 'no-store' as const } : {}),
     ...init,
     headers: {
       'Content-Type': 'application/json',

@@ -14,15 +14,10 @@ import type {
   RedoxCoupleRecord,
   SolubilityProductRecord,
 } from "../../shared/chemistry.ts";
-import type { EnrichedSpeciesEntry } from "./2-enrich-species.ts";
 import { fetchJsonCached } from "./lib/cache.ts";
 import { roundTo } from "./lib/parsers.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ENRICHED_PATH = path.resolve(
-  __dirname,
-  "../../server/data/generated/species-enriched.json",
-);
 const OUT_PATH = path.resolve(
   __dirname,
   "../../server/data/generated/reaction-constants.json",
@@ -401,23 +396,6 @@ const CORE_REDOX_COUPLES: RedoxCoupleRecord[] = [
     halfEquation: "NO₃⁻ + 4 H⁺ + 3 e⁻ ⇌ NO + 2 H₂O",
     e0V: 0.96,
     medium: "acidic",
-    source: "CRC/IUPAC",
-  },
-  {
-    id: "rx_hg2_hg",
-    coupleLabel: "Hg²⁺ / Hg",
-    oxFormula: "Hg²⁺",
-    redFormula: "Hg",
-    oxSpeciesId: null,
-    redSpeciesId: null,
-    oxStoich: 1,
-    redStoich: 1,
-    electrons: 2,
-    hPlus: 0,
-    h2o: 0,
-    halfEquation: "Hg²⁺ + 2 e⁻ ⇌ Hg",
-    e0V: 0.85,
-    medium: "neutral",
     source: "CRC/IUPAC",
   },
   {
@@ -1549,6 +1527,26 @@ const CORE_SOLUBILITY_PRODUCTS: SolubilityProductRecord[] = [
 
 const CORE_ACID_BASE_COUPLES: AcidBaseCoupleRecord[] = [
   {
+    id: "ab_hi",
+    acidSpeciesId: "hi",
+    baseSpeciesId: "i_minus",
+    acidFormula: "HI",
+    baseFormula: "I⁻",
+    acidNameFr: "Acide iodhydrique",
+    pKa: -10.0,
+    source: "IUPAC",
+  },
+  {
+    id: "ab_hbr",
+    acidSpeciesId: "hbr",
+    baseSpeciesId: "br_minus",
+    acidFormula: "HBr",
+    baseFormula: "Br⁻",
+    acidNameFr: "Acide bromhydrique",
+    pKa: -9.0,
+    source: "IUPAC",
+  },
+  {
     id: "ab_hcl",
     acidSpeciesId: "hcl",
     baseSpeciesId: "cl_minus",
@@ -1690,22 +1688,12 @@ const CORE_ACID_BASE_COUPLES: AcidBaseCoupleRecord[] = [
   },
   {
     id: "ab_benzoic",
-    acidSpeciesId: "c6h5cooh",
+    acidSpeciesId: "c7h6o2",
     baseSpeciesId: null,
     acidFormula: "C₆H₅COOH",
     baseFormula: "C₆H₅COO⁻",
     acidNameFr: "Acide benzoïque",
     pKa: 4.2,
-    source: "IUPAC",
-  },
-  {
-    id: "ab_h2c2o4_2",
-    acidSpeciesId: null,
-    baseSpeciesId: null,
-    acidFormula: "HC₂O₄⁻",
-    baseFormula: "C₂O₄²⁻",
-    acidNameFr: "Ion hydrogénooxalate (pKa₂)",
-    pKa: 4.27,
     source: "IUPAC",
   },
   {
@@ -1720,7 +1708,7 @@ const CORE_ACID_BASE_COUPLES: AcidBaseCoupleRecord[] = [
   },
   {
     id: "ab_c2h5cooh",
-    acidSpeciesId: "c2h5cooh",
+    acidSpeciesId: "cid_1032",
     baseSpeciesId: null,
     acidFormula: "C₂H₅COOH",
     baseFormula: "C₂H₅COO⁻",
@@ -1790,7 +1778,7 @@ const CORE_ACID_BASE_COUPLES: AcidBaseCoupleRecord[] = [
   },
   {
     id: "ab_phenol",
-    acidSpeciesId: "c6h5oh",
+    acidSpeciesId: "c6h6o",
     baseSpeciesId: null,
     acidFormula: "C₆H₅OH",
     baseFormula: "C₆H₅O⁻",
@@ -1811,7 +1799,7 @@ const CORE_ACID_BASE_COUPLES: AcidBaseCoupleRecord[] = [
   {
     id: "ab_ch3nh3",
     acidSpeciesId: null,
-    baseSpeciesId: "ch3nh2",
+    baseSpeciesId: "cid_6329",
     acidFormula: "CH₃NH₃⁺",
     baseFormula: "CH₃NH₂",
     acidNameFr: "Ion méthylammonium / Méthylamine",
@@ -1954,52 +1942,18 @@ async function main() {
       oxSpeciesId: c.oxSpeciesId ?? SOLID_FORMULA_TO_ID[c.oxFormula] ?? null,
       redSpeciesId: c.redSpeciesId ?? SOLID_FORMULA_TO_ID[c.redFormula] ?? null,
     }))
+    .filter((c) => Boolean(c.oxSpeciesId || c.redSpeciesId))
     .sort((a, b) => b.e0V - a.e0V);
 
   const solubilityProducts = [...CORE_SOLUBILITY_PRODUCTS].sort(
     (a, b) => a.pKs - b.pKs,
   );
 
-  const acidBaseCouples: AcidBaseCoupleRecord[] = [...CORE_ACID_BASE_COUPLES];
-  const seenAcidIds = new Set(
-    acidBaseCouples
-      .map((c) => c.acidSpeciesId)
-      .filter((x): x is string => x !== null),
-  );
-
-  // Supplement acid-base couples with IUPAC/PubChem pKa values from Stage 2 enriched species!
-  if (fs.existsSync(ENRICHED_PATH)) {
-    const enriched = JSON.parse(
-      fs.readFileSync(ENRICHED_PATH, "utf8"),
-    ) as EnrichedSpeciesEntry[];
-    for (const sp of enriched) {
-      if (seenAcidIds.has(sp.id)) continue;
-      if (!sp.pkaValues || sp.pkaValues.length === 0) continue;
-      const pka1 = sp.pkaValues[0];
-      if (pka1 < -10 || pka1 > 14) continue;
-      if (
-        sp.phCharacter !== "acidic_strong" &&
-        sp.phCharacter !== "acidic_weak" &&
-        sp.phCharacter !== "basic_weak"
-      ) {
-        continue;
-      }
-      seenAcidIds.add(sp.id);
-      const isBase = sp.phCharacter === "basic_weak";
-      acidBaseCouples.push({
-        id: `ab_sp_${sp.id}`,
-        acidSpeciesId: isBase ? null : sp.id,
-        baseSpeciesId: isBase ? sp.id : null,
-        acidFormula: isBase ? `${sp.displayFormula}H⁺` : sp.displayFormula,
-        baseFormula: isBase ? sp.displayFormula : `${sp.displayFormula}⁻`,
-        acidNameFr: sp.nameFr,
-        pKa: roundTo(pka1, 2),
-        source: "IUPAC / PubChem",
-      });
-    }
-  }
-
-  acidBaseCouples.sort((a, b) => a.pKa - b.pKa);
+  // Keep only verified IUPAC acid-base couples linked to real catalog species
+  // (no synthetic formulas like "FeSO₄⁻" or "NaFH⁺" with missing species).
+  const acidBaseCouples: AcidBaseCoupleRecord[] = [...CORE_ACID_BASE_COUPLES]
+    .filter((c) => Boolean(c.acidSpeciesId || c.baseSpeciesId))
+    .sort((a, b) => a.pKa - b.pKa);
 
   const payload = {
     generatedAt: new Date().toISOString(),

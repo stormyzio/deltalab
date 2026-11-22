@@ -10,6 +10,7 @@ import type {
 import type { ExternalDragItem } from '@/types/drag'
 import type { CatalogJumpTarget } from '@/components/InspectorPanel'
 import { api } from '@/lib/api'
+import { describeWaterBehavior, getSolubilitySortValue } from '@/lib/water-behavior'
 import {
   type CatalogSection,
   type ReactionSpawnSetup,
@@ -62,6 +63,7 @@ export const CatalogPage = memo(function CatalogPage({
 
   const [query, setQuery] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const listScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!active) return
@@ -162,9 +164,16 @@ export const CatalogPage = memo(function CatalogPage({
       }
       return {
         ...prev,
-        [section]: { key, dir: key === 'popularity' ? 'desc' : 'asc' },
+        [section]: {
+          key,
+          dir: key === 'popularity' || key === 'solubility' ? 'desc' : 'asc',
+        },
       }
     })
+    if (section === 'species') {
+      setVisibleSpeciesCount(150)
+      listScrollRef.current?.scrollTo({ top: 0 })
+    }
   }
 
   const jumpToSpecies = (speciesId: string) => {
@@ -196,12 +205,12 @@ export const CatalogPage = memo(function CatalogPage({
     const rows = catalog.species.filter((sp) => {
       if (speciesKindFilter !== 'all' && sp.kind !== speciesKindFilter) return false
       if (speciesSourceFilter !== 'all' && sp.source !== speciesSourceFilter) return false
-      if (solubilityFilter === 'soluble' && !sp.canDissolveInWater) return false
-      if (
-        solubilityFilter === 'insoluble' &&
-        (sp.canDissolveInWater || (sp.source !== 'curated' && sp.solubilityGPerL === null))
-      ) {
+      if (solubilityFilter === 'soluble' && !describeWaterBehavior(sp).isEffectivelySoluble) {
         return false
+      }
+      if (solubilityFilter === 'insoluble') {
+        const wb = describeWaterBehavior(sp)
+        if (wb.isEffectivelySoluble || wb.tier === 'unknown') return false
       }
       if (!q) return true
       return (
@@ -216,21 +225,33 @@ export const CatalogPage = memo(function CatalogPage({
     })
 
     const mult = sortDir === 'asc' ? 1 : -1
+    if (sortKey === 'solubility') {
+      const sortValById = new Map<string, number | null>()
+      for (const sp of rows) sortValById.set(sp.id, getSolubilitySortValue(sp))
+      return [...rows].sort((a, b) => {
+        const va = sortValById.get(a.id) ?? null
+        const vb = sortValById.get(b.id) ?? null
+        if (va === null && vb === null) return a.nameFr < b.nameFr ? -1 : a.nameFr > b.nameFr ? 1 : 0
+        if (va === null) return 1
+        if (vb === null) return -1
+        if (va !== vb) return (va - vb) * mult
+        return a.nameFr < b.nameFr ? -1 : a.nameFr > b.nameFr ? 1 : 0
+      })
+    }
+
     return [...rows].sort((a, b) => {
       switch (sortKey) {
         case 'popularity':
           if (a.popularity !== b.popularity) return (a.popularity - b.popularity) * mult
-          return a.nameFr.localeCompare(b.nameFr, 'fr')
+          return a.nameFr < b.nameFr ? -1 : a.nameFr > b.nameFr ? 1 : 0
         case 'formula':
-          return a.formula.localeCompare(b.formula) * mult
+          return (a.formula < b.formula ? -1 : a.formula > b.formula ? 1 : 0) * mult
         case 'kind':
-          return a.kind.localeCompare(b.kind) * mult
+          return (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0) * mult
         case 'mass':
           return (a.molarMass - b.molarMass) * mult
         case 'charge':
           return (a.charge - b.charge) * mult
-        case 'solubility':
-          return ((a.solubilityGPerL ?? -1) - (b.solubilityGPerL ?? -1)) * mult
         default:
           return a.nameFr.localeCompare(b.nameFr, 'fr') * mult
       }
@@ -379,7 +400,7 @@ export const CatalogPage = memo(function CatalogPage({
   if (!catalog) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           Chargement du catalogue SQLite…
         </span>
       </div>
@@ -423,7 +444,7 @@ export const CatalogPage = memo(function CatalogPage({
               <X className="h-3.5 w-3.5" />
             </button>
           ) : (
-            <kbd className="pointer-events-none absolute right-4 font-mono text-[11px] text-muted-foreground/60">
+            <kbd className="pointer-events-none absolute right-4 text-[11px] text-muted-foreground/60">
               ⌘K
             </kbd>
           )}
@@ -458,7 +479,7 @@ export const CatalogPage = memo(function CatalogPage({
 
       {/* Master-detail split */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="min-w-0 flex-1 overflow-y-auto">
+        <div ref={listScrollRef} className="min-w-0 flex-1 overflow-y-auto">
           {section === 'species' && (
             <SpeciesCatalogTable
               displayedSpecies={displayedSpecies}
@@ -468,8 +489,8 @@ export const CatalogPage = memo(function CatalogPage({
               sortDir={sortDir}
               onSort={toggleSort}
               onSelect={setSelectedId}
-              onShowMore={() => setVisibleSpeciesCount((c) => c + 150)}
-              onShowAll={() => setVisibleSpeciesCount(filteredSpecies.length)}
+              onLoadMore={() => setVisibleSpeciesCount((c) => c + 150)}
+              scrollRootRef={listScrollRef}
             />
           )}
 
@@ -505,6 +526,8 @@ export const CatalogPage = memo(function CatalogPage({
                 redox={filteredRedox}
                 ks={filteredKs}
                 ab={filteredAb}
+                scrollRootRef={listScrollRef}
+                onSpawnReactionSetup={onSpawnReactionSetup}
               />
             )}
 

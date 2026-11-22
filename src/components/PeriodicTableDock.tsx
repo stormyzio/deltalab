@@ -136,7 +136,7 @@ export const PeriodicTableDock = memo(function PeriodicTableDock({
             )}
             <span>Tableau périodique</span>
           </Button>
-          <span className="hidden font-mono text-[10px] tabular-nums text-muted-foreground sm:inline">
+          <span className="hidden text-[10px] tabular-nums text-muted-foreground sm:inline">
             {matchingSet ? `${matchingSet.size}/${elements.length}` : elements.length}
           </span>
         </div>
@@ -177,16 +177,19 @@ export const PeriodicTableDock = memo(function PeriodicTableDock({
                 </Tooltip>
               )
             })}
-            {activeCategory && (
-              <button
-                type="button"
-                onClick={() => setActiveCategory(null)}
-                className="ml-0.5 rounded px-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                aria-label="Réinitialiser le filtre de famille"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setActiveCategory(null)}
+              tabIndex={activeCategory ? 0 : -1}
+              aria-hidden={!activeCategory}
+              className={cn(
+                'ml-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground',
+                !activeCategory && 'invisible pointer-events-none',
+              )}
+              aria-label="Réinitialiser le filtre de famille"
+            >
+              <X className="h-3 w-3" />
+            </button>
           </div>
         )}
       </div>
@@ -230,7 +233,7 @@ export const PeriodicTableDock = memo(function PeriodicTableDock({
                     <X className="h-3 w-3" />
                   </button>
                 ) : (
-                  <kbd className="pointer-events-none absolute right-2.5 font-mono text-[9.5px] text-muted-foreground/60">
+                  <kbd className="pointer-events-none absolute right-2.5 text-[9.5px] text-muted-foreground/60">
                     ⌘K
                   </kbd>
                 )}
@@ -240,13 +243,13 @@ export const PeriodicTableDock = memo(function PeriodicTableDock({
             {/* F-block range markers */}
             <div
               style={{ gridRow: 6, gridColumn: 3 }}
-              className="flex items-center justify-center rounded-[5px] border border-dashed border-border/80 font-mono text-[8.5px] tabular-nums text-muted-foreground"
+              className="flex items-center justify-center rounded-[5px] border border-dashed border-border/80 text-[8.5px] tabular-nums text-muted-foreground"
             >
               57–71
             </div>
             <div
               style={{ gridRow: 7, gridColumn: 3 }}
-              className="flex items-center justify-center rounded-[5px] border border-dashed border-border/80 font-mono text-[8.5px] tabular-nums text-muted-foreground"
+              className="flex items-center justify-center rounded-[5px] border border-dashed border-border/80 text-[8.5px] tabular-nums text-muted-foreground"
             >
               89–103
             </div>
@@ -287,7 +290,7 @@ export const PeriodicTableDock = memo(function PeriodicTableDock({
                       )}
                       aria-label={`${el.nameFr} (${el.symbol}), numéro atomique ${el.atomicNumber}`}
                     >
-                      <span className="pointer-events-none absolute left-[3.5px] top-[2px] font-mono text-[8px] leading-none tabular-nums text-muted-foreground">
+                      <span className="pointer-events-none absolute left-[3.5px] top-[2px] text-[8px] leading-none tabular-nums text-muted-foreground">
                         {el.atomicNumber}
                       </span>
                       <span
@@ -308,7 +311,7 @@ export const PeriodicTableDock = memo(function PeriodicTableDock({
                   <TooltipContent side="top" className="min-w-[148px]">
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="font-medium text-foreground">{el.nameFr}</span>
-                      <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                      <span className="text-[10px] tabular-nums text-muted-foreground">
                         Z={el.atomicNumber}
                       </span>
                     </div>
@@ -320,7 +323,7 @@ export const PeriodicTableDock = memo(function PeriodicTableDock({
                         />
                         {catMeta.labelFr}
                       </span>
-                      <span className="font-mono tabular-nums">
+                      <span className="tabular-nums">
                         {formatFrNumber(el.atomicMass, 2)} g/mol
                       </span>
                     </div>

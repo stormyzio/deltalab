@@ -147,7 +147,7 @@ export function PeriodicFilterBar({
               type="button"
               onClick={() => onBlockFilterChange(blockFilter === blk ? 'all' : blk)}
               className={cn(
-                'h-6 shrink-0 whitespace-nowrap rounded px-1.5 font-mono text-[10.5px] font-medium',
+                'h-6 shrink-0 whitespace-nowrap rounded px-1.5 text-[10.5px] font-medium',
                 blockFilter === blk
                   ? 'bg-accent text-foreground'
                   : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
@@ -205,19 +205,22 @@ export function PeriodicFilterBar({
             </button>
           ))}
 
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={onResetFilters}
-              className="ml-1 inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <RotateCcw className="h-3 w-3 shrink-0" strokeWidth={1.6} />
-              <span>Réinitialiser</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onResetFilters}
+            tabIndex={hasActiveFilters ? 0 : -1}
+            aria-hidden={!hasActiveFilters}
+            className={cn(
+              'ml-1 inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 text-[10.5px] text-muted-foreground hover:bg-accent hover:text-foreground',
+              !hasActiveFilters && 'invisible pointer-events-none',
+            )}
+          >
+            <RotateCcw className="h-3 w-3 shrink-0" strokeWidth={1.6} />
+            <span>Réinitialiser</span>
+          </button>
         </div>
 
-        <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
+        <span className="inline-block min-w-[56px] shrink-0 whitespace-nowrap text-right text-[10.5px] tabular-nums text-muted-foreground">
           {matchCount} / {totalCount}
         </span>
       </div>

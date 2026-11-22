@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ChemText } from '@/components/ui/chem-text'
 
 export type CatalogSection = 'species' | 'solutions' | 'reactions' | 'vessels'
 export type ReactionSubTab = 'named' | 'redox' | 'ks' | 'pka' | 'predictor'
@@ -46,7 +47,7 @@ export function SortTh({
   align = 'left',
   className,
 }: {
-  label: string
+  label: ReactNode
   activeKey: string
   colKey: string
   dir: SortDir
@@ -72,7 +73,7 @@ export function SortTh({
           active && 'text-foreground',
         )}
       >
-        <span>{label}</span>
+        <span>{typeof label === 'string' ? <ChemText value={label} /> : label}</span>
         {active ? (
           dir === 'asc' ? (
             <ArrowUp className="h-3 w-3 shrink-0" strokeWidth={1.7} />

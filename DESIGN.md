@@ -34,9 +34,9 @@ typography:
     fontSize: "0.6875rem"
     fontWeight: 500
     lineHeight: 1.2
-  mono-data:
-    fontFamily: "JetBrains Mono Variable, ui-monospace, SFMono-Regular, Menlo, monospace"
-    fontSize: "0.625rem"
+  tabular-data:
+    fontFamily: "Geist Variable, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontSize: "0.6875rem"
     fontWeight: 400
     lineHeight: 1.2
 rounded:
@@ -110,10 +110,9 @@ Palette zinc sombre à contraste maîtrisé, structurée autour de quatre marche
 
 ## Typography
 
-**Body & UI Font:** `Geist Variable` (fallback système sans-serif).
-**Data / Measurement Font:** `JetBrains Mono Variable` (fallback monospace).
+**Unique UI & Data Font:** `Geist Variable` (fallback système sans-serif). Aucune police monospace (`font-mono` / `JetBrains Mono`) n'est utilisée dans l'interface ; les grandeurs mesurées et colonnes numériques emploient systématiquement `tabular-nums` en Geist.
 
-**Character:** Une seule famille sans-serif sobre porte toute l'interface ; la chasse fixe est réservée sans exception aux grandeurs mesurées et indices scientifiques (`tabular-nums` systématique).
+**Chemical Notation Rule:** Toujours utiliser les composants de `src/components/ui/chem-text.tsx` (`ChemFormula`, `ChemVar`, `ChemText`, `Sub`, `Sup`, `StateTag`, `Nuclide`, `ElectronConfig`) pour rendre les formules, indices, exposants, charges et équations. Ne jamais afficher directement de caractères Unicode d'indice ou d'exposant (`₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻`) dans le JSX.
 
 ### Hierarchy
 - **Title** (600, 14 px, line-height 1.25): Formules de molécules sur le canvas et marque DeltaLab.
@@ -155,6 +154,13 @@ Rayons mesurés et cohérents : micro-cellules du tableau périodique à `4px`, 
 
 **The Instant Interactive Surface Rule.** Ne jamais appliquer `transition-colors` ni de transition CSS sur `background-color` / `border-color` des boutons, onglets, filtres, lignes de tableau ou champs : les changements d'état au survol et au clic doivent être instantanés (comme dans une application desktop native) afin d'éviter le flash/blink d'interpolation `color-mix(in oklab, …)` de Tailwind v4 et de garder une réactivité nette. Réserver les transitions uniquement aux animations physiques (`transform`, `opacity`).
 
+**The Zero Layout Shift Rule.** Aucune action utilisateur (glissement d'un slider ou input drag, clic sur un bouton/onglet/filtre, bascule d'unité, sélection d'élément, copie, chargement) ne doit jamais décaler le reste de l'interface — ni **horizontalement**, ni **verticalement** :
+- **Valeurs numériques et compteurs en ligne** : toute valeur dynamique adjacente à d'autres contrôles (pourcentages, températures, volumes, pH, `x`, compteurs `12 / 118`, états solide/liquide/gaz) doit utiliser `font-mono tabular-nums` **et** une largeur réservée (`w-*` ou `min-w-*` suffisante pour la valeur maximale, ex. `w-[144px]`, `w-[3ch]`, `min-w-[56px]`, alignée à droite).
+- **Unités et libellés variables** : les sélecteurs d'unités (`mL ↔ L`, `mol ↔ mmol`, `g ↔ mg`, `M ↔ mM`), flèches (`→ ↔ ⇌`) et boutons à retour d'état (`Copier` → icône check, `Play ↔ Pause`) doivent conserver une **largeur constante** calculée sur leur libellé le plus long (jamais d'auto-sizing qui pousse les éléments voisins).
+- **Contrôles conditionnels en ligne** : ne jamais monter/démonter un bouton ou badge (`×`, `Réinitialiser`, `Appliquer`, `Équilibrer`, `Limitant`, rôle `Ox/Red`) dans une rangée flex/table au risque de décaler les boutons sous le curseur. Réserver son emplacement à largeur fixe (`invisible pointer-events-none`, état `disabled` discret, ou colonne dédiée à largeur fixe).
+- **Stabilité verticale** : les barres sticky, en-têtes au-dessus des sliders et rangées de filtres doivent conserver une hauteur constante (`h-*`, `flex-nowrap`, `truncate`) ; ne jamais injecter un texte conditionnel (alerte, compteur de résultats, badge) au-dessus d'un slider ou d'un champ actif qui ferait sauter le contrôle sous la souris.
+- **Tableaux de données vivants** : fixer les largeurs de colonnes (`table-fixed` ou `w-*` explicites sur les `<th>`) pour que la saisie, le filtrage ou le glissement d'un slider d'avancement ne fasse jamais vibrer les colonnes horizontalement.
+
 ### Canvas Tiles (Atomes, Molécules, Fioles)
 - **Corner Style:** `12px`.
 - **Background:** `surface-card` avec bordure `1px` `hairline-border` au repos, anneau clair (`2px` à 20–25% d'opacité) en sélection, halo bleu ciel ou ambre lors d'un survol de dépôt sur une fiole.
@@ -170,9 +176,11 @@ Rayons mesurés et cohérents : micro-cellules du tableau périodique à `4px`, 
 - **Do** séparer les sections denses par des traits fins (`1px border-border/60`) et des espacements généreux plutôt que d’empiler des boîtes encadrées imbriquées.
 - **Do** utiliser des textes gris flottants pour les métadonnées (`ΔE°`, `%`, `limitant`, types) et des boutons icône flottants (`hover:bg-accent`) plutôt que de gros boutons encadrés quand une icône suffit.
 - **Do** utiliser les icônes Lucide (`strokeWidth` 1.5–1.6) uniquement lorsqu’elles portent une action réelle (jamais d’icône décorative devant un titre de section).
+- **Do** verrouiller les largeurs des valeurs numériques dynamiques (`font-mono tabular-nums` + `w-*`/`min-w-*`), des sélecteurs d'unités, des colonnes de tableaux vivants et des emplacements de contrôles conditionnels (`invisible pointer-events-none` / `disabled`) afin de garantir **zéro décalage d'UI** à chaque action (The Zero Layout Shift Rule).
 - **Do** animer les changements d'état uniquement via `transform` et `opacity` (150–320 ms).
 
 ### Don't:
+- **Don't** laisser une action utilisateur (slider, sélection, changement d'unité, texte dynamique, bouton conditionnel ou chargement) décaler horizontalement ou verticalement les éléments voisins (The Zero Layout Shift Rule).
 - **Don't** abuser des boîtes, conteneurs encadrés, pilules colorées « effet néon » (`border-color/30 bg-color/10 text-color-300`), icônes décoratives ou labels redondants quand les valeurs parlent déjà d’elles-mêmes.
 - **Don't** mettre `transition-colors` ou animer `background-color` / `border-color` sur les boutons, onglets, filtres ou lignes au survol/clic (The Instant Interactive Surface Rule) — garder un feedback instantané sans blink.
 - **Don't** changer la graisse du texte (`font-medium`, `font-semibold`, `font-bold`) sur l'état actif/sélectionné d'un bouton, onglet, filtre ou contrôle segmenté (The Constant Font-Weight Selection Rule) — cela décale horizontalement tous les boutons adjacents.

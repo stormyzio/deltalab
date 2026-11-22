@@ -230,14 +230,18 @@ export function parseSolubilityWater(
   molarMass: number,
   aqSolLogS?: number | null,
   table20C?: number | null,
+  standardState: 'solid' | 'liquid' | 'gas' | 'aqueous' = 'solid',
 ): ParsedSolubility {
-  // Highest-precision tabulated solubility curve at 20°C (e.g. inorganic salts CRC table)
-  if (typeof table20C === 'number' && Number.isFinite(table20C) && table20C >= 0) {
-    return {
-      solubilityGPerL: roundTo(table20C, table20C < 1 ? 4 : 1),
-      miscible: false,
-      insoluble: table20C < 0.1,
-      source: 'table',
+  // Priority 1: AqSolDB curated experimental LogS dataset
+  if (typeof aqSolLogS === 'number' && Number.isFinite(aqSolLogS) && molarMass > 0) {
+    const gPerL = 10 ** aqSolLogS * molarMass
+    if (Number.isFinite(gPerL) && gPerL >= 0 && gPerL <= 10000) {
+      return {
+        solubilityGPerL: roundTo(gPerL, gPerL < 1 ? 4 : gPerL < 20 ? 2 : 1),
+        miscible: false,
+        insoluble: gPerL < 0.01,
+        source: 'aqsoldb',
+      }
     }
   }
 
@@ -400,38 +404,33 @@ export function parseSolubilityWater(
     }
   }
 
-  if (sawMiscible) {
-    return { solubilityGPerL: null, miscible: true, insoluble: false, source: 'pubchem' }
-  }
-
-  // Prefer AqSolDB exact experimental LogS over coarse NTP bounds or pure text when available
-  if (
-    typeof aqSolLogS === 'number' &&
-    Number.isFinite(aqSolLogS) &&
-    molarMass > 0 &&
-    (!bestNum || bestNum.score <= 6)
-  ) {
-    const gPerL = 10 ** aqSolLogS * molarMass
-    if (Number.isFinite(gPerL) && gPerL >= 0 && gPerL <= 10000) {
-      return {
-        solubilityGPerL: roundTo(gPerL, gPerL < 1 ? 4 : gPerL < 20 ? 2 : 1),
-        miscible: false,
-        insoluble: gPerL < 0.1,
-        source: 'aqsoldb',
-      }
-    }
-  }
-
+  // Priority 2: PubChem exact numeric solubility value
   if (bestNum) {
     const g = bestNum.gPerL
     return {
       solubilityGPerL: roundTo(g, g < 1 ? 4 : g < 20 ? 2 : 1),
       miscible: false,
-      insoluble: g < 0.1,
+      insoluble: g < 0.01,
       source: 'pubchem',
     }
   }
 
+  // Priority 3: Explicitly miscible liquids (infinite proportions in water — liquids only)
+  if (sawMiscible && standardState === 'liquid') {
+    return { solubilityGPerL: null, miscible: true, insoluble: false, source: 'pubchem' }
+  }
+
+  // Priority 4: Tabulated 20°C curve fallback (inorganic lab salts not in AqSolDB/PubChem)
+  if (typeof table20C === 'number' && Number.isFinite(table20C) && table20C >= 0) {
+    return {
+      solubilityGPerL: roundTo(table20C, table20C < 1 ? 4 : 1),
+      miscible: false,
+      insoluble: table20C < 0.01,
+      source: 'table',
+    }
+  }
+
+  // Priority 5: Explicitly stated insoluble in PubChem
   if (sawInsoluble) {
     return { solubilityGPerL: 0, miscible: false, insoluble: true, source: 'pubchem' }
   }

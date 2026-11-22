@@ -4,6 +4,7 @@ import { Maximize2, Pencil, X } from 'lucide-react'
 import type { LewisStructure } from '../../shared/chemistry.ts'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { ChemFormula } from '@/components/ui/chem-text'
 import { LewisDiagram } from '@/components/LewisDiagram'
 import { Molecule3DViewer } from '@/components/Molecule3DViewer'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -98,7 +99,7 @@ export function MolecularRepresentationSection({
           <span className="text-[11px] font-medium text-muted-foreground">
             Représentation moléculaire
             {resolvedStructure?.ionic && (
-              <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground/80">
+              <span className="ml-1.5 text-[10px] font-normal text-muted-foreground/80">
                 · ionique
               </span>
             )}
@@ -147,7 +148,7 @@ export function MolecularRepresentationSection({
               ariaLabel={`Schéma de Lewis de ${nameFr}`}
             />
           ) : (
-            <div className="flex h-full items-center justify-center font-mono text-[11px] text-muted-foreground">
+            <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
               {isResolved ? 'Schéma de Lewis indisponible.' : 'Chargement du schéma…'}
             </div>
           )}
@@ -182,13 +183,13 @@ export function MolecularRepresentationSection({
                 className="inline-flex items-baseline gap-1 rounded px-1.5 py-0.5 text-[10.5px] text-zinc-200 hover:bg-accent hover:text-foreground"
               >
                 <span>{iso.nameFr}</span>
-                <span className="font-mono text-[9.5px] text-muted-foreground">
-                  {iso.displayFormula}
+                <span className="text-[9.5px] text-muted-foreground">
+                  <ChemFormula value={iso.displayFormula} />
                 </span>
               </button>
             ))}
             {isomers.length > maxIsomers && (
-              <span className="font-mono text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-muted-foreground">
                 +{isomers.length - maxIsomers} autres
               </span>
             )}
@@ -215,11 +216,11 @@ export function MolecularRepresentationSection({
               <div className="flex items-center justify-between border-b border-border/70 px-4 py-2.5">
                 <div className="flex min-w-0 items-baseline gap-2.5">
                   <span className="shrink-0 text-sm font-semibold text-foreground">
-                    {formula}
+                    <ChemFormula value={formula} />
                   </span>
                   <span className="truncate text-xs text-muted-foreground">{nameFr}</span>
                   {resolvedStructure.ionic && (
-                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground/80">
+                    <span className="shrink-0 text-[10px] text-muted-foreground/80">
                       · ionique
                     </span>
                   )}

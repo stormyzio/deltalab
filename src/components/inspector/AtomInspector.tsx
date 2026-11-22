@@ -6,7 +6,7 @@ import type {
 } from '../../../shared/chemistry.ts'
 import { getElementMassNumber } from '@/lib/chemistry-calc'
 import { CATEGORY_META, STATE_META, formatFrNumber } from '@/lib/chemistry-ui'
-import { ChemFormula } from '@/components/ui/chem-text'
+import { ChemFormula, Sup } from '@/components/ui/chem-text'
 import { ElementDetailsBody } from '@/components/ElementDetailsBody'
 import { type CatalogJumpTarget, QuickActions } from './InspectorPrimitives'
 
@@ -15,16 +15,12 @@ export function AtomInspector({
   element,
   solidSpecies,
   catalog,
-  onDuplicate,
-  onDelete,
   onOpenInCatalog,
 }: {
   node: CanvasAtomNode
   element: ElementRecord | null
   solidSpecies: CatalogSpeciesRecord | null
   catalog: FullCatalogResponse | null
-  onDuplicate: () => void
-  onDelete: () => void
   onOpenInCatalog: (target: CatalogJumpTarget) => void
 }) {
   const cat = CATEGORY_META[node.category]
@@ -38,7 +34,7 @@ export function AtomInspector({
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative flex h-14 w-14 shrink-0 flex-col items-center justify-between rounded-xl border border-border bg-card px-1.5 py-1">
             <div className="flex w-full items-center justify-between leading-none">
-              <span className="font-mono text-[9px] leading-none tabular-nums text-muted-foreground">
+              <span className="text-[9px] leading-none tabular-nums text-muted-foreground">
                 {node.atomicNumber}
               </span>
             </div>
@@ -49,7 +45,7 @@ export function AtomInspector({
               {node.symbol}
             </span>
             <div className="flex w-full items-baseline justify-between leading-none">
-              <span className="font-mono text-[9px] tabular-nums text-muted-foreground">
+              <span className="text-[9px] tabular-nums text-muted-foreground">
                 {massNumber ?? ''}
               </span>
             </div>
@@ -63,7 +59,7 @@ export function AtomInspector({
               {element ? ` · Bloc ${element.block}` : ''}
             </p>
             {element && (
-              <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+              <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
                 {STATE_META[element.defaultState].labelFr} (20 °C)
                 {element.radioactive ? ' · Radioactif' : ''}
                 {element.synthetic ? ' · Synthétique' : ''}
@@ -76,8 +72,6 @@ export function AtomInspector({
           onOpenCatalog={() =>
             onOpenInCatalog({ section: 'elements', id: String(node.atomicNumber) })
           }
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
         />
       </div>
 
@@ -91,7 +85,7 @@ export function AtomInspector({
             <div className="min-w-0">
               <p className="truncate text-[11px] text-zinc-200">
                 {solidSpecies.nameFr}{' '}
-                <span className="font-mono text-muted-foreground">
+                <span className="text-muted-foreground">
                   <ChemFormula value={node.symbol} state="s" />
                 </span>
               </p>
@@ -101,8 +95,8 @@ export function AtomInspector({
             </div>
           </div>
           {solidSpecies.densityGPerCm3 !== null && (
-            <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] tabular-nums text-muted-foreground">
-              {formatFrNumber(solidSpecies.densityGPerCm3, 2)} g/cm³
+            <span className="shrink-0 whitespace-nowrap text-[10.5px] tabular-nums text-muted-foreground">
+              {formatFrNumber(solidSpecies.densityGPerCm3, 2)} g/cm<Sup>3</Sup>
             </span>
           )}
         </div>

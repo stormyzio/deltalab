@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { MoveHorizontal } from 'lucide-react'
 import type { ScrubUnitOption } from '@/lib/quantity-units'
 import { cn } from '@/lib/utils'
@@ -27,9 +28,9 @@ interface ScrubNumberInputProps {
   defaultUnitId?: string
   min?: number
   max?: number
-  /** Explicit step in DISPLAYED unit; if omitted, computed adaptively from magnitude */
+  /** Explicit step in DISPLAYED unit (used when `units` has no per-unit step) */
   step?: number
-  /** Pixels of horizontal drag per step (default 5) */
+  /** Pixels of horizontal drag per base step at slow speed (default 5) */
   dragPixelsPerStep?: number
   disabled?: boolean
   ariaLabel: string
@@ -97,6 +98,11 @@ function parseFlexibleNumber(raw: string): number | null {
   return null
 }
 
+function wrapCoord(val: number, max: number): number {
+  if (max <= 0) return val
+  return ((val % max) + max) % max
+}
+
 export function ScrubNumberInput({
   value,
   onChange,
@@ -131,8 +137,14 @@ export function ScrubNumberInput({
   const [focused, setFocused] = useState(false)
   const [draft, setDraft] = useState('')
   const [scrubbing, setScrubbing] = useState(false)
+  const [pointerLockOrigin, setPointerLockOrigin] = useState<{ x: number; y: number } | null>(
+    null,
+  )
 
+  const handleRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const virtualCursorRef = useRef<HTMLDivElement | null>(null)
+  const virtualPosRef = useRef({ x: 0, y: 0 })
   const cleanupScrubRef = useRef<(() => void) | null>(null)
 
   const onChangeRef = useRef(onChange)
@@ -149,6 +161,9 @@ export function ScrubNumberInput({
   }, [])
 
   const clampBase = (rawBase: number) => Math.max(min, Math.min(max, rawBase))
+
+  const resolveStep = (dispVal: number) =>
+    activeUnit.step ?? step ?? getAdaptiveStep(dispVal)
 
   const commitDraft = () => {
     setFocused(false)
@@ -177,9 +192,7 @@ export function ScrubNumberInput({
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault()
       const dir = e.key === 'ArrowUp' ? 1 : -1
-      const baseStep = step ?? getAdaptiveStep(displayValue)
-      const mult = e.shiftKey ? 10 : e.altKey ? 0.1 : 1
-      const effectiveStep = baseStep * mult
+      const effectiveStep = resolveStep(displayValue)
       const nextDisplay = roundClean(displayValue + dir * effectiveStep, effectiveStep)
       const nextBase = clampBase(nextDisplay * activeUnit.toBase)
       setDraft(formatDisplayValue(nextBase / activeUnit.toBase))
@@ -195,18 +208,58 @@ export function ScrubNumberInput({
 
     cleanupScrubRef.current?.()
 
+    const handleEl = handleRef.current
     const pointerId = e.pointerId
-    const startX = e.clientX
-    const startDisplay = displayValue
-    const baseStep = step ?? getAdaptiveStep(displayValue)
     const toBase = activeUnit.toBase
+    const baseStep = resolveStep(displayValue)
+    const minDisplay = Number.isFinite(min) ? min / toBase : Number.NEGATIVE_INFINITY
+    const maxDisplay = Number.isFinite(max) ? max / toBase : Number.POSITIVE_INFINITY
+
+    let rawDisplay = displayValue
     let lastBase = value
+    let lastClientX = e.clientX
+    let lastTime = performance.now()
+    let smoothedSpeed = 0
+    let isLocked = false
+    let skipFirstLockDelta = false
+
+    virtualPosRef.current = { x: e.clientX, y: e.clientY }
 
     setScrubbing(true)
     document.body.style.cursor = 'ew-resize'
     document.body.style.userSelect = 'none'
 
     let finished = false
+
+    const syncVirtualCursor = () => {
+      const el = virtualCursorRef.current
+      if (!el) return
+      const { x, y } = virtualPosRef.current
+      el.style.transform = `translate3d(${x}px, ${y}px, 0)`
+    }
+
+    const onPointerLockChange = () => {
+      const lockedNow = Boolean(handleEl && document.pointerLockElement === handleEl)
+      if (finished && lockedNow) {
+        try {
+          document.exitPointerLock?.()
+        } catch {
+          // ignore
+        }
+        return
+      }
+      isLocked = lockedNow
+      setPointerLockOrigin(
+        lockedNow
+          ? { x: virtualPosRef.current.x, y: virtualPosRef.current.y }
+          : null,
+      )
+      if (lockedNow) {
+        skipFirstLockDelta = true
+        requestAnimationFrame(syncVirtualCursor)
+      }
+    }
+
     const finish = () => {
       if (finished) return
       finished = true
@@ -215,7 +268,17 @@ export function ScrubNumberInput({
       window.removeEventListener('pointerup', onWindowUp)
       window.removeEventListener('pointercancel', onWindowUp)
       window.removeEventListener('blur', finish)
+      document.removeEventListener('pointerlockchange', onPointerLockChange)
 
+      if (handleEl && document.pointerLockElement === handleEl) {
+        try {
+          document.exitPointerLock?.()
+        } catch {
+          // ignore
+        }
+      }
+
+      setPointerLockOrigin(null)
       setScrubbing(false)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
@@ -223,20 +286,60 @@ export function ScrubNumberInput({
     }
 
     const onWindowMove = (ev: PointerEvent) => {
-      if (ev.pointerId !== pointerId) return
+      if (!isLocked && ev.pointerId !== pointerId) return
       if (ev.pointerType === 'mouse' && (ev.buttons & 1) === 0) {
         finish()
         return
       }
-      const dx = ev.clientX - startX
-      const mult = ev.shiftKey ? 10 : ev.altKey ? 0.1 : 1
-      const effectiveStep = baseStep * mult
-      const stepsMoved = Math.round(dx / dragPixelsPerStep)
-      const nextDisplay = roundClean(
-        startDisplay + stepsMoved * effectiveStep,
-        effectiveStep,
+
+      let deltaX = 0
+      if (isLocked) {
+        deltaX = ev.movementX
+        // Guard against occasional macOS/Chrome pointer-lock activation jump
+        if (skipFirstLockDelta) {
+          skipFirstLockDelta = false
+          if (Math.abs(deltaX) > 120) return
+        }
+        if (Math.abs(deltaX) > 300) return
+        virtualPosRef.current.x = wrapCoord(
+          virtualPosRef.current.x + deltaX,
+          window.innerWidth,
+        )
+        virtualPosRef.current.y = Math.max(
+          8,
+          Math.min(window.innerHeight - 8, virtualPosRef.current.y + ev.movementY * 0.25),
+        )
+        syncVirtualCursor()
+      } else {
+        deltaX = ev.clientX - lastClientX
+        lastClientX = ev.clientX
+      }
+
+      if (deltaX === 0) return
+
+      const now = performance.now()
+      const dtMs = Math.max(4, Math.min(80, now - lastTime))
+      lastTime = now
+
+      const instantSpeed = Math.abs(deltaX) / dtMs // px / ms
+      smoothedSpeed = smoothedSpeed * 0.55 + instantSpeed * 0.45
+
+      // Slow drag (<= 0.25 px/ms) stays strictly 1x for fine precision;
+      // faster movement accelerates smoothly with pointer speed.
+      const excess = Math.max(0, smoothedSpeed - 0.25)
+      const velocityMult = Math.min(20, 1 + 2.8 * Math.pow(excess, 1.45))
+
+      const nextRawDisplay = Math.max(
+        minDisplay,
+        Math.min(maxDisplay, rawDisplay + (deltaX / dragPixelsPerStep) * baseStep * velocityMult),
       )
-      const nextBase = clampBase(nextDisplay * toBase)
+      rawDisplay = nextRawDisplay
+
+      const snappedDisplay = roundClean(
+        Math.round(rawDisplay / baseStep) * baseStep,
+        baseStep,
+      )
+      const nextBase = clampBase(snappedDisplay * toBase)
       if (Math.abs(nextBase - lastBase) > 1e-9) {
         lastBase = nextBase
         onChangeRef.current(nextBase)
@@ -244,15 +347,32 @@ export function ScrubNumberInput({
     }
 
     const onWindowUp = (ev: PointerEvent) => {
-      if (ev.pointerId !== pointerId) return
+      if (!isLocked && ev.pointerId !== pointerId) return
       finish()
     }
 
     cleanupScrubRef.current = finish
+    document.addEventListener('pointerlockchange', onPointerLockChange)
     window.addEventListener('pointermove', onWindowMove)
     window.addEventListener('pointerup', onWindowUp)
     window.addEventListener('pointercancel', onWindowUp)
     window.addEventListener('blur', finish)
+
+    // Request Pointer Lock for desktop mouse drags so the cursor wraps infinitely
+    if (e.pointerType === 'mouse' && handleEl?.requestPointerLock) {
+      try {
+        const maybePromise = handleEl.requestPointerLock() as unknown as
+          | Promise<void>
+          | undefined
+        if (maybePromise && typeof maybePromise.catch === 'function') {
+          maybePromise.catch(() => {
+            // Pointer lock unavailable/cancelled — fallback to standard clientX delta
+          })
+        }
+      } catch {
+        // Fallback silently
+      }
+    }
   }
 
   const cycleUnit = () => {
@@ -263,6 +383,10 @@ export function ScrubNumberInput({
   }
 
   const hasUnitSwitcher = Boolean(units && units.length > 1)
+  const maxUnitChars =
+    units && units.length > 0
+      ? Math.max(...units.map((u) => u.label.length))
+      : (activeUnit.label?.length ?? 0)
 
   return (
     <div
@@ -275,8 +399,9 @@ export function ScrubNumberInput({
         className,
       )}
     >
-      {/* Left Figma-style horizontal scrub handle */}
+      {/* Left horizontal scrub handle (velocity-sensitive + infinite wrap) */}
       <div
+        ref={handleRef}
         role="slider"
         aria-label={`Ajuster ${ariaLabel} par glissement horizontal`}
         aria-valuenow={Math.round(displayValue * 1000) / 1000}
@@ -284,7 +409,7 @@ export function ScrubNumberInput({
         aria-valuemax={Number.isFinite(max) ? max / activeUnit.toBase : undefined}
         tabIndex={-1}
         onPointerDown={handleScrubDown}
-        title="Glisser horizontalement pour ajuster (Shift ×10 · Alt ×0,1)"
+        title="Glisser horizontalement pour ajuster (plus vite = incrément plus grand)"
         className={cn(
           'flex h-full shrink-0 items-center gap-1 border-r border-border/60 px-1.5 select-none',
           disabled
@@ -296,7 +421,7 @@ export function ScrubNumberInput({
       >
         <MoveHorizontal className="h-2.5 w-2.5 shrink-0 opacity-70" strokeWidth={1.8} />
         {prefixLabel && (
-          <span className="font-mono text-[10px] font-medium leading-none">
+          <span className="text-[10px] font-medium leading-none">
             {prefixLabel}
           </span>
         )}
@@ -308,21 +433,20 @@ export function ScrubNumberInput({
         type="text"
         inputMode="decimal"
         disabled={disabled}
+        aria-label={ariaLabel}
         value={focused ? draft : formatDisplayValue(displayValue)}
         onFocus={(e) => {
-          setDraft(formatDisplayValue(displayValue))
           setFocused(true)
-          const el = e.currentTarget
-          window.requestAnimationFrame(() => el.select())
+          setDraft(formatDisplayValue(displayValue))
+          requestAnimationFrame(() => e.target.select())
         }}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commitDraft}
         onKeyDown={handleKeyDown}
-        aria-label={ariaLabel}
-        className="h-full min-w-0 flex-1 bg-transparent px-1.5 font-mono text-[11px] tabular-nums text-foreground focus:outline-none"
+        className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-right text-[11px] tabular-nums text-foreground focus:outline-none"
       />
 
-      {/* Right unit badge / switcher */}
+      {/* Right unit badge (fixed width across all unit options to prevent shift) */}
       {activeUnit.label &&
         (hasUnitSwitcher ? (
           <button
@@ -330,15 +454,49 @@ export function ScrubNumberInput({
             disabled={disabled}
             onClick={cycleUnit}
             title="Cliquer pour changer d’unité"
-            className="h-full shrink-0 whitespace-nowrap border-l border-border/50 px-1.5 font-mono text-[9.5px] text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            aria-label={`Unité : ${activeUnit.label} (cliquer pour changer)`}
+            style={{ minWidth: `calc(${maxUnitChars}ch + 0.75rem)` }}
+            className="flex h-full shrink-0 items-center justify-center border-l border-border/60 px-1.5 text-[10px] font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground disabled:pointer-events-none"
           >
             {activeUnit.label}
           </button>
         ) : (
-          <span className="shrink-0 whitespace-nowrap pr-1.5 font-mono text-[9.5px] text-muted-foreground select-none">
+          <span className="flex h-full shrink-0 items-center pr-1.5 text-[10px] text-muted-foreground select-none">
             {activeUnit.label}
           </span>
         ))}
+
+      {/* Virtual wrapping ew-resize cursor while Pointer Lock is active */}
+      {pointerLockOrigin &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="pointer-events-none fixed inset-0 z-[9999]">
+            <div
+              ref={virtualCursorRef}
+              style={{
+                transform: `translate3d(${pointerLockOrigin.x}px, ${pointerLockOrigin.y}px, 0)`,
+              }}
+              className="absolute -left-3 -top-3 flex h-6 w-6 items-center justify-center will-change-transform"
+            >
+              <svg
+                width="20"
+                height="12"
+                viewBox="0 0 20 12"
+                fill="none"
+                className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
+              >
+                <path
+                  d="M1 6L6 1.5V4.5H14V1.5L19 6L14 10.5V7.5H6V10.5L1 6Z"
+                  fill="#ffffff"
+                  stroke="#09090b"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

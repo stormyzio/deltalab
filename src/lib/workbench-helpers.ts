@@ -15,6 +15,7 @@ export function parseViewFromHash(hash: string): AppView {
   if (hash === '#reactions') return 'reactions'
   if (hash === '#verrerie') return 'vessels'
   if (hash === '#lewis') return 'lewis'
+  if (hash === '#equations') return 'equations'
   if (hash === '#tableau') return 'periodic'
   return 'workbench'
 }
