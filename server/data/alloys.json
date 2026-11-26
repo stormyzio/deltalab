@@ -28,8 +28,7 @@
     "densityGPerCm3": 7.85,
     "meltingPointC": 1480,
     "colorHex": "#868e99",
-    "usesFr": "Charpentes métalliques, carrosseries automobiles, tôles et boulonnerie.",
-    "source": "curated"
+    "usesFr": "Charpentes métalliques, carrosseries automobiles, tôles et boulonnerie."
   },
   {
     "id": "alloy_acier_carbone",
@@ -53,8 +52,7 @@
     "densityGPerCm3": 7.84,
     "meltingPointC": 1425,
     "colorHex": "#78808b",
-    "usesFr": "Outils tranchants, ressorts, rails ferroviaires et câbles haute résistance.",
-    "source": "curated"
+    "usesFr": "Outils tranchants, ressorts, rails ferroviaires et câbles haute résistance."
   },
   {
     "id": "alloy_fonte_grise",
@@ -85,8 +83,7 @@
     "densityGPerCm3": 7.2,
     "meltingPointC": 1180,
     "colorHex": "#555b63",
-    "usesFr": "Blocs moteurs, disques de frein, cocottes et plaques de voirie.",
-    "source": "curated"
+    "usesFr": "Blocs moteurs, disques de frein, cocottes et plaques de voirie."
   },
   {
     "id": "alloy_fonte_blanche",
@@ -110,8 +107,7 @@
     "densityGPerCm3": 7.65,
     "meltingPointC": 1150,
     "colorHex": "#737982",
-    "usesFr": "Pièces soumises à forte abrasion, cylindres de laminoirs et broyeurs.",
-    "source": "curated"
+    "usesFr": "Pièces soumises à forte abrasion, cylindres de laminoirs et broyeurs."
   },
   {
     "id": "alloy_acier_inox_304",
@@ -148,8 +144,7 @@
     "densityGPerCm3": 7.93,
     "meltingPointC": 1430,
     "colorHex": "#b4bcc6",
-    "usesFr": "Ustensiles alimentaires, matériel chirurgical, éviers et cuves chimiques.",
-    "source": "curated"
+    "usesFr": "Ustensiles alimentaires, matériel chirurgical, éviers et cuves chimiques."
   },
   {
     "id": "alloy_acier_inox_316",
@@ -185,8 +180,7 @@
     "densityGPerCm3": 8,
     "meltingPointC": 1400,
     "colorHex": "#aeb7c2",
-    "usesFr": "Accastillage marin, milieux chlorés et implants orthopédiques.",
-    "source": "curated"
+    "usesFr": "Accastillage marin, milieux chlorés et implants orthopédiques."
   },
   {
     "id": "alloy_acier_inox_ferritique",
@@ -210,8 +204,7 @@
     "densityGPerCm3": 7.75,
     "meltingPointC": 1480,
     "colorHex": "#a5aeb8",
-    "usesFr": "Électroménager, pots d’échappement et ustensiles magnétiques.",
-    "source": "curated"
+    "usesFr": "Électroménager, pots d’échappement et ustensiles magnétiques."
   },
   {
     "id": "alloy_acier_inox_martensitique",
@@ -241,8 +234,7 @@
     "densityGPerCm3": 7.74,
     "meltingPointC": 1450,
     "colorHex": "#9da6b1",
-    "usesFr": "Lames de couteaux, scalpels, ciseaux et roulements inoxydables.",
-    "source": "curated"
+    "usesFr": "Lames de couteaux, scalpels, ciseaux et roulements inoxydables."
   },
   {
     "id": "alloy_acier_rapide_hss",
@@ -291,8 +283,7 @@
     "densityGPerCm3": 8.15,
     "meltingPointC": 1420,
     "colorHex": "#6c737d",
-    "usesFr": "Forets, fraises et tarauds conservant leur dureté à haute température.",
-    "source": "curated"
+    "usesFr": "Forets, fraises et tarauds conservant leur dureté à haute température."
   },
   {
     "id": "alloy_acier_chromoly",
@@ -335,8 +326,7 @@
     "densityGPerCm3": 7.85,
     "meltingPointC": 1416,
     "colorHex": "#7c848f",
-    "usesFr": "Arceaux de sécurité, cadres de vélos, engrenages et vilebrequins.",
-    "source": "curated"
+    "usesFr": "Arceaux de sécurité, cadres de vélos, engrenages et vilebrequins."
   },
   {
     "id": "alloy_acier_maraging",
@@ -379,8 +369,7 @@
     "densityGPerCm3": 8,
     "meltingPointC": 1413,
     "colorHex": "#929aa5",
-    "usesFr": "Aérospatiale, lames d’escrime et centrifugeuses ultra-haute résistance.",
-    "source": "curated"
+    "usesFr": "Aérospatiale, lames d’escrime et centrifugeuses ultra-haute résistance."
   },
   {
     "id": "alloy_acier_corten",
@@ -431,8 +420,7 @@
     "densityGPerCm3": 7.85,
     "meltingPointC": 1460,
     "colorHex": "#9c6244",
-    "usesFr": "Façades architecturales, ponts et sculptures (patine rouille protectrice).",
-    "source": "curated"
+    "usesFr": "Façades architecturales, ponts et sculptures (patine rouille protectrice)."
   },
   {
     "id": "alloy_acier_silicium",
@@ -456,8 +444,7 @@
     "densityGPerCm3": 7.65,
     "meltingPointC": 1450,
     "colorHex": "#737b86",
-    "usesFr": "Tôles magnétiques de transformateurs et moteurs électriques.",
-    "source": "curated"
+    "usesFr": "Tôles magnétiques de transformateurs et moteurs électriques."
   },
   {
     "id": "alloy_acier_manganese",
@@ -488,8 +475,7 @@
     "densityGPerCm3": 7.88,
     "meltingPointC": 1380,
     "colorHex": "#7f838d",
-    "usesFr": "Concasseurs, aiguillages ferroviaires et blindages anti-usure.",
-    "source": "curated"
+    "usesFr": "Concasseurs, aiguillages ferroviaires et blindages anti-usure."
   },
   {
     "id": "alloy_invar",
@@ -513,8 +499,7 @@
     "densityGPerCm3": 8.05,
     "meltingPointC": 1427,
     "colorHex": "#9da3ad",
-    "usesFr": "Instrumentation de précision, horlogerie et cuves de méthaniers (dilatation quasi nulle).",
-    "source": "curated"
+    "usesFr": "Instrumentation de précision, horlogerie et cuves de méthaniers (dilatation quasi nulle)."
   },
   {
     "id": "alloy_elinvar",
@@ -544,8 +529,7 @@
     "densityGPerCm3": 8,
     "meltingPointC": 1430,
     "colorHex": "#9ea5af",
-    "usesFr": "Spiraux de montres mécaniques (élasticité constante avec la température).",
-    "source": "curated"
+    "usesFr": "Spiraux de montres mécaniques (élasticité constante avec la température)."
   },
   {
     "id": "alloy_kovar",
@@ -575,8 +559,7 @@
     "densityGPerCm3": 8.36,
     "meltingPointC": 1450,
     "colorHex": "#98a0ab",
-    "usesFr": "Scellements verre-métal (même dilatation que le verre borosilicaté).",
-    "source": "curated"
+    "usesFr": "Scellements verre-métal (même dilatation que le verre borosilicaté)."
   },
   {
     "id": "alloy_kanthal",
@@ -606,8 +589,7 @@
     "densityGPerCm3": 7.1,
     "meltingPointC": 1500,
     "colorHex": "#949ca6",
-    "usesFr": "Résistances de fours industriels jusqu’à 1 400 °C et éléments chauffants.",
-    "source": "curated"
+    "usesFr": "Résistances de fours industriels jusqu’à 1 400 °C et éléments chauffants."
   },
   {
     "id": "alloy_laiton",
@@ -631,8 +613,7 @@
     "densityGPerCm3": 8.53,
     "meltingPointC": 930,
     "colorHex": "#d4b44a",
-    "usesFr": "Instruments à vent, douilles, robinetterie et serrurerie.",
-    "source": "curated"
+    "usesFr": "Instruments à vent, douilles, robinetterie et serrurerie."
   },
   {
     "id": "alloy_metal_muntz",
@@ -656,8 +637,7 @@
     "densityGPerCm3": 8.39,
     "meltingPointC": 900,
     "colorHex": "#d0b65c",
-    "usesFr": "Revêtement de coques de navires, plaques tubulaires et architecture.",
-    "source": "curated"
+    "usesFr": "Revêtement de coques de navires, plaques tubulaires et architecture."
   },
   {
     "id": "alloy_tombac",
@@ -681,8 +661,7 @@
     "densityGPerCm3": 8.75,
     "meltingPointC": 1020,
     "colorHex": "#cc8f46",
-    "usesFr": "Médailles, bijouterie fantaisie, boutons et feuilles d’imitation or.",
-    "source": "curated"
+    "usesFr": "Médailles, bijouterie fantaisie, boutons et feuilles d’imitation or."
   },
   {
     "id": "alloy_laiton_naval",
@@ -712,8 +691,7 @@
     "densityGPerCm3": 8.41,
     "meltingPointC": 890,
     "colorHex": "#cfb052",
-    "usesFr": "Arbres d’hélices, boulonnerie marine et échangeurs d’eau de mer.",
-    "source": "curated"
+    "usesFr": "Arbres d’hélices, boulonnerie marine et échangeurs d’eau de mer."
   },
   {
     "id": "alloy_laiton_decolletage",
@@ -743,8 +721,7 @@
     "densityGPerCm3": 8.49,
     "meltingPointC": 885,
     "colorHex": "#ceb056",
-    "usesFr": "Visserie, raccords hydrauliques et pièces usinées de précision.",
-    "source": "curated"
+    "usesFr": "Visserie, raccords hydrauliques et pièces usinées de précision."
   },
   {
     "id": "alloy_bronze",
@@ -768,8 +745,7 @@
     "densityGPerCm3": 8.8,
     "meltingPointC": 950,
     "colorHex": "#b8824a",
-    "usesFr": "Statues, coussinets mécaniques, engrenages et médailles.",
-    "source": "curated"
+    "usesFr": "Statues, coussinets mécaniques, engrenages et médailles."
   },
   {
     "id": "alloy_bronze_cloche",
@@ -793,8 +769,7 @@
     "densityGPerCm3": 8.7,
     "meltingPointC": 890,
     "colorHex": "#c2985d",
-    "usesFr": "Cloches d’église, gongs et cymbales (excellente résonance acoustique).",
-    "source": "curated"
+    "usesFr": "Cloches d’église, gongs et cymbales (excellente résonance acoustique)."
   },
   {
     "id": "alloy_speculum",
@@ -818,8 +793,7 @@
     "densityGPerCm3": 8.55,
     "meltingPointC": 750,
     "colorHex": "#d3d1c9",
-    "usesFr": "Miroirs de télescopes historiques (poli miroir blanc argenté).",
-    "source": "curated"
+    "usesFr": "Miroirs de télescopes historiques (poli miroir blanc argenté)."
   },
   {
     "id": "alloy_bronze_canon",
@@ -849,8 +823,7 @@
     "densityGPerCm3": 8.72,
     "meltingPointC": 990,
     "colorHex": "#b9854c",
-    "usesFr": "Vannes vapeur, pompes marines, paliers et pièces de fonderie.",
-    "source": "curated"
+    "usesFr": "Vannes vapeur, pompes marines, paliers et pièces de fonderie."
   },
   {
     "id": "alloy_bronze_aluminium",
@@ -874,8 +847,7 @@
     "densityGPerCm3": 7.6,
     "meltingPointC": 1040,
     "colorHex": "#cfa151",
-    "usesFr": "Hélices de navires, vannes marines et outils anti-étincelles.",
-    "source": "curated"
+    "usesFr": "Hélices de navires, vannes marines et outils anti-étincelles."
   },
   {
     "id": "alloy_bronze_silicium",
@@ -906,8 +878,7 @@
     "densityGPerCm3": 8.53,
     "meltingPointC": 1015,
     "colorHex": "#c4894d",
-    "usesFr": "Sculptures soudées, visserie marine et cuves chimiques.",
-    "source": "curated"
+    "usesFr": "Sculptures soudées, visserie marine et cuves chimiques."
   },
   {
     "id": "alloy_bronze_phosphore",
@@ -937,8 +908,7 @@
     "densityGPerCm3": 8.85,
     "meltingPointC": 1000,
     "colorHex": "#bd854d",
-    "usesFr": "Cordes de guitare acoustique, contacts électriques et ressorts.",
-    "source": "curated"
+    "usesFr": "Cordes de guitare acoustique, contacts électriques et ressorts."
   },
   {
     "id": "alloy_cupronickel",
@@ -962,8 +932,7 @@
     "densityGPerCm3": 8.94,
     "meltingPointC": 1200,
     "colorHex": "#c2beb8",
-    "usesFr": "Pièces de monnaie (1 € et 2 €) et tuyauteries d’eau de mer.",
-    "source": "curated"
+    "usesFr": "Pièces de monnaie (1 € et 2 €) et tuyauteries d’eau de mer."
   },
   {
     "id": "alloy_constantan",
@@ -987,8 +956,7 @@
     "densityGPerCm3": 8.9,
     "meltingPointC": 1260,
     "colorHex": "#bab7b1",
-    "usesFr": "Thermocouples et résistances de précision (résistivité quasi constante).",
-    "source": "curated"
+    "usesFr": "Thermocouples et résistances de précision (résistivité quasi constante)."
   },
   {
     "id": "alloy_manganine",
@@ -1018,8 +986,7 @@
     "densityGPerCm3": 8.4,
     "meltingPointC": 960,
     "colorHex": "#b99c84",
-    "usesFr": "Shunts de courant et étalons de résistance électrique en métrologie.",
-    "source": "curated"
+    "usesFr": "Shunts de courant et étalons de résistance électrique en métrologie."
   },
   {
     "id": "alloy_maillechort",
@@ -1049,8 +1016,7 @@
     "densityGPerCm3": 8.7,
     "meltingPointC": 1110,
     "colorHex": "#c9cbc8",
-    "usesFr": "Couverts argentés, frettes de guitare, clés d’instruments et lunetterie.",
-    "source": "curated"
+    "usesFr": "Couverts argentés, frettes de guitare, clés d’instruments et lunetterie."
   },
   {
     "id": "alloy_or_nordique",
@@ -1086,8 +1052,7 @@
     "densityGPerCm3": 8.15,
     "meltingPointC": 1030,
     "colorHex": "#d8b454",
-    "usesFr": "Pièces de 10, 20 et 50 centimes d’euro (sans nickel, antimicrobien).",
-    "source": "curated"
+    "usesFr": "Pièces de 10, 20 et 50 centimes d’euro (sans nickel, antimicrobien)."
   },
   {
     "id": "alloy_cuivre_beryllium",
@@ -1111,8 +1076,7 @@
     "densityGPerCm3": 8.25,
     "meltingPointC": 900,
     "colorHex": "#cc8844",
-    "usesFr": "Outils amagnétiques anti-étincelles, ressorts et contacts de précision.",
-    "source": "curated"
+    "usesFr": "Outils amagnétiques anti-étincelles, ressorts et contacts de précision."
   },
   {
     "id": "alloy_cuivre_tungstene",
@@ -1136,8 +1100,7 @@
     "densityGPerCm3": 14.8,
     "meltingPointC": 1085,
     "colorHex": "#927966",
-    "usesFr": "Électrodes d’électroérosion, contacts haute tension et dissipateurs thermiques.",
-    "source": "curated"
+    "usesFr": "Électrodes d’électroérosion, contacts haute tension et dissipateurs thermiques."
   },
   {
     "id": "alloy_cuivre_arsenical",
@@ -1161,8 +1124,7 @@
     "densityGPerCm3": 8.8,
     "meltingPointC": 1040,
     "colorHex": "#c98856",
-    "usesFr": "Premiers outils et armes métalliques de l’âge du bronze ancien.",
-    "source": "curated"
+    "usesFr": "Premiers outils et armes métalliques de l’âge du bronze ancien."
   },
   {
     "id": "alloy_devarda",
@@ -1192,8 +1154,7 @@
     "densityGPerCm3": 5.79,
     "meltingPointC": 560,
     "colorHex": "#b4a694",
-    "usesFr": "Réducteur de laboratoire permettant de doser les ions nitrate en ammoniac.",
-    "source": "curated"
+    "usesFr": "Réducteur de laboratoire permettant de doser les ions nitrate en ammoniac."
   },
   {
     "id": "alloy_shakudo",
@@ -1217,8 +1178,7 @@
     "densityGPerCm3": 9.2,
     "meltingPointC": 1070,
     "colorHex": "#524457",
-    "usesFr": "Orfèvrerie japonaise traditionnelle (patine bleu-noir violacé).",
-    "source": "curated"
+    "usesFr": "Orfèvrerie japonaise traditionnelle (patine bleu-noir violacé)."
   },
   {
     "id": "alloy_shibuichi",
@@ -1242,8 +1202,7 @@
     "densityGPerCm3": 9.3,
     "meltingPointC": 960,
     "colorHex": "#b7a99f",
-    "usesFr": "Orfèvrerie japonaise et gardes de sabres (patine gris argenté).",
-    "source": "curated"
+    "usesFr": "Orfèvrerie japonaise et gardes de sabres (patine gris argenté)."
   },
   {
     "id": "alloy_duralumin",
@@ -1273,8 +1232,7 @@
     "densityGPerCm3": 2.78,
     "meltingPointC": 638,
     "colorHex": "#c6cad0",
-    "usesFr": "Fuselages d’avions, structures aéronautiques et pièces forgées.",
-    "source": "curated"
+    "usesFr": "Fuselages d’avions, structures aéronautiques et pièces forgées."
   },
   {
     "id": "alloy_silumin",
@@ -1298,8 +1256,7 @@
     "densityGPerCm3": 2.66,
     "meltingPointC": 577,
     "colorHex": "#aeb5be",
-    "usesFr": "Carters moteurs moulés sous pression, culasses et jantes alliage.",
-    "source": "curated"
+    "usesFr": "Carters moteurs moulés sous pression, culasses et jantes alliage."
   },
   {
     "id": "alloy_magnalium",
@@ -1323,8 +1280,7 @@
     "densityGPerCm3": 2.55,
     "meltingPointC": 605,
     "colorHex": "#cfd5dd",
-    "usesFr": "Pièces ultra-légères, pyrotechnie et instruments d’optique.",
-    "source": "curated"
+    "usesFr": "Pièces ultra-légères, pyrotechnie et instruments d’optique."
   },
   {
     "id": "alloy_al_6061",
@@ -1354,8 +1310,7 @@
     "densityGPerCm3": 2.7,
     "meltingPointC": 620,
     "colorHex": "#c4cbd4",
-    "usesFr": "Cadres de vélos, profilés industriels, mâts et constructions soudées.",
-    "source": "curated"
+    "usesFr": "Cadres de vélos, profilés industriels, mâts et constructions soudées."
   },
   {
     "id": "alloy_al_7075",
@@ -1391,8 +1346,7 @@
     "densityGPerCm3": 2.81,
     "meltingPointC": 600,
     "colorHex": "#bec5ce",
-    "usesFr": "Aéronautique haute résistance, mousquetons d’escalade et lanceurs spatiaux.",
-    "source": "curated"
+    "usesFr": "Aéronautique haute résistance, mousquetons d’escalade et lanceurs spatiaux."
   },
   {
     "id": "alloy_al_5083",
@@ -1422,8 +1376,7 @@
     "densityGPerCm3": 2.66,
     "meltingPointC": 610,
     "colorHex": "#c6cdd6",
-    "usesFr": "Coques de navires, plateformes offshore et réservoirs cryogéniques.",
-    "source": "curated"
+    "usesFr": "Coques de navires, plateformes offshore et réservoirs cryogéniques."
   },
   {
     "id": "alloy_al_li",
@@ -1447,8 +1400,7 @@
     "densityGPerCm3": 2.52,
     "meltingPointC": 625,
     "colorHex": "#c3c9d1",
-    "usesFr": "Réservoirs cryogéniques de fusées et cellules d’avions de ligne.",
-    "source": "curated"
+    "usesFr": "Réservoirs cryogéniques de fusées et cellules d’avions de ligne."
   },
   {
     "id": "alloy_al_sc",
@@ -1472,8 +1424,7 @@
     "densityGPerCm3": 2.71,
     "meltingPointC": 655,
     "colorHex": "#c8cfd8",
-    "usesFr": "Cadres de vélos ultra-légers, aéronautique et pièces soudées haute tenue.",
-    "source": "curated"
+    "usesFr": "Cadres de vélos ultra-légers, aéronautique et pièces soudées haute tenue."
   },
   {
     "id": "alloy_hydronalium",
@@ -1503,8 +1454,7 @@
     "densityGPerCm3": 2.6,
     "meltingPointC": 595,
     "colorHex": "#cbd2da",
-    "usesFr": "Construction navale et pièces résistant à la corrosion saline.",
-    "source": "curated"
+    "usesFr": "Construction navale et pièces résistant à la corrosion saline."
   },
   {
     "id": "alloy_alliage_y",
@@ -1540,8 +1490,7 @@
     "densityGPerCm3": 2.8,
     "meltingPointC": 630,
     "colorHex": "#c2c7ce",
-    "usesFr": "Pistons et culasses de moteurs d’avion à haute température.",
-    "source": "curated"
+    "usesFr": "Pistons et culasses de moteurs d’avion à haute température."
   },
   {
     "id": "alloy_or_jaune_18k",
@@ -1571,8 +1520,7 @@
     "densityGPerCm3": 15.58,
     "meltingPointC": 920,
     "colorHex": "#e6be3a",
-    "usesFr": "Joaillerie et horlogerie de luxe (titre légal 750/1000).",
-    "source": "curated"
+    "usesFr": "Joaillerie et horlogerie de luxe (titre légal 750/1000)."
   },
   {
     "id": "alloy_or_14k",
@@ -1602,8 +1550,7 @@
     "densityGPerCm3": 13.1,
     "meltingPointC": 880,
     "colorHex": "#dfb94d",
-    "usesFr": "Bijouterie quotidienne résistante aux rayures (titre 585/1000).",
-    "source": "curated"
+    "usesFr": "Bijouterie quotidienne résistante aux rayures (titre 585/1000)."
   },
   {
     "id": "alloy_or_rose_18k",
@@ -1634,8 +1581,7 @@
     "densityGPerCm3": 15.1,
     "meltingPointC": 905,
     "colorHex": "#e2a384",
-    "usesFr": "Joaillerie et boîtiers de montres à teinte cuivrée chaude.",
-    "source": "curated"
+    "usesFr": "Joaillerie et boîtiers de montres à teinte cuivrée chaude."
   },
   {
     "id": "alloy_or_blanc",
@@ -1666,8 +1612,7 @@
     "densityGPerCm3": 16,
     "meltingPointC": 1120,
     "colorHex": "#d9d7cf",
-    "usesFr": "Haute joaillerie et sertissage de diamants (hypoallergénique).",
-    "source": "curated"
+    "usesFr": "Haute joaillerie et sertissage de diamants (hypoallergénique)."
   },
   {
     "id": "alloy_or_gris_ni",
@@ -1705,8 +1650,7 @@
     "densityGPerCm3": 14.7,
     "meltingPointC": 960,
     "colorHex": "#d1cfc8",
-    "usesFr": "Montures de bagues rigides (généralement rhodiées en surface).",
-    "source": "curated"
+    "usesFr": "Montures de bagues rigides (généralement rhodiées en surface)."
   },
   {
     "id": "alloy_electrum",
@@ -1730,8 +1674,7 @@
     "densityGPerCm3": 14.5,
     "meltingPointC": 1000,
     "colorHex": "#e6d68a",
-    "usesFr": "Premières monnaies antiques de Lydie et revêtements égyptiens.",
-    "source": "curated"
+    "usesFr": "Premières monnaies antiques de Lydie et revêtements égyptiens."
   },
   {
     "id": "alloy_or_violet",
@@ -1755,8 +1698,7 @@
     "densityGPerCm3": 7.66,
     "meltingPointC": 1060,
     "colorHex": "#9d5eb0",
-    "usesFr": "Composé intermétallique violet utilisé en incrustation joaillière.",
-    "source": "curated"
+    "usesFr": "Composé intermétallique violet utilisé en incrustation joaillière."
   },
   {
     "id": "alloy_or_bleu",
@@ -1780,8 +1722,7 @@
     "densityGPerCm3": 10.6,
     "meltingPointC": 540,
     "colorHex": "#8ba8c7",
-    "usesFr": "Composé intermétallique aux reflets bleutés pour la haute joaillerie.",
-    "source": "curated"
+    "usesFr": "Composé intermétallique aux reflets bleutés pour la haute joaillerie."
   },
   {
     "id": "alloy_tumbaga",
@@ -1805,8 +1746,7 @@
     "densityGPerCm3": 11.2,
     "meltingPointC": 910,
     "colorHex": "#d59348",
-    "usesFr": "Alliage précolombien d’or et de cuivre utilisé en orfèvrerie andine.",
-    "source": "curated"
+    "usesFr": "Alliage précolombien d’or et de cuivre utilisé en orfèvrerie andine."
   },
   {
     "id": "alloy_argent_sterling",
@@ -1830,8 +1770,7 @@
     "densityGPerCm3": 10.36,
     "meltingPointC": 893,
     "colorHex": "#dcdde3",
-    "usesFr": "Orfèvrerie, bijoux, couverts et instruments de musique (flûtes).",
-    "source": "curated"
+    "usesFr": "Orfèvrerie, bijoux, couverts et instruments de musique (flûtes)."
   },
   {
     "id": "alloy_argent_britannia",
@@ -1855,8 +1794,7 @@
     "densityGPerCm3": 10.42,
     "meltingPointC": 925,
     "colorHex": "#e1e2e8",
-    "usesFr": "Pièces d’investissement et haute argenterie britannique.",
-    "source": "curated"
+    "usesFr": "Pièces d’investissement et haute argenterie britannique."
   },
   {
     "id": "alloy_argent_800",
@@ -1880,8 +1818,7 @@
     "densityGPerCm3": 10.15,
     "meltingPointC": 840,
     "colorHex": "#d2d0d3",
-    "usesFr": "Anciennes pièces de monnaie en argent et couverts résistants.",
-    "source": "curated"
+    "usesFr": "Anciennes pièces de monnaie en argent et couverts résistants."
   },
   {
     "id": "alloy_platine_rhodie",
@@ -1905,8 +1842,7 @@
     "densityGPerCm3": 19.95,
     "meltingPointC": 1840,
     "colorHex": "#d5dae2",
-    "usesFr": "Thermocouples haute température (type S), creusets et catalyseurs d’acide nitrique.",
-    "source": "curated"
+    "usesFr": "Thermocouples haute température (type S), creusets et catalyseurs d’acide nitrique."
   },
   {
     "id": "alloy_platine_iridie",
@@ -1930,8 +1866,7 @@
     "densityGPerCm3": 21.56,
     "meltingPointC": 1800,
     "colorHex": "#cdd2da",
-    "usesFr": "Prototypes internationaux historiques du kilogramme et du mètre, électrodes médicales.",
-    "source": "curated"
+    "usesFr": "Prototypes internationaux historiques du kilogramme et du mètre, électrodes médicales."
   },
   {
     "id": "alloy_platine_cobalt",
@@ -1955,8 +1890,7 @@
     "densityGPerCm3": 15.7,
     "meltingPointC": 1470,
     "colorHex": "#bcc3ce",
-    "usesFr": "Micro-aimants permanents biocompatibles et montres de luxe.",
-    "source": "curated"
+    "usesFr": "Micro-aimants permanents biocompatibles et montres de luxe."
   },
   {
     "id": "alloy_palladium_argent",
@@ -1980,8 +1914,7 @@
     "densityGPerCm3": 11.6,
     "meltingPointC": 1380,
     "colorHex": "#d3d6dc",
-    "usesFr": "Membranes de purification d’hydrogène ultra-pur et contacts électriques.",
-    "source": "curated"
+    "usesFr": "Membranes de purification d’hydrogène ultra-pur et contacts électriques."
   },
   {
     "id": "alloy_osmiridium",
@@ -2005,8 +1938,7 @@
     "densityGPerCm3": 22.5,
     "meltingPointC": 2750,
     "colorHex": "#92a0b0",
-    "usesFr": "Pointes de stylos-plumes haut de gamme et pivots de boussoles inusables.",
-    "source": "curated"
+    "usesFr": "Pointes de stylos-plumes haut de gamme et pivots de boussoles inusables."
   },
   {
     "id": "alloy_nichrome",
@@ -2030,8 +1962,7 @@
     "densityGPerCm3": 8.4,
     "meltingPointC": 1400,
     "colorHex": "#aaadb3",
-    "usesFr": "Fils chauffants de grille-pain, fours de laboratoire et découpe fil chaud.",
-    "source": "curated"
+    "usesFr": "Fils chauffants de grille-pain, fours de laboratoire et découpe fil chaud."
   },
   {
     "id": "alloy_chromel",
@@ -2055,8 +1986,7 @@
     "densityGPerCm3": 8.73,
     "meltingPointC": 1420,
     "colorHex": "#acaeb2",
-    "usesFr": "Conducteur positif des thermocouples de type K (avec l’Alumel).",
-    "source": "curated"
+    "usesFr": "Conducteur positif des thermocouples de type K (avec l’Alumel)."
   },
   {
     "id": "alloy_alumel",
@@ -2093,8 +2023,7 @@
     "densityGPerCm3": 8.6,
     "meltingPointC": 1400,
     "colorHex": "#a7a8a4",
-    "usesFr": "Conducteur négatif des thermocouples de type K (mesure −200 à +1 250 °C).",
-    "source": "curated"
+    "usesFr": "Conducteur négatif des thermocouples de type K (mesure −200 à +1 250 °C)."
   },
   {
     "id": "alloy_monel",
@@ -2125,8 +2054,7 @@
     "densityGPerCm3": 8.8,
     "meltingPointC": 1325,
     "colorHex": "#b8b2a8",
-    "usesFr": "Vannes résistant à l’acide fluorhydrique, chimie marine et cordes de guitare.",
-    "source": "curated"
+    "usesFr": "Vannes résistant à l’acide fluorhydrique, chimie marine et cordes de guitare."
   },
   {
     "id": "alloy_inconel_625",
@@ -2170,8 +2098,7 @@
     "densityGPerCm3": 8.44,
     "meltingPointC": 1320,
     "colorHex": "#9fa5ae",
-    "usesFr": "Tuyères de fusées, échappements de Formule 1 et réacteurs nucléaires.",
-    "source": "curated"
+    "usesFr": "Tuyères de fusées, échappements de Formule 1 et réacteurs nucléaires."
   },
   {
     "id": "alloy_inconel_718",
@@ -2220,8 +2147,7 @@
     "densityGPerCm3": 8.19,
     "meltingPointC": 1300,
     "colorHex": "#99a0aa",
-    "usesFr": "Aubes de turboréacteurs, turbines à gaz et moteurs-fusées cryogéniques.",
-    "source": "curated"
+    "usesFr": "Aubes de turboréacteurs, turbines à gaz et moteurs-fusées cryogéniques."
   },
   {
     "id": "alloy_hastelloy",
@@ -2264,8 +2190,7 @@
     "densityGPerCm3": 8.89,
     "meltingPointC": 1350,
     "colorHex": "#969da7",
-    "usesFr": "Réacteurs chimiques ultra-corrosifs résistant aux acides chlorhydrique et sulfurique.",
-    "source": "curated"
+    "usesFr": "Réacteurs chimiques ultra-corrosifs résistant aux acides chlorhydrique et sulfurique."
   },
   {
     "id": "alloy_nitinol",
@@ -2289,8 +2214,7 @@
     "densityGPerCm3": 6.45,
     "meltingPointC": 1310,
     "colorHex": "#a3a8b0",
-    "usesFr": "Stents vasculaires, montures de lunettes superélastiques et actionneurs thermiques.",
-    "source": "curated"
+    "usesFr": "Stents vasculaires, montures de lunettes superélastiques et actionneurs thermiques."
   },
   {
     "id": "alloy_stellite",
@@ -2320,8 +2244,7 @@
     "densityGPerCm3": 8.4,
     "meltingPointC": 1350,
     "colorHex": "#919eae",
-    "usesFr": "Sièges de soupapes, outils de coupe et revêtements anti-usure à chaud.",
-    "source": "curated"
+    "usesFr": "Sièges de soupapes, outils de coupe et revêtements anti-usure à chaud."
   },
   {
     "id": "alloy_vitallium",
@@ -2351,8 +2274,7 @@
     "densityGPerCm3": 8.3,
     "meltingPointC": 1370,
     "colorHex": "#97a4b4",
-    "usesFr": "Prothèses dentaires, prothèses de hanche et aubes de turbocompresseurs.",
-    "source": "curated"
+    "usesFr": "Prothèses dentaires, prothèses de hanche et aubes de turbocompresseurs."
   },
   {
     "id": "alloy_elgiloy",
@@ -2401,8 +2323,7 @@
     "densityGPerCm3": 8.3,
     "meltingPointC": 1450,
     "colorHex": "#96a0ae",
-    "usesFr": "Ressorts d’horlogerie amagnétiques, orthodontie et implants médicaux.",
-    "source": "curated"
+    "usesFr": "Ressorts d’horlogerie amagnétiques, orthodontie et implants médicaux."
   },
   {
     "id": "alloy_cantor",
@@ -2444,8 +2365,7 @@
     "densityGPerCm3": 8,
     "meltingPointC": 1340,
     "colorHex": "#949ba6",
-    "usesFr": "Alliage équiatomique à haute entropie d’une ténacité record en cryogénie.",
-    "source": "curated"
+    "usesFr": "Alliage équiatomique à haute entropie d’une ténacité record en cryogénie."
   },
   {
     "id": "alloy_permalloy",
@@ -2469,8 +2389,7 @@
     "densityGPerCm3": 8.6,
     "meltingPointC": 1440,
     "colorHex": "#a6a7a3",
-    "usesFr": "Blindages magnétiques et noyaux de transformateurs haute perméabilité.",
-    "source": "curated"
+    "usesFr": "Blindages magnétiques et noyaux de transformateurs haute perméabilité."
   },
   {
     "id": "alloy_mumetal",
@@ -2507,8 +2426,7 @@
     "densityGPerCm3": 8.7,
     "meltingPointC": 1450,
     "colorHex": "#ababa7",
-    "usesFr": "Blindage magnétique de laboratoires, IRM et microscopes électroniques.",
-    "source": "curated"
+    "usesFr": "Blindage magnétique de laboratoires, IRM et microscopes électroniques."
   },
   {
     "id": "alloy_alnico",
@@ -2551,8 +2469,7 @@
     "densityGPerCm3": 7.3,
     "meltingPointC": 1400,
     "colorHex": "#8d96a2",
-    "usesFr": "Aimants permanents haute température, haut-parleurs et micros de guitare.",
-    "source": "curated"
+    "usesFr": "Aimants permanents haute température, haut-parleurs et micros de guitare."
   },
   {
     "id": "alloy_neodyme_ndfeb",
@@ -2582,8 +2499,7 @@
     "densityGPerCm3": 7.5,
     "meltingPointC": 1180,
     "colorHex": "#a9b0ba",
-    "usesFr": "Aimants permanents les plus puissants (éoliennes, moteurs électriques, écouteurs).",
-    "source": "curated"
+    "usesFr": "Aimants permanents les plus puissants (éoliennes, moteurs électriques, écouteurs)."
   },
   {
     "id": "alloy_samarium_cobalt",
@@ -2607,8 +2523,7 @@
     "densityGPerCm3": 8.4,
     "meltingPointC": 1320,
     "colorHex": "#929eb0",
-    "usesFr": "Aimants haute température (jusqu’à 350 °C) pour satellites et moteurs aéronautiques.",
-    "source": "curated"
+    "usesFr": "Aimants haute température (jusqu’à 350 °C) pour satellites et moteurs aéronautiques."
   },
   {
     "id": "alloy_sendust",
@@ -2638,8 +2553,7 @@
     "densityGPerCm3": 7,
     "meltingPointC": 1260,
     "colorHex": "#7d8590",
-    "usesFr": "Inductances de puissance haute fréquence et têtes magnétiques.",
-    "source": "curated"
+    "usesFr": "Inductances de puissance haute fréquence et têtes magnétiques."
   },
   {
     "id": "alloy_cunife",
@@ -2669,8 +2583,7 @@
     "densityGPerCm3": 8.6,
     "meltingPointC": 1240,
     "colorHex": "#ad8d78",
-    "usesFr": "Aimants ductiles usinables en fils fins et micros de guitare.",
-    "source": "curated"
+    "usesFr": "Aimants ductiles usinables en fils fins et micros de guitare."
   },
   {
     "id": "alloy_galfenol",
@@ -2694,8 +2607,7 @@
     "densityGPerCm3": 7.8,
     "meltingPointC": 1430,
     "colorHex": "#8d96a2",
-    "usesFr": "Capteurs de force et actionneurs magnétostrictifs ductiles.",
-    "source": "curated"
+    "usesFr": "Capteurs de force et actionneurs magnétostrictifs ductiles."
   },
   {
     "id": "alloy_terfenol_d",
@@ -2725,8 +2637,7 @@
     "densityGPerCm3": 9.25,
     "meltingPointC": 1240,
     "colorHex": "#8e96a1",
-    "usesFr": "Transducteurs sonar et haut-parleurs acoustiques à forte magnétostriction.",
-    "source": "curated"
+    "usesFr": "Transducteurs sonar et haut-parleurs acoustiques à forte magnétostriction."
   },
   {
     "id": "alloy_bismanol",
@@ -2750,8 +2661,7 @@
     "densityGPerCm3": 9,
     "meltingPointC": 445,
     "colorHex": "#9992af",
-    "usesFr": "Aimants permanents sans terres rares obtenus par métallurgie des poudres.",
-    "source": "curated"
+    "usesFr": "Aimants permanents sans terres rares obtenus par métallurgie des poudres."
   },
   {
     "id": "alloy_ta6v",
@@ -2781,8 +2691,7 @@
     "densityGPerCm3": 4.43,
     "meltingPointC": 1630,
     "colorHex": "#9da5af",
-    "usesFr": "Turbines aéronautiques, implants chirurgicaux et structures spatiales.",
-    "source": "curated"
+    "usesFr": "Turbines aéronautiques, implants chirurgicaux et structures spatiales."
   },
   {
     "id": "alloy_zircaloy",
@@ -2820,8 +2729,7 @@
     "densityGPerCm3": 6.56,
     "meltingPointC": 1850,
     "colorHex": "#a8b0b9",
-    "usesFr": "Gaines de combustible nucléaire (très faible absorption des neutrons).",
-    "source": "curated"
+    "usesFr": "Gaines de combustible nucléaire (très faible absorption des neutrons)."
   },
   {
     "id": "alloy_tungstene_rhenium",
@@ -2845,8 +2753,7 @@
     "densityGPerCm3": 19.7,
     "meltingPointC": 3120,
     "colorHex": "#7d8590",
-    "usesFr": "Anodes de tubes à rayons X et thermocouples jusqu’à 2 300 °C.",
-    "source": "curated"
+    "usesFr": "Anodes de tubes à rayons X et thermocouples jusqu’à 2 300 °C."
   },
   {
     "id": "alloy_molybdene_tzm",
@@ -2877,8 +2784,7 @@
     "densityGPerCm3": 10.22,
     "meltingPointC": 2620,
     "colorHex": "#878f9a",
-    "usesFr": "Tuyères spatiales, fours sous vide et matrices de forgeage à chaud.",
-    "source": "curated"
+    "usesFr": "Tuyères spatiales, fours sous vide et matrices de forgeage à chaud."
   },
   {
     "id": "alloy_nb_ti",
@@ -2902,8 +2808,7 @@
     "densityGPerCm3": 6,
     "meltingPointC": 2050,
     "colorHex": "#949ca7",
-    "usesFr": "Bobines supraconductrices des IRM et de l’accélérateur LHC au CERN.",
-    "source": "curated"
+    "usesFr": "Bobines supraconductrices des IRM et de l’accélérateur LHC au CERN."
   },
   {
     "id": "alloy_nb3sn",
@@ -2927,8 +2832,7 @@
     "densityGPerCm3": 8.9,
     "meltingPointC": 2130,
     "colorHex": "#9ca4af",
-    "usesFr": "Aimants supraconducteurs à très haut champ (réacteur ITER, RMN).",
-    "source": "curated"
+    "usesFr": "Aimants supraconducteurs à très haut champ (réacteur ITER, RMN)."
   },
   {
     "id": "alloy_zamak",
@@ -2966,8 +2870,7 @@
     "densityGPerCm3": 6.7,
     "meltingPointC": 385,
     "colorHex": "#9ea7b2",
-    "usesFr": "Pièces moulées de précision, poignées, miniatures et connecteurs.",
-    "source": "curated"
+    "usesFr": "Pièces moulées de précision, poignées, miniatures et connecteurs."
   },
   {
     "id": "alloy_az91",
@@ -2997,8 +2900,7 @@
     "densityGPerCm3": 1.81,
     "meltingPointC": 595,
     "colorHex": "#cdd3db",
-    "usesFr": "Châssis d’appareils photo, boîtiers de boîtes de vitesses et aéronautique.",
-    "source": "curated"
+    "usesFr": "Châssis d’appareils photo, boîtiers de boîtes de vitesses et aéronautique."
   },
   {
     "id": "alloy_lockalloy",
@@ -3022,8 +2924,7 @@
     "densityGPerCm3": 2.09,
     "meltingPointC": 1050,
     "colorHex": "#aeb5be",
-    "usesFr": "Structures aérospatiales combinant rigidité du béryllium et légèreté.",
-    "source": "curated"
+    "usesFr": "Structures aérospatiales combinant rigidité du béryllium et légèreté."
   },
   {
     "id": "alloy_mischmetal",
@@ -3060,8 +2961,7 @@
     "densityGPerCm3": 6.7,
     "meltingPointC": 800,
     "colorHex": "#9da3ad",
-    "usesFr": "Allié au fer (ferrocérium) pour produire des étincelles dans les briquets.",
-    "source": "curated"
+    "usesFr": "Allié au fer (ferrocérium) pour produire des étincelles dans les briquets."
   },
   {
     "id": "alloy_ferrocerium",
@@ -3105,8 +3005,7 @@
     "densityGPerCm3": 6.8,
     "meltingPointC": 850,
     "colorHex": "#7d838c",
-    "usesFr": "Pierres à briquet et barres allume-feu pyrophoriques (étincelles à 3 000 °C).",
-    "source": "curated"
+    "usesFr": "Pierres à briquet et barres allume-feu pyrophoriques (étincelles à 3 000 °C)."
   },
   {
     "id": "alloy_soudure_sn_pb",
@@ -3130,8 +3029,7 @@
     "densityGPerCm3": 8.5,
     "meltingPointC": 188,
     "colorHex": "#9aa0a8",
-    "usesFr": "Brasure électronique classique (eutectique Sn 63 / Pb 37 à 183 °C).",
-    "source": "curated"
+    "usesFr": "Brasure électronique classique (eutectique Sn 63 / Pb 37 à 183 °C)."
   },
   {
     "id": "alloy_terne",
@@ -3155,8 +3053,7 @@
     "densityGPerCm3": 10.2,
     "meltingPointC": 275,
     "colorHex": "#7c828b",
-    "usesFr": "Revêtement anticorrosion de tôles de toiture et réservoirs.",
-    "source": "curated"
+    "usesFr": "Revêtement anticorrosion de tôles de toiture et réservoirs."
   },
   {
     "id": "alloy_soudure_sac305",
@@ -3186,8 +3083,7 @@
     "densityGPerCm3": 7.38,
     "meltingPointC": 217,
     "colorHex": "#bdc3cb",
-    "usesFr": "Brasure électronique moderne conforme RoHS sans plomb.",
-    "source": "curated"
+    "usesFr": "Brasure électronique moderne conforme RoHS sans plomb."
   },
   {
     "id": "alloy_soudure_sn_cu",
@@ -3211,8 +3107,7 @@
     "densityGPerCm3": 7.35,
     "meltingPointC": 227,
     "colorHex": "#babfc7",
-    "usesFr": "Brasure sans plomb pour conduites d’eau potable en cuivre.",
-    "source": "curated"
+    "usesFr": "Brasure sans plomb pour conduites d’eau potable en cuivre."
   },
   {
     "id": "alloy_brasure_ag_cu",
@@ -3236,8 +3131,7 @@
     "densityGPerCm3": 10,
     "meltingPointC": 779,
     "colorHex": "#d5c7c0",
-    "usesFr": "Eutectique de brasage haute résistance sous vide (industrie et tubes électroniques).",
-    "source": "curated"
+    "usesFr": "Eutectique de brasage haute résistance sous vide (industrie et tubes électroniques)."
   },
   {
     "id": "alloy_pewter",
@@ -3268,8 +3162,7 @@
     "densityGPerCm3": 7.3,
     "meltingPointC": 240,
     "colorHex": "#b2b8c0",
-    "usesFr": "Vaisselle d’étain, pichets, figurines et objets décoratifs.",
-    "source": "curated"
+    "usesFr": "Vaisselle d’étain, pichets, figurines et objets décoratifs."
   },
   {
     "id": "alloy_babbitt",
@@ -3299,8 +3192,7 @@
     "densityGPerCm3": 7.39,
     "meltingPointC": 245,
     "colorHex": "#afb5be",
-    "usesFr": "Coussinets antifriction de turbines, compresseurs et moteurs marins.",
-    "source": "curated"
+    "usesFr": "Coussinets antifriction de turbines, compresseurs et moteurs marins."
   },
   {
     "id": "alloy_metal_wood",
@@ -3336,8 +3228,7 @@
     "densityGPerCm3": 9.7,
     "meltingPointC": 70,
     "colorHex": "#9ba0ad",
-    "usesFr": "Fusibles thermiques et gicleurs incendie (fond dans l’eau chaude à 70 °C).",
-    "source": "curated"
+    "usesFr": "Fusibles thermiques et gicleurs incendie (fond dans l’eau chaude à 70 °C)."
   },
   {
     "id": "alloy_metal_field",
@@ -3367,8 +3258,7 @@
     "densityGPerCm3": 7.88,
     "meltingPointC": 62,
     "colorHex": "#b3b7c4",
-    "usesFr": "Alliage fusible non toxique sans plomb ni cadmium, fondant dès 62 °C.",
-    "source": "curated"
+    "usesFr": "Alliage fusible non toxique sans plomb ni cadmium, fondant dès 62 °C."
   },
   {
     "id": "alloy_rose",
@@ -3398,8 +3288,7 @@
     "densityGPerCm3": 9.36,
     "meltingPointC": 94,
     "colorHex": "#9da2af",
-    "usesFr": "Bains de transfert thermique et moulages basse température (fond à 94 °C).",
-    "source": "curated"
+    "usesFr": "Bains de transfert thermique et moulages basse température (fond à 94 °C)."
   },
   {
     "id": "alloy_cerrosafe",
@@ -3435,8 +3324,7 @@
     "densityGPerCm3": 9.41,
     "meltingPointC": 74,
     "colorHex": "#9499a6",
-    "usesFr": "Empreintes de précision en métrologie (retrait nul après refroidissement).",
-    "source": "curated"
+    "usesFr": "Empreintes de précision en métrologie (retrait nul après refroidissement)."
   },
   {
     "id": "alloy_galinstan",
@@ -3466,8 +3354,7 @@
     "densityGPerCm3": 6.44,
     "meltingPointC": -19,
     "colorHex": "#c6ced6",
-    "usesFr": "Thermomètres médicaux sans mercure et pâtes thermiques liquides.",
-    "source": "curated"
+    "usesFr": "Thermomètres médicaux sans mercure et pâtes thermiques liquides."
   },
   {
     "id": "alloy_nak",
@@ -3491,8 +3378,7 @@
     "densityGPerCm3": 0.87,
     "meltingPointC": -12,
     "colorHex": "#d1d5db",
-    "usesFr": "Fluide caloporteur liquide à 20 °C et agent desséchant de laboratoire.",
-    "source": "curated"
+    "usesFr": "Fluide caloporteur liquide à 20 °C et agent desséchant de laboratoire."
   },
   {
     "id": "alloy_metal_caractere",
@@ -3522,8 +3408,7 @@
     "densityGPerCm3": 9.8,
     "meltingPointC": 250,
     "colorHex": "#777e88",
-    "usesFr": "Caractères mobiles d’imprimerie (légère expansion à la solidification).",
-    "source": "curated"
+    "usesFr": "Caractères mobiles d’imprimerie (légère expansion à la solidification)."
   },
   {
     "id": "alloy_plomb_antimonie",
@@ -3547,8 +3432,7 @@
     "densityGPerCm3": 10.9,
     "meltingPointC": 285,
     "colorHex": "#6c727c",
-    "usesFr": "Grilles de batteries au plomb-acide et tuyauteries chimiques.",
-    "source": "curated"
+    "usesFr": "Grilles de batteries au plomb-acide et tuyauteries chimiques."
   },
   {
     "id": "alloy_amalgame_dentaire",
@@ -3585,8 +3469,7 @@
     "densityGPerCm3": 11.5,
     "meltingPointC": 80,
     "colorHex": "#c2c7ce",
-    "usesFr": "Obturations dentaires traditionnelles (plombages).",
-    "source": "curated"
+    "usesFr": "Obturations dentaires traditionnelles (plombages)."
   },
   {
     "id": "alloy_ferrochrome",
@@ -3617,8 +3500,7 @@
     "densityGPerCm3": 7.2,
     "meltingPointC": 1550,
     "colorHex": "#9aa2ac",
-    "usesFr": "Alliage mère sidérurgique apportant le chrome aux aciers inoxydables.",
-    "source": "curated"
+    "usesFr": "Alliage mère sidérurgique apportant le chrome aux aciers inoxydables."
   },
   {
     "id": "alloy_ferrosilicium",
@@ -3642,8 +3524,7 @@
     "densityGPerCm3": 3.1,
     "meltingPointC": 1320,
     "colorHex": "#636b76",
-    "usesFr": "Désoxydant de l’acier en fusion et production de fontes nodulaires.",
-    "source": "curated"
+    "usesFr": "Désoxydant de l’acier en fusion et production de fontes nodulaires."
   },
   {
     "id": "alloy_ferromanganese",
@@ -3674,8 +3555,7 @@
     "densityGPerCm3": 7.3,
     "meltingPointC": 1260,
     "colorHex": "#848088",
-    "usesFr": "Additif sidérurgique désulfurant et durcissant pour les aciers.",
-    "source": "curated"
+    "usesFr": "Additif sidérurgique désulfurant et durcissant pour les aciers."
   },
   {
     "id": "alloy_ferronickel",
@@ -3699,8 +3579,7 @@
     "densityGPerCm3": 8.15,
     "meltingPointC": 1450,
     "colorHex": "#9298a1",
-    "usesFr": "Matière première issue des minerais latéritiques pour produire l’inox.",
-    "source": "curated"
+    "usesFr": "Matière première issue des minerais latéritiques pour produire l’inox."
   },
   {
     "id": "alloy_ferrotitane",
@@ -3724,8 +3603,7 @@
     "densityGPerCm3": 5.4,
     "meltingPointC": 1310,
     "colorHex": "#9199a3",
-    "usesFr": "Affinage du grain et désoxydation des aciers spéciaux.",
-    "source": "curated"
+    "usesFr": "Affinage du grain et désoxydation des aciers spéciaux."
   },
   {
     "id": "alloy_ferrovanadium",
@@ -3749,8 +3627,7 @@
     "densityGPerCm3": 6.4,
     "meltingPointC": 1520,
     "colorHex": "#89909b",
-    "usesFr": "Durcissement des aciers à outils, essieux et ressorts haute résistance.",
-    "source": "curated"
+    "usesFr": "Durcissement des aciers à outils, essieux et ressorts haute résistance."
   },
   {
     "id": "alloy_ferromolybdene",
@@ -3774,8 +3651,7 @@
     "densityGPerCm3": 9.1,
     "meltingPointC": 1850,
     "colorHex": "#828a95",
-    "usesFr": "Apport de molybdène pour les aciers inoxydables marins et aciers rapides.",
-    "source": "curated"
+    "usesFr": "Apport de molybdène pour les aciers inoxydables marins et aciers rapides."
   },
   {
     "id": "alloy_ferrotungstene",
@@ -3799,7 +3675,6 @@
     "densityGPerCm3": 14.2,
     "meltingPointC": 2500,
     "colorHex": "#737a84",
-    "usesFr": "Fabrication d’aciers rapides (HSS) et d’outils de coupe résistants à chaud.",
-    "source": "curated"
+    "usesFr": "Fabrication d’aciers rapides (HSS) et d’outils de coupe résistants à chaud."
   }
 ]

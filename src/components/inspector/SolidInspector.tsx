@@ -93,8 +93,8 @@ export function SolidInspector({
             onOpenCatalog={() => {
               if (pureEl) {
                 onOpenInCatalog({
-                  section: 'species',
-                  id: node.components[0].speciesId,
+                  section: 'elements',
+                  id: String(pureEl.atomicNumber),
                 })
               } else if (matchedAlloy) {
                 onOpenInCatalog({

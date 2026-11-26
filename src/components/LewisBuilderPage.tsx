@@ -15,14 +15,12 @@ import type {
   LewisStructure,
   SpeciesRecord,
 } from '../../shared/chemistry.ts'
-import { api } from '@/lib/api'
 import { formatFormulaFromComposition } from '@/lib/chemistry-calc'
 import {
-  CLIENT_VALENCE_ELECTRONS,
   applyExpectedLewisToDrawing,
+  autoCompleteLewisElectrons,
   extractComponents,
   formatLewisCharge,
-  getAtomBondOrderSum,
   getLewisAtomColor,
 } from '@/lib/lewis-geometry'
 import { ChemText } from '@/components/ui/chem-text'
@@ -30,7 +28,6 @@ import { Molecule3DViewer } from '@/components/Molecule3DViewer'
 import {
   COMMON_PALETTE_SYMBOLS,
   GRID_STEP,
-  QUICK_TEMPLATE_IDS,
   type BuilderTool,
   type LewisViewport,
   type Snapshot,
@@ -56,7 +53,6 @@ interface LewisBuilderPageProps {
   active?: boolean
   onAddSpeciesToWorkbench: (species: SpeciesRecord, switchToWorkbench: boolean) => void
   onOpenSpeciesInCatalog: (speciesId: string) => void
-  onSpeciesDiscovered: (species: SpeciesRecord) => void
 }
 
 export const LewisBuilderPage = memo(function LewisBuilderPage({
@@ -65,7 +61,6 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
   active = true,
   onAddSpeciesToWorkbench,
   onOpenSpeciesInCatalog,
-  onSpeciesDiscovered,
 }: LewisBuilderPageProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const splitContainerRef = useRef<HTMLDivElement | null>(null)
@@ -93,9 +88,12 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
   const [atoms, setAtoms] = useState<LewisAtom[]>(initialCanvas.atoms)
   const [bonds, setBonds] = useState<LewisBond[]>(initialCanvas.bonds)
   const [history, setHistory] = useState<Snapshot[]>([])
-  const [selectedAtomId, setSelectedAtomId] = useState<string | null>(null)
+  const [selectedAtomIds, setSelectedAtomIds] = useState<Set<string>>(() => new Set())
+  const selectedAtomIdsRef = useRef(selectedAtomIds)
+  useEffect(() => {
+    selectedAtomIdsRef.current = selectedAtomIds
+  }, [selectedAtomIds])
   const [selectedBondKey, setSelectedBondKey] = useState<string | null>(null)
-  const [pendingBondFromId, setPendingBondFromId] = useState<string | null>(null)
   const [paletteQuery, setPaletteQuery] = useState('')
   const [addedFeedback, setAddedFeedback] = useState<string | null>(null)
 
@@ -149,7 +147,7 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
   }, [])
 
   const handleSelectAndFocusAtom = useCallback((atomId: string) => {
-    setSelectedAtomId(atomId)
+    setSelectedAtomIds(new Set([atomId]))
     setSelectedBondKey(null)
     const atom = atomsRef.current.find((a) => a.id === atomId)
     const rect = svgRef.current?.getBoundingClientRect()
@@ -209,9 +207,8 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
       const last = prev[prev.length - 1]
       setAtoms(last.atoms)
       setBonds(last.bonds)
-      setSelectedAtomId(null)
+      setSelectedAtomIds(new Set())
       setSelectedBondKey(null)
-      setPendingBondFromId(null)
       return prev.slice(0, -1)
     })
   }, [])
@@ -219,25 +216,13 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
   const {
     activeMatch,
     matching,
-    pubchemLoading,
-    pubchemError,
-    setPubchemError,
     clearRecognition,
-    handleLookupPubChem,
-  } = useLewisRecognition({ atoms, bonds, atomsRef, bondsRef, onSpeciesDiscovered })
+  } = useLewisRecognition({ atoms, bonds })
 
   const elementsBySymbol = useMemo(() => {
     const map = new Map<string, ElementRecord>()
     for (const el of catalog?.elements ?? []) map.set(el.symbol, el)
     return map
-  }, [catalog])
-
-  const quickTemplates = useMemo(() => {
-    if (!catalog) return []
-    const byId = new Map(catalog.species.map((s) => [s.id, s]))
-    return QUICK_TEMPLATE_IDS.map((id) => byId.get(id)).filter(
-      (s): s is NonNullable<typeof s> => Boolean(s),
-    )
   }, [catalog])
 
   const filteredPaletteElements = useMemo(() => {
@@ -283,7 +268,7 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
         charge: 0,
       }
       setAtoms((prev) => [...prev, nextAtom])
-      setSelectedAtomId(nextAtom.id)
+      setSelectedAtomIds(new Set([nextAtom.id]))
       setSelectedBondKey(null)
     },
     [getCanvasCenter, pushHistory],
@@ -306,7 +291,7 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
       }
       setAtoms((prev) => [...prev, nextAtom])
       setBonds((prev) => [...prev, { from: fromAtom.id, to: nextAtom.id, order: 1 }])
-      setSelectedAtomId(fromAtom.id)
+      setSelectedAtomIds(new Set([fromAtom.id]))
       setSelectedBondKey(null)
     },
     [pushHistory],
@@ -327,29 +312,7 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
         return next
       })
       setSelectedBondKey(key)
-      setSelectedAtomId(null)
-    },
-    [pushHistory],
-  )
-
-  const toggleOrCycleBond = useCallback(
-    (fromId: string, toId: string) => {
-      if (fromId === toId) return
-      pushHistory()
-      const key = normalizeBondKey(fromId, toId)
-      setBonds((prev) => {
-        const idx = prev.findIndex((b) => normalizeBondKey(b.from, b.to) === key)
-        if (idx === -1) return [...prev, { from: fromId, to: toId, order: 1 }]
-        const existing = prev[idx]
-        if (existing.order < 3) {
-          const next = [...prev]
-          next[idx] = { ...existing, order: (existing.order + 1) as 1 | 2 | 3 }
-          return next
-        }
-        return prev.filter((_, i) => i !== idx)
-      })
-      setSelectedBondKey(key)
-      setSelectedAtomId(null)
+      setSelectedAtomIds(new Set())
     },
     [pushHistory],
   )
@@ -373,15 +336,20 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
     [pushHistory],
   )
 
-  const deleteAtomById = useCallback(
-    (atomId: string) => {
+  const deleteAtomsByIds = useCallback(
+    (ids: Iterable<string>) => {
+      const idSet = new Set(ids)
+      if (idSet.size === 0) return
       pushHistory()
-      setAtoms((prev) => prev.filter((a) => a.id !== atomId))
-      setBonds((prev) => prev.filter((b) => b.from !== atomId && b.to !== atomId))
-      if (selectedAtomId === atomId) setSelectedAtomId(null)
-      if (pendingBondFromId === atomId) setPendingBondFromId(null)
+      setAtoms((prev) => prev.filter((a) => !idSet.has(a.id)))
+      setBonds((prev) => prev.filter((b) => !idSet.has(b.from) && !idSet.has(b.to)))
+      setSelectedAtomIds((prev) => {
+        const next = new Set(prev)
+        for (const id of idSet) next.delete(id)
+        return next
+      })
     },
-    [pendingBondFromId, pushHistory, selectedAtomId],
+    [pushHistory],
   )
 
   const updateAtom = useCallback(
@@ -397,42 +365,13 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
     pushHistory()
     setAtoms([])
     setBonds([])
-    setSelectedAtomId(null)
+    setSelectedAtomIds(new Set())
     setSelectedBondKey(null)
-    setPendingBondFromId(null)
     clearRecognition()
     const resetVp = { x: 0, y: 0, zoom: 1 }
     viewportRef.current = resetVp
     setViewport(resetVp)
   }, [clearRecognition, pushHistory])
-
-  const loadTemplate = useCallback(
-    async (species: SpeciesRecord) => {
-      let full = species
-      if (!full.lewis) {
-        try {
-          const res = await api.getSpeciesById(species.id)
-          full = res.species
-        } catch {
-          return
-        }
-      }
-      if (!full.lewis) return
-      pushHistory()
-      const { atoms: nextAtoms, bonds: nextBonds } = speciesToCanvasState(
-        full,
-        { x: 0, y: 0 },
-      )
-      setAtoms(nextAtoms)
-      setBonds(nextBonds)
-      setSelectedAtomId(null)
-      setSelectedBondKey(null)
-      setPendingBondFromId(null)
-      setPubchemError(null)
-      resetViewport(nextAtoms)
-    },
-    [pushHistory, resetViewport, setPubchemError],
-  )
 
   const handleCompleteElectrons = useCallback(() => {
     if (!activeMatch || !activeMatch.matched) return
@@ -454,23 +393,7 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
       return
     }
     pushHistory()
-    const currentBonds = bondsRef.current
-    setAtoms((prev) =>
-      prev.map((a) => {
-        const valence = CLIENT_VALENCE_ELECTRONS[a.symbol]
-        if (valence === undefined) return a
-        const bondSum = getAtomBondOrderSum(a.id, currentBonds)
-        if (a.symbol === 'H' || a.symbol === 'He') {
-          return {
-            ...a,
-            lonePairs:
-              bondSum >= 1 ? 0 : Math.max(0, Math.floor((valence - a.charge) / 2)),
-          }
-        }
-        const remaining = Math.max(0, valence - a.charge - bondSum)
-        return { ...a, lonePairs: Math.max(0, Math.min(4, Math.floor(remaining / 2))) }
-      }),
-    )
+    setAtoms((prev) => autoCompleteLewisElectrons(prev, bondsRef.current))
   }, [activeMatch, handleCompleteElectrons, pushHistory])
 
   const pointer = useLewisPointerHandlers({
@@ -478,29 +401,28 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
     svgRef,
     paletteSearchRef,
     atomsRef,
+    bondsRef,
     viewportRef,
     setViewport,
     onResetViewport: resetViewport,
     tool,
     activeSymbol,
-    selectedAtomId,
+    selectedAtomIdsRef,
     selectedBondKey,
-    pendingBondFromId,
     setTool,
     setActiveSymbol,
     setAtoms,
-    setSelectedAtomId,
+    setBonds,
+    setSelectedAtomIds,
     setSelectedBondKey,
-    setPendingBondFromId,
     setPaletteQuery,
     pushHistory,
     undo,
     addAtomAt,
     sproutAtomFrom,
     cycleBondOrderWithoutDelete,
-    toggleOrCycleBond,
     updateAtom,
-    deleteAtomById,
+    deleteAtomsByIds,
     deleteBondByKey,
     handleAutoCompleteLonePairs,
   })
@@ -510,7 +432,11 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
     () => validateLewisDrawing(atoms, bonds, elementsBySymbol),
     [atoms, bonds, elementsBySymbol],
   )
-  const selectedAtom = selectedAtomId ? atomById.get(selectedAtomId) ?? null : null
+  const singleSelectedAtomId =
+    selectedAtomIds.size === 1 ? (selectedAtomIds.values().next().value ?? null) : null
+  const selectedAtom = singleSelectedAtomId
+    ? (atomById.get(singleSelectedAtomId) ?? null)
+    : null
   const selectedBond = selectedBondKey
     ? bonds.find((b) => normalizeBondKey(b.from, b.to) === selectedBondKey) ?? null
     : null
@@ -582,14 +508,12 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
         onPaletteQueryChange={setPaletteQuery}
         paletteSearchRef={paletteSearchRef}
         filteredElements={filteredPaletteElements}
-        quickTemplates={quickTemplates}
         onSelectSymbol={(sym) => {
           setActiveSymbol(sym)
           setTool('build')
         }}
         onStartDrag={pointer.startPaletteDrag}
         onDoubleClickAdd={(sym) => addAtomAt(sym)}
-        onLoadTemplate={(tpl) => void loadTemplate(tpl)}
       />
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -611,6 +535,7 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
               activeSymbol={activeSymbol}
               atomsCount={atoms.length}
               selectedAtom={selectedAtom}
+              selectedAtomCount={selectedAtomIds.size}
               selectedBond={selectedBond}
               selectedBondKey={selectedBondKey}
               historyCount={history.length}
@@ -620,7 +545,6 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
               strictWarningCount={strictValidation.warningCount}
               onSelectTool={(nextTool) => {
                 setTool(nextTool)
-                setPendingBondFromId(null)
               }}
               onAutoCompleteLonePairs={handleAutoCompleteLonePairs}
               onUndo={undo}
@@ -628,7 +552,8 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
               onToggleStrictMode={() => setStrictMode((v) => !v)}
               onToggleSplit3D={() => setSplit3DOpen((v) => !v)}
               onUpdateAtom={updateAtom}
-              onDeleteAtom={deleteAtomById}
+              onDeleteAtom={(id) => deleteAtomsByIds([id])}
+              onDeleteSelectedAtoms={() => deleteAtomsByIds(selectedAtomIds)}
               onSetBondOrder={setBondOrder}
               onDeleteBond={deleteBondByKey}
             />
@@ -646,6 +571,8 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
               viewport={viewport}
               spacePressed={pointer.spacePressed}
               isPanning={pointer.isPanning}
+              marqueeActive={pointer.marqueeActive}
+              marqueeElRef={pointer.marqueeElRef}
               strictMode={strictMode}
               diagnosticsByAtomId={strictValidation.byAtomId}
               tool={tool}
@@ -653,9 +580,8 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
               atoms={atoms}
               bonds={bonds}
               atomById={atomById}
-              selectedAtomId={selectedAtomId}
+              selectedAtomIds={selectedAtomIds}
               selectedBondKey={selectedBondKey}
-              pendingBondFromId={pendingBondFromId}
               bondPreview={pointer.bondPreview}
               liveIonBracket={liveIonBracket}
               onZoomStep={handleZoomStep}
@@ -730,14 +656,11 @@ export const LewisBuilderPage = memo(function LewisBuilderPage({
         compositionStats={compositionStats}
         strictMode={strictMode}
         strictValidation={strictValidation}
-        selectedAtomId={selectedAtomId}
-        pubchemLoading={pubchemLoading}
-        pubchemError={pubchemError}
+        selectedAtomId={singleSelectedAtomId}
         onSelectAndFocusAtom={handleSelectAndFocusAtom}
         onCompleteElectrons={handleCompleteElectrons}
         onAddToWorkbench={triggerAddToWorkbench}
         onOpenSpeciesInCatalog={onOpenSpeciesInCatalog}
-        onLookupPubChem={() => void handleLookupPubChem()}
       />
 
       {pointer.paletteDrag?.started && (

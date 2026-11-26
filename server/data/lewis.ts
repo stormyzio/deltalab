@@ -47,6 +47,17 @@ export const VALENCE_ELECTRONS: Record<string, number> = {
   Tl: 3,
   Pb: 4,
   Bi: 5,
+  Po: 6,
+  At: 7,
+  Rn: 8,
+  Fr: 1,
+  Ra: 2,
+  Nh: 3,
+  Fl: 4,
+  Mc: 5,
+  Lv: 6,
+  Ts: 7,
+  Og: 8,
 }
 
 const METAL_CATION_SYMBOLS = new Set([
@@ -379,25 +390,6 @@ function alcoholChain(nCarbons: number): LewisStructure {
   return g.build()
 }
 
-function aldehydeChain(nCarbons: number): LewisStructure {
-  const g = lb()
-  const dx = 58
-  for (let i = 0; i < nCarbons; i++) {
-    const id = `c${i}`
-    g.a(id, 'C', i * dx, 0)
-    if (i > 0) g.b(`c${i - 1}`, id, 1)
-    if (i < nCarbons - 1) {
-      g.attach(id, 'H', -90, H_LEN, 1)
-      g.attach(id, 'H', 90, H_LEN, 1)
-      if (i === 0) g.attach(id, 'H', 180, H_LEN, 1)
-    } else {
-      g.attach(id, 'O', -55, BOND_LEN, 2)
-      g.attach(id, 'H', 55, H_LEN + 2, 1)
-    }
-  }
-  return g.build()
-}
-
 function ketoneChain(leftCarbons: number, rightCarbons: number): LewisStructure {
   const g = lb()
   const total = leftCarbons + 1 + rightCarbons
@@ -459,61 +451,12 @@ function phenylBase(
   return ids
 }
 
-function buildCyclohexane(): LewisStructure {
-  const g = lb()
-  const r = 56
-  for (let i = 0; i < 6; i++) {
-    const deg = i * 60
-    const rad = (deg * Math.PI) / 180
-    const id = `c${i}`
-    g.a(id, 'C', Math.cos(rad) * r, Math.sin(rad) * r)
-    g.attach(id, 'H', deg - 22, 36, 1)
-    g.attach(id, 'H', deg + 22, 36, 1)
-  }
-  for (let i = 0; i < 6; i++) {
-    g.b(`c${i}`, `c${(i + 1) % 6}`, 1)
-  }
-  return g.build()
-}
-
 function buildBenzene(): LewisStructure {
   const g = lb()
   const ids = phenylBase(g)
   for (let i = 0; i < 6; i++) {
     g.attach(ids[i], 'H', i * 60, H_LEN, 1)
   }
-  return g.build()
-}
-
-function buildToluene(): LewisStructure {
-  const g = lb()
-  const ids = phenylBase(g)
-  for (let i = 1; i < 6; i++) {
-    g.attach(ids[i], 'H', i * 60, H_LEN, 1)
-  }
-  g.attachCH3(ids[0], 0, BOND_LEN)
-  return g.build()
-}
-
-function buildPhenol(): LewisStructure {
-  const g = lb()
-  const ids = phenylBase(g)
-  for (let i = 1; i < 6; i++) {
-    g.attach(ids[i], 'H', i * 60, H_LEN, 1)
-  }
-  g.attachOH(ids[0], 0, -35, BOND_LEN)
-  return g.build()
-}
-
-function buildBenzoicAcid(): LewisStructure {
-  const g = lb()
-  const ids = phenylBase(g)
-  for (let i = 1; i < 6; i++) {
-    g.attach(ids[i], 'H', i * 60, H_LEN, 1)
-  }
-  const cAcid = g.attach(ids[0], 'C', 0, BOND_LEN, 1)
-  g.attach(cAcid, 'O', -55, BOND_LEN, 2)
-  g.attachOH(cAcid, 45, 5, BOND_LEN)
   return g.build()
 }
 
@@ -533,96 +476,6 @@ function buildAspirin(): LewisStructure {
   const cEst = g.attach(oEst, 'C', 20, 50, 1)
   g.attach(cEst, 'O', 80, 46, 2)
   g.attachCH3(cEst, -15, 52)
-  return g.build()
-}
-
-function buildParacetamol(): LewisStructure {
-  const g = lb()
-  const ids = phenylBase(g, 0, 0, 52)
-  // H on 1, 2, 4, 5
-  for (const i of [1, 2, 4, 5]) {
-    g.attach(ids[i], 'H', i * 60, 38, 1)
-  }
-  // Position 3 (180°): -OH
-  g.attachOH(ids[3], 180, 145, 50)
-  // Position 0 (0°): -NH-C(=O)-CH3
-  const nId = g.attach(ids[0], 'N', 0, 52, 1)
-  g.attach(nId, 'H', 90, 38, 1)
-  const cAm = g.attach(nId, 'C', -25, 52, 1)
-  g.attach(cAm, 'O', -90, 46, 2)
-  g.attachCH3(cAm, 15, 52)
-  return g.build()
-}
-
-function buildCaffeine(): LewisStructure {
-  // Purine core: fused 6-ring (N1-C2-N3-C4-C5-C6) + 5-ring (C5-N7-C8-N9-C4)
-  // Formula: C8H10N4O2
-  const g = lb()
-  // Put shared bond C5(top)-C4(bottom) vertical at x = 0!
-  g.a('c5', 'C', 0, -26)
-  g.a('c4', 'C', 0, 26)
-  g.a('c6', 'C', -46, -52)
-  g.a('n1', 'N', -92, -26)
-  g.a('c2', 'C', -92, 26)
-  g.a('n3', 'N', -46, 52)
-  // 5-ring on right of C5-C4
-  g.a('n7', 'N', 50, -42)
-  g.a('c8', 'C', 80, 0)
-  g.a('n9', 'N', 50, 42)
-
-  // Bonds in 6-ring & 5-ring
-  g.b('c5', 'c4', 2)
-  g.b('c5', 'c6', 1)
-  g.b('c6', 'n1', 1)
-  g.b('n1', 'c2', 1)
-  g.b('c2', 'n3', 1)
-  g.b('n3', 'c4', 1)
-  g.b('c5', 'n7', 1)
-  g.b('n7', 'c8', 1)
-  g.b('c8', 'n9', 2)
-  g.b('n9', 'c4', 1)
-
-  // Carbonyl oxygens on C6 and C2
-  g.attach('c6', 'O', -90, 46, 2)
-  g.attach('c2', 'O', 150, 46, 2)
-  // H on C8
-  g.attach('c8', 'H', 0, 38, 1)
-  // Three CH3 groups on N1, N3, N7
-  g.attachCH3('n1', -150, 50)
-  g.attachCH3('n3', 90, 50)
-  g.attachCH3('n7', -35, 50)
-  return g.build()
-}
-
-function buildAscorbicAcid(): LewisStructure {
-  // Vitamin C (C6H8O6): 5-membered lactone ring + dihydroxy-ethyl side chain
-  const g = lb()
-  // Ring: C1(=O)-C2(OH)=C3(OH)-C4(H)-O(ring)
-  g.a('c1', 'C', -52, -28)
-  g.a('c2', 'C', -34, 28)
-  g.a('c3', 'C', 28, 28)
-  g.a('c4', 'C', 46, -28)
-  g.a('or', 'O', -3, -62)
-  g.b('c1', 'c2', 1)
-  g.b('c2', 'c3', 2)
-  g.b('c3', 'c4', 1)
-  g.b('c4', 'or', 1)
-  g.b('or', 'c1', 1)
-
-  // C1=O
-  g.attach('c1', 'O', 190, 46, 2)
-  // C2-OH, C3-OH
-  g.attachOH('c2', 120, 160, 46)
-  g.attachOH('c3', 60, 20, 46)
-  // C4-H + side chain -CH(OH)-CH2OH
-  g.attach('c4', 'H', -55, 36, 1)
-  const c5 = g.attach('c4', 'C', 5, 54, 1)
-  g.attach(c5, 'H', 90, 36, 1)
-  g.attachOH(c5, -80, -40, 44)
-  const c6 = g.attach(c5, 'C', 5, 54, 1)
-  g.attach(c6, 'H', -90, 36, 1)
-  g.attach(c6, 'H', 90, 36, 1)
-  g.attachOH(c6, 0, -35, 44)
   return g.build()
 }
 
@@ -673,35 +526,6 @@ function buildGlucose(): LewisStructure {
   const ohAbove = [false, true, false, false]
   for (let i = 1; i <= 4; i++) {
     const up = ohAbove[i - 1]
-    g.attachOH(`c${i}`, up ? -90 : 90, up ? -50 : 50, 46)
-    g.attach(`c${i}`, 'H', up ? 90 : -90, 38, 1)
-  }
-  // C5: -CH2OH
-  g.attach('c5', 'H', -90, 38, 1)
-  g.attach('c5', 'H', 90, 38, 1)
-  g.attachOH('c5', 0, -35, 46)
-  return g.build()
-}
-
-function buildFructose(): LewisStructure {
-  // Open-chain D-fructose (cetose): CH2OH-CO-(CHOH)3-CH2OH (C6H12O6)
-  const g = lb()
-  const dx = 64
-  for (let i = 0; i < 6; i++) {
-    const id = `c${i}`
-    g.a(id, 'C', i * dx, 0)
-    if (i > 0) g.b(`c${i - 1}`, id, 1)
-  }
-  // C0: -CH2OH
-  g.attach('c0', 'H', -90, 38, 1)
-  g.attach('c0', 'H', 90, 38, 1)
-  g.attachOH('c0', 180, 145, 46)
-  // C1: ketone C=O
-  g.attach('c1', 'O', -90, 48, 2)
-  // C2..C4: -CHOH-
-  const ohAbove = [true, false, false]
-  for (let i = 2; i <= 4; i++) {
-    const up = ohAbove[i - 2]
     g.attachOH(`c${i}`, up ? -90 : 90, up ? -50 : 50, 46)
     g.attach(`c${i}`, 'H', up ? 90 : -90, 38, 1)
   }
@@ -791,22 +615,6 @@ function buildS8(): LewisStructure {
   return g.build()
 }
 
-function buildP4(): LewisStructure {
-  // 2D projection of tetrahedral P4 (every P bonded to all 3 other P)
-  const g = lb()
-  g.a('p0', 'P', 0, -56)
-  g.a('p1', 'P', -56, 42)
-  g.a('p2', 'P', 56, 42)
-  g.a('p3', 'P', 0, 8)
-  g.b('p0', 'p1', 1)
-  g.b('p1', 'p2', 1)
-  g.b('p2', 'p0', 1)
-  g.b('p3', 'p0', 1)
-  g.b('p3', 'p1', 1)
-  g.b('p3', 'p2', 1)
-  return g.build()
-}
-
 const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
   // --- SOLVENT ---
   h2o: bent({ symbol: 'O' }, { symbol: 'H' }, { symbol: 'H' }),
@@ -876,19 +684,9 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     g.attach('c1', 'O', 50, BOND_LEN, 1, { charge: -1 })
     return g.build()
   })(),
-  hcoo_minus: trigonal({ symbol: 'C' }, [
-    { symbol: 'O', order: 2 },
-    { symbol: 'O', order: 1, charge: -1 },
-    { symbol: 'H', order: 1 },
-  ]),
   clo_minus: linear([
     { symbol: 'Cl', bondAfter: 1 },
     { symbol: 'O', charge: -1 },
-  ]),
-  clo3_minus: trigonal({ symbol: 'Cl' }, [
-    { symbol: 'O', order: 2 },
-    { symbol: 'O', order: 2 },
-    { symbol: 'O', order: 1, charge: -1 },
   ]),
   mno4_minus: cross4({ symbol: 'Mn' }, [
     { symbol: 'O', order: 2 },
@@ -951,10 +749,6 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     g.attach('c2', 'O', 50, 52, 1, { charge: -1 })
     return g.build()
   })(),
-  cn_minus: linear([
-    { symbol: 'C', charge: -1, bondAfter: 3 },
-    { symbol: 'N' },
-  ]),
   scn_minus: linear([
     { symbol: 'S', charge: -1, bondAfter: 1 },
     { symbol: 'C', bondAfter: 3 },
@@ -965,11 +759,6 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     { symbol: 'O', order: 2 },
     { symbol: 'O', order: 1, charge: -1 },
   ),
-  so3_2minus: trigonal({ symbol: 'S' }, [
-    { symbol: 'O', order: 2 },
-    { symbol: 'O', order: 1, charge: -1 },
-    { symbol: 'O', order: 1, charge: -1 },
-  ]),
 
   // --- ACIDS & BASES (MOLECULAR) ---
   hcl: linear([{ symbol: 'H', bondAfter: 1 }, { symbol: 'Cl' }]),
@@ -1003,13 +792,7 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     { symbol: 'H' },
     { symbol: 'H' },
   ]),
-  hcooh: trigonal({ symbol: 'C' }, [
-    { symbol: 'O', order: 2 },
-    { symbol: 'O', order: 1, withH: true },
-    { symbol: 'H', order: 1 },
-  ]),
   ch3cooh: carboxylicAcidChain(2),
-  acide_butanoique: carboxylicAcidChain(4),
   c6h8o7: buildCitricAcid(),
   c2h2o4: (() => {
     const g = lb()
@@ -1022,33 +805,6 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     g.attachOH('c2', 45, 5, 48)
     return g.build()
   })(),
-  c7h6o2: buildBenzoicAcid(),
-  c3h6o3: (() => {
-    // Acide lactique: CH3-CH(OH)-COOH
-    const g = lb()
-    g.a('c0', 'C', -60, 0)
-    g.a('c1', 'C', 0, 0)
-    g.a('c2', 'C', 60, 0)
-    g.b('c0', 'c1', 1)
-    g.b('c1', 'c2', 1)
-    g.attachHs('c0', [-90, 90, 180], H_LEN)
-    g.attach('c1', 'H', 90, H_LEN, 1)
-    g.attachOH('c1', -90, -55, 48)
-    g.attach('c2', 'O', -50, 50, 2)
-    g.attachOH('c2', 45, 5, 48)
-    return g.build()
-  })(),
-  hcn: linear([
-    { symbol: 'H', bondAfter: 1 },
-    { symbol: 'C', bondAfter: 3 },
-    { symbol: 'N' },
-  ]),
-  hnc: linear([
-    { symbol: 'H', bondAfter: 1 },
-    { symbol: 'N', charge: 1, bondAfter: 3 },
-    { symbol: 'C', charge: -1 },
-  ]),
-  hclo: bent({ symbol: 'O' }, { symbol: 'H' }, { symbol: 'Cl' }),
 
   // --- INORGANIC MOLECULES & ELEMENTAL SUBSTANCES ---
   h2o2: (() => {
@@ -1087,11 +843,6 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     { symbol: 'O', order: 1, charge: -1 },
   ),
   so2: bent({ symbol: 'S' }, { symbol: 'O', order: 2 }, { symbol: 'O', order: 2 }),
-  so3: trigonal({ symbol: 'S' }, [
-    { symbol: 'O', order: 2 },
-    { symbol: 'O', order: 2 },
-    { symbol: 'O', order: 2 },
-  ]),
   no: linear([{ symbol: 'N', bondAfter: 2, lonePairs: 1 }, { symbol: 'O' }]),
   no2: bent(
     { symbol: 'N', charge: 1, lonePairs: 0 },
@@ -1104,13 +855,7 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     { symbol: 'O', charge: -1 },
   ]),
   h2s: bent({ symbol: 'S' }, { symbol: 'H' }, { symbol: 'H' }),
-  ph3: trigonal({ symbol: 'P' }, [
-    { symbol: 'H' },
-    { symbol: 'H' },
-    { symbol: 'H' },
-  ]),
   s8: buildS8(),
-  p4: buildP4(),
 
   // --- HYDROCARBONS ---
   ch4: cross4({ symbol: 'C' }, [
@@ -1137,87 +882,12 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
   ]),
   c3h8: alkaneChain(3),
   c4h10: alkaneChain(4),
-  isobutane: (() => {
-    const g = lb()
-    g.a('cc', 'C', 0, 0)
-    g.attach('cc', 'H', -90, H_LEN, 1)
-    g.attachCH3('cc', 180, 58)
-    g.attachCH3('cc', 0, 58)
-    g.attachCH3('cc', 90, 58)
-    return g.build()
-  })(),
-  c5h12: alkaneChain(5),
-  c6h14: alkaneChain(6),
-  c8h18: alkaneChain(8),
-  c6h12: buildCyclohexane(),
   c6h6: buildBenzene(),
-  c7h8: buildToluene(),
 
-  // --- ALCOHOLS, ETHERS, ALDEHYDES, KETONES, ESTERS ---
+  // --- ALCOHOLS, KETONES, ETHERS, ESTERS ---
   ch4o: alcoholChain(1),
   c2h6o: alcoholChain(2),
-  methoxymethane: (() => {
-    const g = lb()
-    g.a('o', 'O', 0, -8)
-    const c1 = g.attach('o', 'C', 155, 58, 1)
-    const c2 = g.attach('o', 'C', 25, 58, 1)
-    g.attachHs(c1, [90, 180, -90], H_LEN)
-    g.attachHs(c2, [-90, 0, 90], H_LEN)
-    return g.build()
-  })(),
-  propan_1_ol: alcoholChain(3),
-  c3h8o: (() => {
-    // Propan-2-ol: CH3-CH(OH)-CH3
-    const g = lb()
-    g.a('c0', 'C', -60, 0)
-    g.a('c1', 'C', 0, 0)
-    g.a('c2', 'C', 60, 0)
-    g.b('c0', 'c1', 1)
-    g.b('c1', 'c2', 1)
-    g.attachHs('c0', [-90, 90, 180], H_LEN)
-    g.attachHs('c2', [-90, 90, 0], H_LEN)
-    g.attach('c1', 'H', 90, H_LEN, 1)
-    g.attachOH('c1', -90, -55, 50)
-    return g.build()
-  })(),
-  c3h8o3: (() => {
-    // Glycérol: HOCH2-CH(OH)-CH2OH
-    const g = lb()
-    g.a('c0', 'C', -62, 0)
-    g.a('c1', 'C', 0, 0)
-    g.a('c2', 'C', 62, 0)
-    g.b('c0', 'c1', 1)
-    g.b('c1', 'c2', 1)
-    g.attachHs('c0', [90, 180], H_LEN)
-    g.attachOH('c0', -90, -125, 48)
-    g.attach('c1', 'H', 90, H_LEN, 1)
-    g.attachOH('c1', -90, -55, 48)
-    g.attachHs('c2', [90, 0], H_LEN)
-    g.attachOH('c2', -90, -55, 48)
-    return g.build()
-  })(),
-  ch2o: trigonal({ symbol: 'C' }, [
-    { symbol: 'O', order: 2 },
-    { symbol: 'H', order: 1 },
-    { symbol: 'H', order: 1 },
-  ]),
-  c2h4o: aldehydeChain(2),
-  oxirane: (() => {
-    const g = lb()
-    g.a('o', 'O', 0, -40)
-    g.a('c1', 'C', -36, 20)
-    g.a('c2', 'C', 36, 20)
-    g.b('o', 'c1', 1)
-    g.b('o', 'c2', 1)
-    g.b('c1', 'c2', 1)
-    g.attachHs('c1', [165, 110], 42)
-    g.attachHs('c2', [15, 70], 42)
-    return g.build()
-  })(),
   c3h6o: ketoneChain(1, 1),
-  propanal: aldehydeChain(3),
-  c4h8o: ketoneChain(1, 2),
-  butanal: aldehydeChain(4),
   c4h10o: (() => {
     // Éther diéthylique: CH3-CH2-O-CH2-CH3
     const g = lb()
@@ -1234,20 +904,6 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     g.attachHs('c1', [-90, 90], H_LEN)
     g.attachHs('c2', [-90, 90], H_LEN)
     g.attachHs('c3', [-90, 90, 0], H_LEN)
-    return g.build()
-  })(),
-  butan_1_ol: alcoholChain(4),
-  methanoate_methyle: (() => {
-    // HCOOCH3
-    const g = lb()
-    g.a('c0', 'C', -40, 0)
-    g.a('o1', 'O', 18, 0)
-    g.a('c1', 'C', 76, 0)
-    g.b('c0', 'o1', 1)
-    g.b('o1', 'c1', 1)
-    g.attach('c0', 'O', -90, 52, 2)
-    g.attach('c0', 'H', 180, H_LEN, 1)
-    g.attachHs('c1', [-90, 90, 0], H_LEN)
     return g.build()
   })(),
   c4h8o2: (() => {
@@ -1268,61 +924,11 @@ const COVALENT_AND_ION_LEWIS: Record<string, LewisStructure> = {
     g.attachHs('c3', [-90, 90, 0], H_LEN)
     return g.build()
   })(),
-  c6h6o: buildPhenol(),
-
-  // --- HALOGENATED ---
-  ch2cl2: cross4({ symbol: 'C' }, [
-    { symbol: 'H' },
-    { symbol: 'H' },
-    { symbol: 'Cl' },
-    { symbol: 'Cl' },
-  ]),
-  chcl3: cross4({ symbol: 'C' }, [
-    { symbol: 'H' },
-    { symbol: 'Cl' },
-    { symbol: 'Cl' },
-    { symbol: 'Cl' },
-  ]),
-  ccl4: cross4({ symbol: 'C' }, [
-    { symbol: 'Cl' },
-    { symbol: 'Cl' },
-    { symbol: 'Cl' },
-    { symbol: 'Cl' },
-  ]),
 
   // --- BIOMOLECULES & DRUGS ---
-  ch4n2o: (() => {
-    // Urée: (NH2)2C=O
-    const g = lb()
-    g.a('c', 'C', 0, 0)
-    g.attach('c', 'O', -90, 52, 2)
-    const n1 = g.attach('c', 'N', 150, 56, 1)
-    const n2 = g.attach('c', 'N', 30, 56, 1)
-    g.attachHs(n1, [195, 105], 40)
-    g.attachHs(n2, [-15, 75], 40)
-    return g.build()
-  })(),
-  c2h5no2: (() => {
-    // Glycine: H2N-CH2-COOH
-    const g = lb()
-    g.a('n', 'N', -62, 0)
-    g.a('c1', 'C', 0, 0)
-    g.a('c2', 'C', 62, 0)
-    g.b('n', 'c1', 1)
-    g.b('c1', 'c2', 1)
-    g.attachHs('n', [135, -135], 42)
-    g.attachHs('c1', [-90, 90], H_LEN)
-    g.attach('c2', 'O', -50, 50, 2)
-    g.attachOH('c2', 45, 5, 48)
-    return g.build()
-  })(),
   c6h12o6: buildGlucose(),
-  fructose: buildFructose(),
   c12h22o11: buildSucrose(),
-  c6h8o6: buildAscorbicAcid(),
   c9h8o4: buildAspirin(),
-  c8h9no2: buildParacetamol(),
-  c8h10n4o2: buildCaffeine(),
 
   // --- COORDINATION COMPLEXES ---
   cu_nh3_4_2plus: (() => {
@@ -1348,14 +954,6 @@ const EXPLICIT_IONIC_UNITS: Record<
     { ionId: 'ca2_plus', count: 1 },
     { ionId: 'o2_minus', count: 1 },
   ],
-  na2o: [
-    { ionId: 'na_plus', count: 2 },
-    { ionId: 'o2_minus', count: 1 },
-  ],
-  k2o: [
-    { ionId: 'k_plus', count: 2 },
-    { ionId: 'o2_minus', count: 1 },
-  ],
   mgo: [
     { ionId: 'mg2_plus', count: 1 },
     { ionId: 'o2_minus', count: 1 },
@@ -1368,22 +966,9 @@ const EXPLICIT_IONIC_UNITS: Record<
     { ionId: 'cu2_plus', count: 1 },
     { ionId: 'o2_minus', count: 1 },
   ],
-  cu2o: [
-    { ionId: 'cu_plus', count: 2 },
-    { ionId: 'o2_minus', count: 1 },
-  ],
-  feo: [
-    { ionId: 'fe2_plus', count: 1 },
-    { ionId: 'o2_minus', count: 1 },
-  ],
   fe2o3: [
     { ionId: 'fe3_plus', count: 2 },
     { ionId: 'o2_minus', count: 3 },
-  ],
-  fe3o4: [
-    { ionId: 'fe2_plus', count: 1 },
-    { ionId: 'fe3_plus', count: 2 },
-    { ionId: 'o2_minus', count: 4 },
   ],
   zno: [
     { ionId: 'zn2_plus', count: 1 },
@@ -1392,14 +977,6 @@ const EXPLICIT_IONIC_UNITS: Record<
   mno2: [
     { symbol: 'Mn', charge: 4, count: 1 },
     { ionId: 'o2_minus', count: 2 },
-  ],
-  tio2: [
-    { symbol: 'Ti', charge: 4, count: 1 },
-    { ionId: 'o2_minus', count: 2 },
-  ],
-  mgoh2: [
-    { ionId: 'mg2_plus', count: 1 },
-    { ionId: 'oh_minus', count: 2 },
   ],
   aloh3: [
     { ionId: 'al3_plus', count: 1 },
@@ -1425,20 +1002,8 @@ const EXPLICIT_IONIC_UNITS: Record<
     { ionId: 'ca2_plus', count: 1 },
     { ionId: 'co3_2minus', count: 1 },
   ],
-  mgco3: [
-    { ionId: 'mg2_plus', count: 1 },
-    { ionId: 'co3_2minus', count: 1 },
-  ],
   baso4: [
     { ionId: 'ba2_plus', count: 1 },
-    { ionId: 'so4_2minus', count: 1 },
-  ],
-  caso4: [
-    { ionId: 'ca2_plus', count: 1 },
-    { ionId: 'so4_2minus', count: 1 },
-  ],
-  pbso4: [
-    { ionId: 'pb2_plus', count: 1 },
     { ionId: 'so4_2minus', count: 1 },
   ],
   agcl: [
@@ -1465,13 +1030,9 @@ const EXPLICIT_IONIC_UNITS: Record<
     { ionId: 'fe2_plus', count: 1 },
     { ionId: 's2_minus', count: 1 },
   ],
-  zns: [
-    { ionId: 'zn2_plus', count: 1 },
-    { ionId: 's2_minus', count: 1 },
-  ],
 }
 
-function makeMonoatomicLewis(symbol: string, charge: number): LewisStructure {
+export function makeMonoatomicLewis(symbol: string, charge: number): LewisStructure {
   const lonePairs = computeDefaultLonePairs(symbol, 0, charge)
   const structure: LewisStructure = {
     atoms: [{ id: 'a0', symbol, x: 0, y: 0, lonePairs, charge }],

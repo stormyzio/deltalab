@@ -41,10 +41,14 @@ export function MultiSelectionInspector({
     (n) => n.kind === 'molecule' && n.species.kind === 'ion',
   ).length
   const flasksCount = nodes.filter((n) => n.kind === 'flask').length
+  const machinesCount = nodes.filter(
+    (n) => n.kind === 'gas_collector' || n.kind === 'thermal_chamber',
+  ).length
 
   const canForgeAlloy =
     solidsCount > 0 &&
     flasksCount === 0 &&
+    machinesCount === 0 &&
     moleculesCount === 0 &&
     ionsCount === 0 &&
     nodes.every(
@@ -64,7 +68,7 @@ export function MultiSelectionInspector({
     )
   }, [canForgeAlloy, catalog?.alloys, elementsBySymbol, nodes])
 
-  const allChemical = flasksCount === 0 && solidsCount === 0
+  const allChemical = flasksCount === 0 && solidsCount === 0 && machinesCount === 0
 
   const summary = useMemo(() => {
     if (!allChemical) return null
@@ -128,6 +132,9 @@ export function MultiSelectionInspector({
                 : null,
               ionsCount > 0 ? `${ionsCount} ion${ionsCount > 1 ? 's' : ''}` : null,
               flasksCount > 0 ? `${flasksCount} fiole${flasksCount > 1 ? 's' : ''}` : null,
+              machinesCount > 0
+                ? `${machinesCount} appareil${machinesCount > 1 ? 's' : ''}`
+                : null,
             ]
               .filter(Boolean)
               .join(' · ')}

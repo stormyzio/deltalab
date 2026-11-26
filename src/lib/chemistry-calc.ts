@@ -1,3 +1,5 @@
+import type { SpeciesRecord } from '../../shared/chemistry.ts'
+
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉']
 const SUPERSCRIPTS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹']
 
@@ -109,13 +111,80 @@ export function formatChargeLabel(charge: number): string {
   return '0'
 }
 
+const SUB_SUP_TO_ASCII: Record<string, string> = {
+  '₀': '0',
+  '₁': '1',
+  '₂': '2',
+  '₃': '3',
+  '₄': '4',
+  '₅': '5',
+  '₆': '6',
+  '₇': '7',
+  '₈': '8',
+  '₉': '9',
+  '⁰': '0',
+  '¹': '1',
+  '²': '2',
+  '³': '3',
+  '⁴': '4',
+  '⁵': '5',
+  '⁶': '6',
+  '⁷': '7',
+  '⁸': '8',
+  '⁹': '9',
+  '⁺': '+',
+  '⁻': '-',
+  '−': '-',
+  '–': '-',
+}
+
+/**
+ * Normalizes chemical formulas & names for forgiving search:
+ *   "SO₄²⁻", "SO4^2-", "SO42-", "so4 2-" -> "so42-"
+ *   "Éthanoate", "ethanoate"             -> "ethanoate"
+ *   "chlorydrique"                       -> "chlorhydrique"
+ */
+export function normalizeChemSearch(raw: string): string {
+  return raw
+    .replace(/[₀-₉⁰-⁹⁺⁻−–]/g, (ch) => SUB_SUP_TO_ASCII[ch] ?? ch)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\^/g, '')
+    .toLowerCase()
+    .replace(/chlorydr/g, 'chlorhydr')
+    .replace(/bromydr/g, 'bromhydr')
+    .replace(/iodydr/g, 'iodhydr')
+    .replace(/fluorydr/g, 'fluorhydr')
+    .trim()
+}
+
+export function normalizeFormulaSearch(raw: string): string {
+  return normalizeChemSearch(raw).replace(/\s+/g, '')
+}
+
+/**
+ * Returns true when an aqueous pKa value is chemically expected for this species
+ * (molecular Brønsted acids/bases or protonated acidic/amphoteric ions).
+ * Returns false when the absence of pKa is chemically normal (neutral aprotic species,
+ * elemental substances, solid ionic salts, or aprotic/basic anions without acidic H).
+ */
+export function isPkaApplicable(
+  sp: Pick<SpeciesRecord, 'id' | 'kind' | 'phCharacter' | 'composition'>,
+): boolean {
+  if (sp.phCharacter === 'neutral') return false
+  if (sp.kind === 'element_substance' || sp.kind === 'ionic_compound') return false
+  if (sp.kind === 'ion') {
+    if (sp.id === 'h_plus' || sp.id === 'oh_minus' || sp.id === 'o2_minus') return false
+    if (sp.phCharacter === 'basic_strong' || sp.phCharacter === 'basic_weak') return false
+    return (sp.composition.H ?? 0) > 0
+  }
+  return true
+}
+
 const BEHAVIOR_LABELS_FR: Record<string, string> = {
   boilingPointC: 'Ébullition',
   meltingPointC: 'Fusion',
   densityGPerMl: 'Masse volumique',
-  wikidataId: 'Wikidata',
-  pubchemCid: 'PubChem CID',
-  iupacName: 'Nom IUPAC',
   polarSolvent: 'Solvant polaire',
   strongAcid: 'Acide fort',
   strongBase: 'Base forte',
@@ -148,10 +217,6 @@ const REDUNDANT_BEHAVIOR_KEYS = new Set([
   'densityGPerMl',
   'pKa',
   'pKb',
-  'solubilitySource',
-  'wikidataId',
-  'pubchemCid',
-  'iupacName',
   'strongAcid',
   'strongBase',
   'acidStrength',
@@ -162,6 +227,8 @@ const REDUNDANT_BEHAVIOR_KEYS = new Set([
   'conductive',
   'electrolyte',
   'molecularSolution',
+  'usesFr',
+  'identificationFr',
 ])
 
 export function extractNotableBehaviors(

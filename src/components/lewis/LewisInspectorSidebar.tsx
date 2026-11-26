@@ -1,4 +1,4 @@
-import { ExternalLink, Loader2, Plus } from 'lucide-react'
+import { ExternalLink, Plus } from 'lucide-react'
 import type {
   LewisAtom,
   MatchLewisResponse,
@@ -20,13 +20,10 @@ export function LewisInspectorSidebar({
   strictMode,
   strictValidation,
   selectedAtomId,
-  pubchemLoading,
-  pubchemError,
   onSelectAndFocusAtom,
   onCompleteElectrons,
   onAddToWorkbench,
   onOpenSpeciesInCatalog,
-  onLookupPubChem,
 }: {
   atoms: LewisAtom[]
   matching: boolean
@@ -40,13 +37,10 @@ export function LewisInspectorSidebar({
   strictMode: boolean
   strictValidation: LewisValidationResult
   selectedAtomId: string | null
-  pubchemLoading: boolean
-  pubchemError: string | null
   onSelectAndFocusAtom: (atomId: string) => void
   onCompleteElectrons: () => void
   onAddToWorkbench: (species: SpeciesRecord, switchToWorkbench: boolean) => void
   onOpenSpeciesInCatalog: (speciesId: string) => void
-  onLookupPubChem: () => void
 }) {
   const headerFormula = activeMatch?.matched
     ? activeMatch.species.displayFormula
@@ -243,27 +237,6 @@ export function LewisInspectorSidebar({
                   <ChemText value={activeMatch.reasonFr} />
                 </p>
               </div>
-
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={pubchemLoading}
-                onClick={onLookupPubChem}
-                className="h-7 w-full text-[11px]"
-              >
-                {pubchemLoading && (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.7} />
-                )}
-                <span>
-                  {pubchemLoading ? 'Recherche sur PubChem…' : 'Chercher sur PubChem'}
-                </span>
-              </Button>
-
-              {pubchemError && (
-                <p className="text-[10.5px] leading-snug text-amber-300">
-                  {pubchemError}
-                </p>
-              )}
 
               {activeMatch.sameFormulaSpecies.length > 0 && (
                 <div className="border-t border-border/60 pt-2.5">

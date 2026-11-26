@@ -6,23 +6,23 @@ import {
   useRef,
   useState,
 } from 'react'
-import type {
-  CanvasFlaskNode,
-  CanvasNode,
-  CatalogSpeciesRecord,
-  ElementRecord,
-  FullCatalogResponse,
-  SpeciesRecord,
+import {
+  type CanvasFlaskNode,
+  type CanvasGasCollectorNode,
+  type CanvasNode,
+  type CanvasThermalChamberNode,
+  type CatalogSpeciesRecord,
+  type ElementRecord,
+  type FullCatalogResponse,
+  type SpeciesRecord,
+  isMonatomicSolidSpecies,
 } from '../shared/chemistry.ts'
 import type { ExternalDragItem } from '@/types/drag'
 import { api } from '@/lib/api'
 import { buildCanonicalSignature } from '@/lib/chemistry-calc'
 import {
-  loadLocalCustomSpecies,
   loadLocalWorkspace,
-  saveLocalCustomSpecies,
   saveLocalWorkspace,
-  upsertLocalCustomSpecies,
 } from '@/lib/local-store'
 import { type PendingMergeState, parseViewFromHash } from '@/lib/workbench-helpers'
 import { useExternalDockDrag } from '@/hooks/useExternalDockDrag'
@@ -56,6 +56,7 @@ import type { CatalogSection, ReactionSpawnSetup } from '@/components/catalog/Ca
 const CONTINUOUS_HISTORY_FIELDS = new Set([
   'temperatureC',
   'heaterTargetC',
+  'targetTemperatureC',
   'reactionExtentMol',
   'amountMol',
   'components',
@@ -101,9 +102,6 @@ function isCatalogSectionView(view: AppView): view is CatalogSection {
 
 export default function App() {
   const [serverCatalog, setServerCatalog] = useState<FullCatalogResponse | null>(null)
-  const [customSpecies, setCustomSpecies] = useState<SpeciesRecord[]>(() =>
-    loadLocalCustomSpecies(),
-  )
   const [loadError, setLoadError] = useState<string | null>(null)
   const [catalogJumpTarget, setCatalogJumpTarget] =
     useState<CatalogJumpRequest | null>(null)
@@ -114,26 +112,18 @@ export default function App() {
 
   const catalog = useMemo<FullCatalogResponse | null>(() => {
     if (!serverCatalog) return null
-    if (customSpecies.length === 0) return serverCatalog
-    const existingIds = new Set(serverCatalog.species.map((s) => s.id))
-    const extras: CatalogSpeciesRecord[] = customSpecies
-      .filter((sp) => !existingIds.has(sp.id))
-      .map((sp) => ({
-        ...sp,
-        hasLewis: Boolean(sp.lewis),
-        dissolutionProducts: [],
-        namedSolutionId: null,
-      }))
-    if (extras.length === 0) return serverCatalog
+    const visibleSpeciesCount = serverCatalog.species.reduce(
+      (acc, sp) => acc + (isMonatomicSolidSpecies(sp) ? 0 : 1),
+      0,
+    )
     return {
       ...serverCatalog,
-      species: [...extras, ...serverCatalog.species],
       summary: {
         ...serverCatalog.summary,
-        speciesCount: serverCatalog.summary.speciesCount + extras.length,
+        speciesCount: visibleSpeciesCount,
       },
     }
-  }, [serverCatalog, customSpecies])
+  }, [serverCatalog])
 
   const [initialWorkspace] = useState(() => loadLocalWorkspace())
   const [history, setHistory] = useState<{
@@ -429,17 +419,6 @@ export default function App() {
     }
   }, [setNodesSilent])
 
-  const handleRegisterCustomSpecies = useCallback((species: SpeciesRecord) => {
-    setCustomSpecies((prev) => {
-      const next = upsertLocalCustomSpecies(prev, species)
-      saveLocalCustomSpecies(next)
-      return next
-    })
-    setDiscoveredSpeciesIds((prev) =>
-      prev.includes(species.id) ? prev : [species.id, ...prev],
-    )
-  }, [])
-
   const resetView = useCallback(() => {
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) {
@@ -532,9 +511,21 @@ export default function App() {
     return map
   }, [catalog])
 
+  const essentialSpecies = useMemo(() => {
+    const essentialIds = ['h2o', 'co2', 'o2', 'h2', 'hcl', 'naoh', 'nacl', 'nh3']
+    const list: SpeciesRecord[] = []
+    for (const id of essentialIds) {
+      const sp = speciesMap.get(id)
+      if (sp) list.push(sp)
+    }
+    return list
+  }, [speciesMap])
+
   const discoveredSpecies = useMemo(() => {
+    const essentialSet = new Set(['h2o', 'co2', 'o2', 'h2', 'hcl', 'naoh', 'nacl', 'nh3'])
     const list: SpeciesRecord[] = []
     for (const id of discoveredSpeciesIds) {
+      if (essentialSet.has(id)) continue
       const sp = speciesMap.get(id)
       if (!sp) continue
       const entries = Object.entries(sp.composition)
@@ -615,6 +606,15 @@ export default function App() {
     () => nodes.filter((n): n is CanvasFlaskNode => n.kind === 'flask'),
     [nodes],
   )
+  const allGasCollectors = useMemo(
+    () => nodes.filter((n): n is CanvasGasCollectorNode => n.kind === 'gas_collector'),
+    [nodes],
+  )
+  const allThermalChambers = useMemo(
+    () =>
+      nodes.filter((n): n is CanvasThermalChamberNode => n.kind === 'thermal_chamber'),
+    [nodes],
+  )
 
   const handleOpenElementInPeriodic = useCallback(
     (atomicNumber: number) => {
@@ -635,12 +635,23 @@ export default function App() {
           return
         }
       }
+      if (target.section === 'species') {
+        const sp = speciesMap.get(target.id)
+        if (sp && isMonatomicSolidSpecies(sp)) {
+          const sym = Object.keys(sp.composition)[0]
+          const el = sym ? elementsBySymbol.get(sym) : null
+          if (el) {
+            handleOpenElementInPeriodic(el.atomicNumber)
+            return
+          }
+        }
+      }
       catalogJumpNonceRef.current += 1
       setCatalogJumpTarget({ ...target, nonce: catalogJumpNonceRef.current })
       setMobilePanelOpen(false)
       handleViewChange(target.section === 'elements' ? 'periodic' : target.section)
     },
-    [handleOpenElementInPeriodic, handleViewChange],
+    [elementsBySymbol, handleOpenElementInPeriodic, handleViewChange, speciesMap],
   )
 
   const handleOpenInLewisBuilder = useCallback(
@@ -732,6 +743,7 @@ export default function App() {
     active: activeView === 'workbench',
     nodesRef,
     vessels,
+    speciesMap,
     discoveredSpeciesIds,
     setNodes,
     setNodesSilent,
@@ -739,6 +751,8 @@ export default function App() {
     setSelectedIds,
     onResetView: resetView,
     showNotice,
+    triggerShake,
+    triggerFresh,
     triggerFlaskPulse,
   })
 
@@ -873,6 +887,8 @@ export default function App() {
   const inspectorProps = {
     selectedNodes,
     allFlasks,
+    allGasCollectors,
+    allThermalChambers,
     totalNodeCount: nodes.length,
     catalog,
     elementsBySymbol,
@@ -909,6 +925,14 @@ export default function App() {
     onToggleFlaskProbe: labSim.handleToggleFlaskProbe,
     onToggleFlaskStirrer: labSim.handleToggleFlaskStirrer,
     onSetFlaskHeaterTarget: labSim.handleSetFlaskHeaterTarget,
+    onLinkGasCollectorToFlask: labSim.handleLinkGasCollectorToFlask,
+    onExtractGasFromCollector: labSim.handleExtractGasFromCollector,
+    onSendGasToChamber: labSim.handleSendGasToChamber,
+    onClearGasCollector: labSim.handleClearGasCollector,
+    onSetChamberTargetTemp: labSim.handleSetChamberTargetTemp,
+    onToggleChamberPower: labSim.handleToggleChamberPower,
+    onExtractSampleFromChamber: labSim.handleExtractSampleFromChamber,
+    onClearChamberSample: labSim.handleClearChamberSample,
     onOpenTitration: labSim.handleOpenTitration,
     onOpenInCatalog: handleOpenInCatalog,
     onOpenInLewisBuilder: (sp: SpeciesRecord) => void handleOpenInLewisBuilder(sp),
@@ -954,6 +978,7 @@ export default function App() {
                   active={isCatalogSectionView(activeView)}
                   onSpawnToWorkbench={handleCatalogSpawn}
                   onSpawnAlloy={workbench.handleSpawnAlloy}
+                  onSpawnSolution={(sol) => void workbench.handleSpawnSolution(sol)}
                   onSpawnReactionSetup={handleCatalogSpawnReaction}
                   onOpenInLewisBuilder={handleCatalogOpenLewis}
                   onOpenElementInPeriodic={handleOpenElementInPeriodic}
@@ -1013,7 +1038,6 @@ export default function App() {
                   active={activeView === 'lewis'}
                   onAddSpeciesToWorkbench={workbench.handleAddFromLewisBuilder}
                   onOpenSpeciesInCatalog={handleOpenSpeciesInCatalog}
-                  onSpeciesDiscovered={handleRegisterCustomSpecies}
                 />
               </div>
             )}
@@ -1058,6 +1082,39 @@ export default function App() {
                     onDropSolidOnSolid={workbench.handleDropSolidOnSolid}
                     onConvertAtomToSolid={workbench.handleConvertAtomToSolid}
                     onDropMoleculeOnFlask={flaskCore.handleDropMoleculeOnFlask}
+                    onDropNodeOnGasCollector={labSim.handleDropNodeOnGasCollector}
+                    onDropGasCollectorOnFlask={labSim.handleDropGasCollectorOnFlask}
+                    onDropNodeOnThermalChamber={labSim.handleLoadSampleIntoChamber}
+                    onClearGasCollector={labSim.handleClearGasCollector}
+                    onLinkGasCollectorToFlask={labSim.handleLinkGasCollectorToFlask}
+                    onExtractGasFromCollector={labSim.handleExtractGasFromCollector}
+                    onBubbleGasIntoFlask={(colId, spId, flaskId) =>
+                      void labSim.handleBubbleGasIntoFlask(colId, spId, flaskId)
+                    }
+                    onSendGasToChamber={labSim.handleSendGasToChamber}
+                    onTransferGasBetweenCollectors={
+                      labSim.handleTransferGasBetweenCollectors
+                    }
+                    onExtractSampleFromChamber={labSim.handleExtractSampleFromChamber}
+                    onTransferChamberSampleToFlask={(chId, flId) =>
+                      void labSim.handleTransferChamberSampleToFlask(chId, flId)
+                    }
+                    onTransferChamberSampleToCollector={
+                      labSim.handleTransferChamberSampleToCollector
+                    }
+                    onTransferChamberSampleToChamber={
+                      labSim.handleTransferChamberSampleToChamber
+                    }
+                    onTransferFlaskLiquidToChamber={(flId, chId) =>
+                      void labSim.handleTransferFlaskLiquidToChamber(flId, chId)
+                    }
+                    onExtractFilteredSolid={flaskRxn.handleExtractFilteredSolid}
+                    onTransferFilteredSolidToFlask={(srcId, spId, tgtId) =>
+                      void flaskRxn.handleTransferFilteredSolidToFlask(srcId, spId, tgtId)
+                    }
+                    onTransferFilteredSolidToChamber={
+                      flaskRxn.handleTransferFilteredSolidToChamber
+                    }
                     onPourBetweenFlasks={(src, tgt, vol) =>
                       void flaskRxn.handlePourBetweenFlasks(src, tgt, vol)
                     }
@@ -1120,6 +1177,7 @@ export default function App() {
                   />
                   <ToolboxDock
                     vessels={vessels}
+                    essentialSpecies={essentialSpecies}
                     discoveredSpecies={discoveredSpecies}
                     collapsed={bottomDockCollapsed}
                     onToggleCollapse={handleToggleBottomDock}

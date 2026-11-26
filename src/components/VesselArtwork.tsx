@@ -21,6 +21,8 @@ interface VesselArtworkProps {
   precipitating?: boolean
   bubbling?: boolean
   continuousBubbling?: boolean
+  hasHeadspaceGas?: boolean
+  headspaceGasColorHex?: string | null
   temperatureC?: number
   stirrerOn?: boolean
   heatingActive?: boolean
@@ -205,6 +207,8 @@ export function VesselArtwork({
   precipitating = false,
   bubbling = false,
   continuousBubbling = false,
+  hasHeadspaceGas = false,
+  headspaceGasColorHex = null,
   temperatureC = 20,
   stirrerOn = false,
   heatingActive = false,
@@ -506,6 +510,60 @@ export function VesselArtwork({
             strokeWidth="0.6"
             className="animate-dl-stir"
           />
+        )}
+
+        {/* Headspace gas bubbles floating in the upper part of the vessel */}
+        {hasHeadspaceGas && (
+          <g>
+            {(() => {
+              const gasTone =
+                headspaceGasColorHex &&
+                headspaceGasColorHex.toLowerCase() !== '#e4e4e7' &&
+                headspaceGasColorHex.toLowerCase() !== '#f4f4f5' &&
+                headspaceGasColorHex.toLowerCase() !== '#ffffff'
+                  ? headspaceGasColorHex
+                  : '#7dd3fc'
+              const topY = geo.filterSeatY + 9
+              const maxBottomY =
+                clampedRatio > 0
+                  ? Math.max(topY + 12, liquidY - 5)
+                  : Math.min(geo.liquidTopY + 16, geo.liquidBottomY - 18)
+              const midY = (topY + maxBottomY) * 0.5
+              const spanX = Math.min(7, geo.meniscusRx * 0.42)
+              return (
+                <>
+                  <ellipse
+                    cx={geo.meniscusX}
+                    cy={midY}
+                    rx={spanX + 4}
+                    ry={Math.max(6, (maxBottomY - topY) * 0.45)}
+                    fill={gasTone}
+                    fillOpacity="0.11"
+                  />
+                  {[
+                    { cx: geo.meniscusX - spanX * 0.65, cy: topY + 4, r: 2.1 },
+                    { cx: geo.meniscusX + spanX * 0.55, cy: topY + 7, r: 1.7 },
+                    { cx: geo.meniscusX - spanX * 0.15, cy: midY - 1, r: 2.4 },
+                    { cx: geo.meniscusX + spanX * 0.72, cy: midY + 3, r: 1.9 },
+                    { cx: geo.meniscusX - spanX * 0.55, cy: Math.min(maxBottomY - 2, midY + 6), r: 1.6 },
+                    { cx: geo.meniscusX + spanX * 0.18, cy: Math.min(maxBottomY - 1, midY + 8), r: 2.0 },
+                  ].map((b, idx) => (
+                    <circle
+                      key={idx}
+                      cx={b.cx}
+                      cy={b.cy}
+                      r={b.r}
+                      fill={gasTone}
+                      fillOpacity="0.28"
+                      stroke={gasTone}
+                      strokeOpacity="0.78"
+                      strokeWidth="0.75"
+                    />
+                  ))}
+                </>
+              )
+            })()}
+          </g>
         )}
 
         {/* Effervescence, dissolution, or boiling bubbles */}

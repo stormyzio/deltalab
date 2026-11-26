@@ -1,10 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeftRight,
+  BookOpen,
   Check,
   Copy,
   FlaskConical,
   RotateCcw,
+  Share2,
   X,
 } from 'lucide-react'
 import type {
@@ -12,20 +14,32 @@ import type {
   ElementRecord,
   FullCatalogResponse,
   PhysicalState,
+  PredictedReactionGroup,
+  PredictedReactionItem,
+  ReactionPredictionContextId,
   SpeciesRecord,
 } from '../../shared/chemistry.ts'
-import { buildCanonicalSignature } from '@/lib/chemistry-calc'
+import { api } from '@/lib/api'
 import {
+  buildCanonicalSignature,
+  normalizeChemSearch,
+  normalizeFormulaSearch,
+} from '@/lib/chemistry-calc'
+import {
+  REACTION_CATEGORY_LABEL,
   formatFrNumber,
   formatMassG,
   formatMol,
   formatVolumeMl,
 } from '@/lib/chemistry-ui'
 import {
+  type BalanceEquationResult,
   type BalancedParticipant,
   EQUATION_PRESETS,
   type EquationArrow,
+  type ParsedEquationTerm,
   balanceChemicalEquation,
+  parseChemTerm,
   splitEquationSideTerms,
 } from '@/lib/equation-balancer'
 import {
@@ -45,6 +59,7 @@ import { ChemFormula, ChemText, ChemVar, StateTag } from '@/components/ui/chem-t
 import { ScrubNumberInput } from '@/components/ui/scrub-number-input'
 import { InlineNumberInput } from '@/components/ui/inline-number-input'
 import { Slider } from '@/components/ui/slider'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ReactionSpawnSetup } from '@/components/catalog/CatalogShared'
 
 type QuantityInputMode = 'mol' | 'mass' | 'solution' | 'gas'
@@ -55,6 +70,13 @@ interface ReactantInputState {
   concMolL: number
   volMl: number
 }
+
+interface PredictedCandidate {
+  raw: PredictedReactionItem
+  balanced: Extract<BalanceEquationResult, { ok: true }> | null
+}
+
+const ARROW_REGEX = /\s*(<=>|<->|⇌|->|=>|→|=)\s*/
 
 interface EquationSolverPageProps {
   catalog: FullCatalogResponse | null
@@ -71,16 +93,7 @@ function stateToShortTag(st: PhysicalState | null): 's' | 'l' | 'g' | 'aq' | nul
 
 function formatFormulaForInput(sp: CatalogSpeciesRecord): string {
   const st = stateToShortTag(sp.standardState)
-  const chargeStr =
-    sp.charge === 0
-      ? ''
-      : Math.abs(sp.charge) === 1
-        ? sp.charge > 0
-          ? '+'
-          : '-'
-        : `${Math.abs(sp.charge)}${sp.charge > 0 ? '+' : '-'}`
-  const base = sp.formula.replace(/(\^?\d*[+-]+|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻]+)$/, '')
-  return `${base}${chargeStr}${st ? `(${st})` : ''}`
+  return `${sp.formula}${st ? `(${st})` : ''}`
 }
 
 function getCurrentTokenRange(
@@ -106,7 +119,10 @@ export const EquationSolverPage = memo(function EquationSolverPage({
   const [equationInput, setEquationInput] = useState(EQUATION_PRESETS[1].equation)
   const [cursorPos, setCursorPos] = useState(0)
   const [inputFocused, setInputFocused] = useState(false)
+  const [suggestionIdx, setSuggestionIdx] = useState(0)
+  const [suggestionsDismissed, setSuggestionsDismissed] = useState(false)
   const [copiedMode, setCopiedMode] = useState<'plain' | 'latex' | null>(null)
+  const suggestionListRef = useRef<HTMLDivElement>(null)
   const [inputStates, setInputStates] = useState<Record<string, ReactantInputState>>({
     'r:0': { mode: 'mol', mol: 0.02, concMolL: 0.2, volMl: 100 },
     'r:1': { mode: 'mol', mol: 0.12, concMolL: 0.6, volMl: 200 },
@@ -119,6 +135,15 @@ export const EquationSolverPage = memo(function EquationSolverPage({
   const [asyncReality, setAsyncReality] = useState<{
     key: string
     status: EquationRealityStatus
+  } | null>(null)
+  const [predictionState, setPredictionState] = useState<{
+    key: string
+    groups: PredictedReactionGroup[]
+  } | null>(null)
+  const [selectedPredictionIdx, setSelectedPredictionIdx] = useState(0)
+  const [appliedAlternatives, setAppliedAlternatives] = useState<{
+    appliedEquation: string
+    items: PredictedCandidate[]
   } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -223,25 +248,53 @@ export const EquationSolverPage = memo(function EquationSolverPage({
   )
 
   const inlineSuggestions = useMemo(() => {
-    if (!inputFocused || !catalog) return []
-    const q = activeToken.token.trim().toLowerCase()
-    if (q.length < 2) return []
+    if (!inputFocused || suggestionsDismissed || !catalog) return []
+    const q = normalizeChemSearch(activeToken.token)
+    const qCompact = normalizeFormulaSearch(activeToken.token)
+    if (q.length < 1) return []
     if (/\((s|l|g|aq)\)$/i.test(q)) return []
-    return catalog.species
-      .filter(
-        (sp) =>
-          sp.formula.toLowerCase().includes(q) ||
-          sp.displayFormula.toLowerCase().includes(q) ||
-          sp.nameFr.toLowerCase().includes(q),
-      )
-      .slice(0, 6)
-  }, [activeToken.token, catalog, inputFocused])
 
-  const { rawLeftTerms, rawRightTerms, currentArrow } = useMemo(() => {
-    const arrowRegex = /\s*(<=>|<->|⇌|->|=>|→|=)\s*/
-    const m = equationInput.match(arrowRegex)
+    const matches = catalog.species.filter((sp) => {
+      const fNorm = normalizeFormulaSearch(sp.formula)
+      const dNorm = normalizeFormulaSearch(sp.displayFormula)
+      const nNorm = normalizeChemSearch(sp.nameFr)
+      return fNorm.includes(qCompact) || dNorm.includes(qCompact) || nNorm.includes(q)
+    })
+
+    matches.sort((a, b) => {
+      const aF = normalizeFormulaSearch(a.formula)
+      const bF = normalizeFormulaSearch(b.formula)
+      const aExact = aF === qCompact ? 1 : 0
+      const bExact = bF === qCompact ? 1 : 0
+      if (aExact !== bExact) return bExact - aExact
+
+      const aPref = aF.startsWith(qCompact) ? 1 : 0
+      const bPref = bF.startsWith(qCompact) ? 1 : 0
+      if (aPref !== bPref) return bPref - aPref
+
+      const aNamePref = normalizeChemSearch(a.nameFr).startsWith(q) ? 1 : 0
+      const bNamePref = normalizeChemSearch(b.nameFr).startsWith(q) ? 1 : 0
+      if (aNamePref !== bNamePref) return bNamePref - aNamePref
+
+      if (a.formula.length !== b.formula.length) {
+        return a.formula.length - b.formula.length
+      }
+      return b.popularity - a.popularity
+    })
+
+    return matches.slice(0, 36)
+  }, [activeToken.token, catalog, inputFocused, suggestionsDismissed])
+
+  const activeSuggestionIdx =
+    inlineSuggestions.length > 0
+      ? Math.min(suggestionIdx, inlineSuggestions.length - 1)
+      : 0
+
+  const { hasArrow, rawLeftTerms, rawRightTerms, currentArrow } = useMemo(() => {
+    const m = equationInput.match(ARROW_REGEX)
     if (!m || m.index === undefined) {
       return {
+        hasArrow: false,
         rawLeftTerms: splitEquationSideTerms(equationInput),
         rawRightTerms: [] as string[],
         currentArrow: '->' as EquationArrow,
@@ -250,11 +303,195 @@ export const EquationSolverPage = memo(function EquationSolverPage({
     const arr: EquationArrow =
       m[1] === '<=>' || m[1] === '<->' || m[1] === '⇌' ? '<=>' : '->'
     return {
+      hasArrow: true,
       rawLeftTerms: splitEquationSideTerms(equationInput.slice(0, m.index)),
       rawRightTerms: splitEquationSideTerms(equationInput.slice(m.index + m[0].length)),
       currentArrow: arr,
     }
   }, [equationInput])
+
+  const isPredictionMode =
+    hasArrow && rawLeftTerms.length >= 1 && rawRightTerms.length === 0
+  const isDraftingLeft = !hasArrow && rawLeftTerms.length >= 1
+
+  const leftSideAnalysis = useMemo(() => {
+    if (!isPredictionMode && !isDraftingLeft) {
+      return {
+        parsedTerms: [] as ParsedEquationTerm[],
+        parseError: null as string | null,
+        unknownTerms: [] as string[],
+        speciesIds: [] as string[],
+      }
+    }
+    const parsedTerms: ParsedEquationTerm[] = []
+    let parseError: string | null = null
+    for (const raw of rawLeftTerms) {
+      const parsed = parseChemTerm(raw, elementsBySymbol, speciesBySigAndCharge)
+      if ('errorFr' in parsed) {
+        parseError = parsed.errorFr
+        break
+      }
+      parsedTerms.push(parsed.term)
+    }
+    const unknownTerms: string[] = []
+    const speciesIds: string[] = []
+    if (!parseError) {
+      for (const term of parsedTerms) {
+        if (!term.matchedSpecies) {
+          unknownTerms.push(term.displayFormula)
+        } else if (!speciesIds.includes(term.matchedSpecies.id)) {
+          speciesIds.push(term.matchedSpecies.id)
+        }
+      }
+    }
+    return {
+      parsedTerms,
+      parseError,
+      unknownTerms,
+      speciesIds: speciesIds.slice(0, 4),
+    }
+  }, [
+    elementsBySymbol,
+    isDraftingLeft,
+    isPredictionMode,
+    rawLeftTerms,
+    speciesBySigAndCharge,
+  ])
+
+  const leftPredictionKey =
+    isPredictionMode &&
+    !leftSideAnalysis.parseError &&
+    leftSideAnalysis.unknownTerms.length === 0 &&
+    leftSideAnalysis.speciesIds.length >= 1
+      ? leftSideAnalysis.speciesIds.join('+')
+      : ''
+
+  useEffect(() => {
+    if (!leftPredictionKey) return
+    let cancelled = false
+    const ids = leftSideAnalysis.speciesIds
+    const key = leftPredictionKey
+    const timer = window.setTimeout(() => {
+      void api
+        .predictReactions(ids, { includeContexts: true })
+        .then((res) => {
+          if (!cancelled) {
+            const groups: PredictedReactionGroup[] =
+              res.contextGroups ??
+              (res.reactions.length > 0
+                ? [
+                    {
+                      context: 'direct',
+                      labelFr: 'Réactions directes',
+                      reactions: res.reactions,
+                    },
+                  ]
+                : [])
+            setPredictionState({ key, groups })
+            setSelectedPredictionIdx(0)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPredictionState({ key, groups: [] })
+          }
+        })
+    }, 110)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [leftPredictionKey, leftSideAnalysis.speciesIds])
+
+  const predictionLoading =
+    Boolean(leftPredictionKey) && predictionState?.key !== leftPredictionKey
+
+  const predictedGroups = useMemo<
+    Array<{
+      context: ReactionPredictionContextId
+      labelFr: string
+      addedSpeciesFormula?: string
+      items: Array<PredictedCandidate & { flatIdx: number }>
+    }>
+  >(() => {
+    if (!leftPredictionKey || predictionState?.key !== leftPredictionKey) return []
+    let flatIdx = 0
+    return predictionState.groups
+      .map((group) => ({
+        context: group.context,
+        labelFr: group.labelFr,
+        addedSpeciesFormula: group.addedSpeciesFormula,
+        items: group.reactions.map((raw) => {
+          const parsed = balanceChemicalEquation(
+            raw.equationDisplay,
+            elementsBySymbol,
+            speciesBySigAndCharge,
+          )
+          return {
+            raw,
+            balanced: parsed.ok ? parsed : null,
+            flatIdx: flatIdx++,
+          }
+        }),
+      }))
+      .filter((g) => g.items.length > 0)
+  }, [elementsBySymbol, leftPredictionKey, predictionState, speciesBySigAndCharge])
+
+  const predictedCandidates = useMemo<PredictedCandidate[]>(
+    () => predictedGroups.flatMap((g) => g.items),
+    [predictedGroups],
+  )
+
+  const activePredictionIdx =
+    predictedCandidates.length > 0
+      ? Math.min(selectedPredictionIdx, predictedCandidates.length - 1)
+      : 0
+
+  const applyPredictedReaction = (
+    candidate: PredictedCandidate,
+    allCandidates: PredictedCandidate[],
+  ) => {
+    const eq = candidate.balanced?.plainText ?? candidate.raw.equationDisplay
+    setEquationInput(eq)
+    const nextStates: Record<string, ReactantInputState> = {}
+    ;(candidate.balanced?.reactants ?? []).forEach((r, idx) => {
+      const defaultMol = Math.round(0.1 * r.coefficient * 1000) / 1000
+      nextStates[`r:${idx}`] = {
+        mode: r.state === 'gas' ? 'gas' : 'mol',
+        mol: defaultMol,
+        concMolL: 0.5,
+        volMl: Math.round((defaultMol / 0.5) * 1000),
+      }
+    })
+    setInputStates(nextStates)
+    setProgressFraction(1)
+    setYieldPercent(100)
+    setSuggestionsDismissed(true)
+    setAppliedAlternatives(
+      allCandidates.length > 1 ? { appliedEquation: eq, items: allCandidates } : null,
+    )
+    const endPos = eq.length
+    setCursorPos(endPos)
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.setSelectionRange(endPos, endPos)
+    })
+  }
+
+  const handleAppendArrowForPredict = () => {
+    const trimmed = equationInput.trimEnd()
+    if (!trimmed) return
+    const next = `${trimmed} -> `
+    setEquationInput(next)
+    setAppliedAlternatives(null)
+    setSuggestionsDismissed(true)
+    const pos = next.length
+    setCursorPos(pos)
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.setSelectionRange(pos, pos)
+    })
+  }
 
   const handleSwapSides = () => {
     const glyph = currentArrow === '<=>' ? '⇌' : '->'
@@ -289,6 +526,7 @@ export const EquationSolverPage = memo(function EquationSolverPage({
     setInputStates(nextStates)
     setProgressFraction(1)
     setYieldPercent(100)
+    setAppliedAlternatives(null)
   }
 
   const handleCopy = (mode: 'plain' | 'latex') => {
@@ -430,6 +668,39 @@ export const EquationSolverPage = memo(function EquationSolverPage({
     })
   }
 
+  const renderSpeciesActions = (species: CatalogSpeciesRecord) => (
+    <div className="flex shrink-0 items-center gap-0.5">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onOpenSpeciesInCatalog(species.id)}
+            aria-label="Ouvrir la fiche catalogue"
+          >
+            <BookOpen className="h-3.5 w-3.5" strokeWidth={1.6} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Fiche catalogue</TooltipContent>
+      </Tooltip>
+      {species.kind !== 'element_substance' && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onOpenInLewisBuilder(species)}
+              aria-label="Ouvrir dans l’éditeur Lewis"
+            >
+              <Share2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Éditeur Lewis</TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  )
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background select-none">
       {/* Top preset & quick action bar */}
@@ -476,6 +747,7 @@ export const EquationSolverPage = memo(function EquationSolverPage({
             onClick={() => {
               setEquationInput('')
               setInputStates({})
+              setAppliedAlternatives(null)
               inputRef.current?.focus()
             }}
             disabled={!equationInput}
@@ -501,28 +773,107 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                   type="text"
                   value={equationInput}
                   onChange={(e) => {
-                    setEquationInput(e.target.value)
-                    setCursorPos(e.target.selectionStart ?? e.target.value.length)
+                    const val = e.target.value
+                    setEquationInput(val)
+                    setCursorPos(e.target.selectionStart ?? val.length)
+                    setSuggestionIdx(0)
+                    setSuggestionsDismissed(false)
+                    if (appliedAlternatives && val !== appliedAlternatives.appliedEquation) {
+                      setAppliedAlternatives(null)
+                    }
                   }}
-                  onClick={(e) =>
+                  onClick={(e) => {
                     setCursorPos(
                       (e.target as HTMLInputElement).selectionStart ??
                         equationInput.length,
                     )
-                  }
-                  onKeyUp={(e) =>
-                    setCursorPos(
-                      (e.target as HTMLInputElement).selectionStart ??
-                        equationInput.length,
-                    )
-                  }
+                    setSuggestionIdx(0)
+                    setSuggestionsDismissed(false)
+                  }}
+                  onKeyDown={(e) => {
+                    if (inlineSuggestions.length > 0) {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault()
+                        const nextIdx =
+                          (activeSuggestionIdx + 1) % inlineSuggestions.length
+                        setSuggestionIdx(nextIdx)
+                        requestAnimationFrame(() => {
+                          const item = suggestionListRef.current?.children[nextIdx] as
+                            | HTMLElement
+                            | undefined
+                          item?.scrollIntoView({ block: 'nearest' })
+                        })
+                        return
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault()
+                        const nextIdx =
+                          (activeSuggestionIdx - 1 + inlineSuggestions.length) %
+                          inlineSuggestions.length
+                        setSuggestionIdx(nextIdx)
+                        requestAnimationFrame(() => {
+                          const item = suggestionListRef.current?.children[nextIdx] as
+                            | HTMLElement
+                            | undefined
+                          item?.scrollIntoView({ block: 'nearest' })
+                        })
+                        return
+                      }
+                      if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault()
+                        const chosen = inlineSuggestions[activeSuggestionIdx]
+                        if (chosen) handleAcceptInlineSuggestion(chosen)
+                        return
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        setSuggestionsDismissed(true)
+                        return
+                      }
+                    } else if (isPredictionMode && predictedCandidates.length > 0) {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault()
+                        setSelectedPredictionIdx(
+                          (activePredictionIdx + 1) % predictedCandidates.length,
+                        )
+                        return
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault()
+                        setSelectedPredictionIdx(
+                          (activePredictionIdx - 1 + predictedCandidates.length) %
+                            predictedCandidates.length,
+                        )
+                        return
+                      }
+                      if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault()
+                        const chosen = predictedCandidates[activePredictionIdx]
+                        if (chosen) applyPredictedReaction(chosen, predictedCandidates)
+                        return
+                      }
+                    }
+                  }}
+                  onKeyUp={(e) => {
+                    if (
+                      e.key !== 'ArrowDown' &&
+                      e.key !== 'ArrowUp' &&
+                      e.key !== 'Enter' &&
+                      e.key !== 'Escape'
+                    ) {
+                      setCursorPos(
+                        (e.target as HTMLInputElement).selectionStart ??
+                          equationInput.length,
+                      )
+                    }
+                  }}
                   onFocus={() => setInputFocused(true)}
                   onBlur={() => {
                     window.setTimeout(() => setInputFocused(false), 140)
                   }}
                   spellCheck={false}
                   autoComplete="off"
-                  placeholder="Saisir une équation — ex. MnO4-(aq) + Fe2+(aq) + H+(aq) -> Mn2+(aq) + Fe3+(aq) + H2O(l)"
+                  placeholder="Ex. AgNO3 + NaCl -> (prédire) ou MnO4- + Fe2+ -> Mn2+ + Fe3+ (équilibrer)"
                   aria-label="Équation chimique à équilibrer"
                   className="h-11 w-full rounded-lg border border-border bg-panel px-4 pr-10 text-[14.5px] text-foreground placeholder:text-muted-foreground/55 focus-visible:border-zinc-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring select-text"
                 />
@@ -531,6 +882,7 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                     type="button"
                     onClick={() => {
                       setEquationInput('')
+                      setAppliedAlternatives(null)
                       inputRef.current?.focus()
                     }}
                     aria-label="Effacer"
@@ -541,33 +893,47 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                 )}
 
                 {inlineSuggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-xl">
-                    {inlineSuggestions.map((sp) => (
-                      <button
-                        key={sp.id}
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          handleAcceptInlineSuggestion(sp)
-                        }}
-                        className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs hover:bg-accent"
-                      >
-                        <span className="flex min-w-0 items-baseline gap-2">
-                          <span className="font-semibold text-foreground">
-                            <ChemFormula
-                              value={sp.displayFormula}
-                              state={sp.standardState}
-                            />
+                  <div
+                    ref={suggestionListRef}
+                    role="listbox"
+                    aria-label="Suggestions d’espèces"
+                    className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-popover py-1 shadow-xl"
+                  >
+                    {inlineSuggestions.map((sp, idx) => {
+                      const isActive = idx === activeSuggestionIdx
+                      return (
+                        <button
+                          key={sp.id}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          onMouseEnter={() => setSuggestionIdx(idx)}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            handleAcceptInlineSuggestion(sp)
+                          }}
+                          className={cn(
+                            'flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs',
+                            isActive ? 'bg-accent text-foreground' : 'hover:bg-accent/60',
+                          )}
+                        >
+                          <span className="flex min-w-0 items-baseline gap-2">
+                            <span className="font-semibold text-foreground">
+                              <ChemFormula
+                                value={sp.displayFormula}
+                                state={sp.kind === 'ion' ? 'aq' : sp.standardState}
+                              />
+                            </span>
+                            <span className="truncate text-muted-foreground">
+                              {sp.nameFr}
+                            </span>
                           </span>
-                          <span className="truncate text-muted-foreground">
-                            {sp.nameFr}
+                          <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
+                            {formatFrNumber(sp.molarMass, 2)} g/mol
                           </span>
-                        </span>
-                        <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
-                          {formatFrNumber(sp.molarMass, 2)} g/mol
-                        </span>
-                      </button>
-                    ))}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -753,6 +1119,39 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                     </span>
                   </div>
 
+                  {/* Other predicted reactions for the same reactants */}
+                  {appliedAlternatives &&
+                    appliedAlternatives.appliedEquation === equationInput &&
+                    appliedAlternatives.items.length > 1 && (
+                      <div className="flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2 text-[11px]">
+                        <span className="text-muted-foreground">
+                          Autres réactions possibles :
+                        </span>
+                        {appliedAlternatives.items
+                          .filter(
+                            (cand) =>
+                              (cand.balanced?.plainText ?? cand.raw.equationDisplay) !==
+                              equationInput,
+                          )
+                          .map((cand, idx) => (
+                            <button
+                              key={`alt-${idx}-${cand.raw.equationDisplay}`}
+                              type="button"
+                              onClick={() =>
+                                applyPredictedReaction(cand, appliedAlternatives.items)
+                              }
+                              className="rounded px-1.5 py-0.5 text-zinc-300 hover:bg-accent hover:text-foreground"
+                            >
+                              <ChemFormula
+                                value={
+                                  cand.balanced?.plainText ?? cand.raw.equationDisplay
+                                }
+                              />
+                            </button>
+                          ))}
+                      </div>
+                    )}
+
                   {/* Short, unambiguous chemical reality clarification when not a known spontaneous reaction */}
                   {realityStatus?.kind === 'non_spontaneous' && (
                     <p className="text-[11.5px] leading-relaxed text-muted-foreground">
@@ -774,9 +1173,17 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                         <>
                           {' '}
                           Réaction connue avec ces réactifs :{' '}
-                          <span className="text-zinc-300">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const sug = realityStatus.suggestedEquation!
+                              setEquationInput(sug)
+                              setAppliedAlternatives(null)
+                            }}
+                            className="rounded px-1 py-0.5 text-zinc-200 underline decoration-border underline-offset-2 hover:bg-accent hover:text-foreground"
+                          >
                             <ChemFormula value={realityStatus.suggestedEquation} />
-                          </span>
+                          </button>
                           .
                         </>
                       )}
@@ -794,6 +1201,214 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                       ))}{' '}
                       hors catalogue).
                     </p>
+                  )}
+                </div>
+              ) : isPredictionMode ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px]">
+                      {leftSideAnalysis.parseError ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-rose-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+                          <ChemText value={leftSideAnalysis.parseError} />
+                        </span>
+                      ) : leftSideAnalysis.unknownTerms.length > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-amber-300">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                          Prédiction indisponible :{' '}
+                          <ChemText value={leftSideAnalysis.unknownTerms.join(', ')} />{' '}
+                          hors catalogue
+                        </span>
+                      ) : predictionLoading ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
+                          Recherche des réactions possibles…
+                        </span>
+                      ) : predictedCandidates.length > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          {predictedCandidates.length} réaction
+                          {predictedCandidates.length > 1 ? 's' : ''} possible
+                          {predictedCandidates.length > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
+                          Aucune réaction spontanée prédite
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {predictedGroups.length > 0 ? (
+                    <div className="space-y-4">
+                      {predictedGroups.map((group) => (
+                        <div key={group.context} className="space-y-1.5">
+                          {(predictedGroups.length > 1 || group.context !== 'direct') && (
+                            <div className="flex items-baseline gap-1.5 text-[11px] font-medium text-muted-foreground">
+                              <span>{group.labelFr}</span>
+                              {group.addedSpeciesFormula && (
+                                <span className="text-zinc-400">
+                                  (<ChemText value={`+ ${group.addedSpeciesFormula}`} />)
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="divide-y divide-border/60 border-y border-border/60">
+                            {group.items.map((cand) => {
+                              const isSelected = cand.flatIdx === activePredictionIdx
+                              const rxn = cand.raw
+                              const eqText =
+                                cand.balanced?.plainText ?? rxn.equationDisplay
+                              return (
+                                <div
+                                  key={`${eqText}-${cand.flatIdx}`}
+                                  role="button"
+                                  tabIndex={0}
+                                  onMouseEnter={() =>
+                                    setSelectedPredictionIdx(cand.flatIdx)
+                                  }
+                                  onClick={() =>
+                                    applyPredictedReaction(cand, predictedCandidates)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault()
+                                      applyPredictedReaction(cand, predictedCandidates)
+                                    }
+                                  }}
+                                  className={cn(
+                                    'px-2.5 py-2.5',
+                                    isSelected ? 'bg-accent/45' : 'hover:bg-accent/30',
+                                  )}
+                                >
+                                  <div className="overflow-x-auto text-[15px] leading-snug text-foreground">
+                                    {cand.balanced ? (
+                                      <span className="inline-flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                        {cand.balanced.reactants.map((r, rIdx) => (
+                                          <span
+                                            key={`pr-${rIdx}`}
+                                            className="inline-flex items-baseline"
+                                          >
+                                            {rIdx > 0 && (
+                                              <span className="mr-1.5 text-muted-foreground">
+                                                +
+                                              </span>
+                                            )}
+                                            {r.coefficient > 1 && (
+                                              <span className="mr-1 font-semibold text-sky-300 tabular-nums">
+                                                {r.coefficient}
+                                              </span>
+                                            )}
+                                            <ChemFormula value={r.displayFormula} />
+                                            {r.state && (
+                                              <StateTag
+                                                state={r.state}
+                                                className="text-[0.65em]"
+                                              />
+                                            )}
+                                          </span>
+                                        ))}
+                                        <span className="mx-1 text-zinc-400">
+                                          {cand.balanced.arrow === '<=>' ? '⇌' : '→'}
+                                        </span>
+                                        {cand.balanced.products.map((p, pIdx) => (
+                                          <span
+                                            key={`pp-${pIdx}`}
+                                            className="inline-flex items-baseline"
+                                          >
+                                            {pIdx > 0 && (
+                                              <span className="mr-1.5 text-muted-foreground">
+                                                +
+                                              </span>
+                                            )}
+                                            {p.coefficient > 1 && (
+                                              <span className="mr-1 font-semibold text-sky-300 tabular-nums">
+                                                {p.coefficient}
+                                              </span>
+                                            )}
+                                            <ChemFormula value={p.displayFormula} />
+                                            {p.state && (
+                                              <StateTag
+                                                state={p.state}
+                                                className="text-[0.65em]"
+                                              />
+                                            )}
+                                          </span>
+                                        ))}
+                                      </span>
+                                    ) : (
+                                      <ChemFormula value={rxn.equationDisplay} />
+                                    )}
+                                  </div>
+
+                                  <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-[11px] text-muted-foreground">
+                                    <span className="text-zinc-300">
+                                      <ChemText value={rxn.titleFr} />
+                                    </span>
+                                    <span>·</span>
+                                    <span>
+                                      {REACTION_CATEGORY_LABEL[rxn.category] ??
+                                        rxn.category}
+                                    </span>
+                                    {rxn.equilibriumLabel && (
+                                      <>
+                                        <span>·</span>
+                                        <span className="tabular-nums">
+                                          <ChemText value={rxn.equilibriumLabel} />
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    !predictionLoading &&
+                    !leftSideAnalysis.parseError && (
+                      <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+                        <ChemText
+                          value={
+                            leftSideAnalysis.unknownTerms.length > 0
+                              ? 'Saisissez les produits à droite pour équilibrer cette équation manuellement.'
+                              : 'Aucune réaction spontanée prédite (directe ou en milieu acide, basique, aqueux ou avec O2). Saisissez les produits à droite pour équilibrer librement.'
+                          }
+                        />
+                      </p>
+                    )
+                  )}
+                </div>
+              ) : isDraftingLeft ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+                  <div className="space-y-0.5">
+                    {leftSideAnalysis.parseError ? (
+                      <p className="text-xs text-rose-400">
+                        <ChemText value={leftSideAnalysis.parseError} />
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Ajoutez <code className="text-foreground">=</code> ou{' '}
+                        <code className="text-foreground">-&gt;</code> après vos réactifs
+                        pour proposer les réactions possibles, ou écrivez les produits à
+                        droite.
+                      </p>
+                    )}
+                  </div>
+                  {!leftSideAnalysis.parseError && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleAppendArrowForPredict}
+                      className="h-7 shrink-0 text-[11px]"
+                    >
+                      Prédire les produits (→)
+                    </Button>
                   )}
                 </div>
               ) : (
@@ -1150,7 +1765,7 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                               Initial
                             </div>
                             <div className="text-[10px] text-muted-foreground/80">
-                              x = 0
+                              <ChemVar base="x" /> = 0
                             </div>
                           </td>
                           {result.reactants.map((r, i) => {
@@ -1185,7 +1800,7 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                               En cours
                             </div>
                             <div className="text-[10px] text-sky-300">
-                              x = {formatMol(stoich.xCurrent)}
+                              <ChemVar base="x" /> = {formatMol(stoich.xCurrent)}
                             </div>
                           </td>
                           {result.reactants.map((r, i) => {
@@ -1340,28 +1955,7 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                           </p>
                         </div>
 
-                        {p.matchedSpecies && (
-                          <div className="flex shrink-0 items-center gap-0.5">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onOpenSpeciesInCatalog(p.matchedSpecies!.id)
-                              }
-                              className="rounded px-1.5 py-0.5 text-[10.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                            >
-                              Fiche
-                            </button>
-                            {p.matchedSpecies.kind !== 'element_substance' && (
-                              <button
-                                type="button"
-                                onClick={() => onOpenInLewisBuilder(p.matchedSpecies!)}
-                                className="rounded px-1.5 py-0.5 text-[10.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                              >
-                                Lewis
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        {p.matchedSpecies && renderSpeciesActions(p.matchedSpecies)}
                       </li>
                     ))}
                   </ul>
@@ -1479,19 +2073,70 @@ export const EquationSolverPage = memo(function EquationSolverPage({
                 )}
               </>
             ) : (
-              <div className="space-y-2 text-[11.5px] leading-relaxed text-muted-foreground">
-                <p className="font-medium text-foreground">Syntaxe acceptée</p>
-                <ul className="space-y-1.5 text-[11px]">
-                  <li>Fe + O2 -&gt; Fe2O3</li>
-                  <li>MnO4- + Fe2+ + H+ -&gt; Mn2+ + Fe3+ + H2O</li>
-                  <li>Ca(OH)2 + H3PO4 -&gt; Ca3(PO4)2 + H2O</li>
-                  <li>MnO4- + H+ + e- -&gt; Mn2+ + H2O</li>
-                </ul>
-                <p className="pt-1 text-[11px]">
-                  Parenthèses, hydrates (<code>·</code>), charges ioniques,
-                  demi-équations (<code>e-</code>) et états <code>(s)</code>,{' '}
-                  <code>(l)</code>, <code>(g)</code>, <code>(aq)</code>.
-                </p>
+              <div className="space-y-4">
+                {leftSideAnalysis.parsedTerms.length > 0 && (
+                  <section className="space-y-1.5">
+                    <span className="text-[11px] font-medium text-foreground">
+                      Réactifs saisis
+                    </span>
+                    <ul className="divide-y divide-border/40">
+                      {leftSideAnalysis.parsedTerms.map((p, idx) => (
+                        <li
+                          key={`lp-${idx}-${p.formula}`}
+                          className="flex items-center justify-between gap-2 py-2 text-[11px]"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="font-semibold text-foreground">
+                                <ChemFormula value={p.displayFormula} />
+                                {p.state && <StateTag state={p.state} />}
+                              </span>
+                              <span className="text-[10px] tabular-nums text-muted-foreground">
+                                {formatFrNumber(p.molarMass, 2)} g/mol
+                              </span>
+                            </div>
+                            <p
+                              className={cn(
+                                'truncate text-[10.5px]',
+                                p.matchedSpecies
+                                  ? 'text-muted-foreground'
+                                  : 'text-amber-300/80',
+                              )}
+                            >
+                              {p.matchedSpecies?.nameFr ?? 'Hors catalogue'}
+                            </p>
+                          </div>
+
+                          {p.matchedSpecies && renderSpeciesActions(p.matchedSpecies)}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                <div
+                  className={cn(
+                    'space-y-2 text-[11.5px] leading-relaxed text-muted-foreground',
+                    leftSideAnalysis.parsedTerms.length > 0 &&
+                      'border-t border-border/60 pt-4',
+                  )}
+                >
+                  <p className="font-medium text-foreground">Prédiction & syntaxe</p>
+                  <ul className="space-y-1.5 text-[11px]">
+                    <li>AgNO3 + NaCl -&gt; (prédire)</li>
+                    <li>Fe + O2 = (prédire)</li>
+                    <li>H2O2 -&gt; (décomposition)</li>
+                    <li>MnO4- + Fe2+ + H+ -&gt; Mn2+ + Fe3+ + H2O</li>
+                    <li>MnO4- + H+ + e- -&gt; Mn2+ + H2O</li>
+                  </ul>
+                  <p className="pt-1 text-[11px]">
+                    Tapez les réactifs puis <code>=</code> ou <code>-&gt;</code> pour
+                    obtenir les réactions équilibrées possibles, ou saisissez toute
+                    l’équation avec charges, <code>e-</code> et états{' '}
+                    <code>(s)</code>, <code>(l)</code>, <code>(g)</code>,{' '}
+                    <code>(aq)</code>.
+                  </p>
+                </div>
               </div>
             )}
           </div>

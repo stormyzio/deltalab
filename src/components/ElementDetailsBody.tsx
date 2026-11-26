@@ -4,6 +4,7 @@ import {
   type FullCatalogResponse,
   getElementSolidColor,
   getSolidSpeciesIdForElement,
+  isMonatomicSolidSpecies,
 } from '../../shared/chemistry.ts'
 import {
   expandElectronConfiguration,
@@ -172,14 +173,17 @@ export function ElementDetailsBody({
     element.category !== 'metalloid' &&
     element.category !== 'halogen' &&
     element.category !== 'noble-gas'
-  const solidTitle =
-    solidSpecies?.nameFr ??
-    (isMetalElement ? `${element.nameFr} métallique` : `${element.nameFr} solide`)
+  const solidTitle = isMetalElement
+    ? `${element.nameFr} métallique`
+    : `${element.nameFr} solide`
 
   const relatedSpecies = useMemo(() => {
     if (!showRelatedSpecies || !catalog) return []
     return catalog.species
-      .filter((sp) => (sp.composition[element.symbol] ?? 0) > 0)
+      .filter(
+        (sp) =>
+          !isMonatomicSolidSpecies(sp) && (sp.composition[element.symbol] ?? 0) > 0,
+      )
       .slice(0, maxSpecies)
   }, [showRelatedSpecies, catalog, element.symbol, maxSpecies])
 
@@ -259,22 +263,9 @@ export function ElementDetailsBody({
             <SolidBlockArtwork colorHex={solidColorHex} size="md" className="mt-0.5" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                {solidSpecies && onJumpToSpecies ? (
-                  <button
-                    type="button"
-                    onClick={() => onJumpToSpecies(solidSpecies.id)}
-                    className="text-left text-xs font-semibold text-foreground hover:underline"
-                  >
-                    {solidTitle}
-                  </button>
-                ) : (
-                  <span className="text-xs font-semibold text-foreground">{solidTitle}</span>
-                )}
+                <span className="text-xs font-semibold text-foreground">{solidTitle}</span>
                 <span className="text-[11px] text-muted-foreground">
-                  <ChemFormula
-                    value={solidSpecies?.displayFormula ?? element.symbol}
-                    state="s"
-                  />
+                  <ChemFormula value={element.symbol} state="s" />
                 </span>
               </div>
               {solidDescription && (

@@ -1,7 +1,9 @@
 import type {
   AlloyRecord,
   CanvasFlaskNode,
+  CanvasGasCollectorNode,
   CanvasNode,
+  CanvasThermalChamberNode,
   CatalogSpeciesRecord,
   ElementRecord,
   FlaskProbeType,
@@ -15,6 +17,8 @@ import { AtomInspector } from '@/components/inspector/AtomInspector'
 import { SpeciesInspector } from '@/components/inspector/SpeciesInspector'
 import { SolidInspector } from '@/components/inspector/SolidInspector'
 import { FlaskInspector } from '@/components/inspector/FlaskInspector'
+import { GasCollectorInspector } from '@/components/inspector/GasCollectorInspector'
+import { ThermalChamberInspector } from '@/components/inspector/ThermalChamberInspector'
 import { MultiSelectionInspector } from '@/components/inspector/MultiSelectionInspector'
 
 export type { CatalogJumpTarget }
@@ -22,6 +26,8 @@ export type { CatalogJumpTarget }
 interface InspectorPanelProps {
   selectedNodes: CanvasNode[]
   allFlasks: CanvasFlaskNode[]
+  allGasCollectors: CanvasGasCollectorNode[]
+  allThermalChambers: CanvasThermalChamberNode[]
   totalNodeCount: number
   catalog: FullCatalogResponse | null
   elementsBySymbol: Map<string, ElementRecord>
@@ -54,6 +60,14 @@ interface InspectorPanelProps {
   onToggleFlaskProbe: (flaskId: string, probe: FlaskProbeType) => void
   onToggleFlaskStirrer: (flaskId: string) => void
   onSetFlaskHeaterTarget: (flaskId: string, targetC: number | null) => void
+  onLinkGasCollectorToFlask: (collectorId: string, flaskId: string | null) => void
+  onExtractGasFromCollector: (collectorId: string, speciesId: string) => void
+  onSendGasToChamber: (collectorId: string, speciesId: string, chamberId: string) => void
+  onClearGasCollector: (collectorId: string) => void
+  onSetChamberTargetTemp: (chamberId: string, tempC: number) => void
+  onToggleChamberPower: (chamberId: string) => void
+  onExtractSampleFromChamber: (chamberId: string) => void
+  onClearChamberSample: (chamberId: string) => void
   onOpenTitration: (buretteId?: string, analyteId?: string) => void
   onOpenInCatalog: (target: CatalogJumpTarget) => void
   onOpenInLewisBuilder: (species: SpeciesRecord) => void
@@ -63,6 +77,8 @@ interface InspectorPanelProps {
 export function InspectorPanel({
   selectedNodes,
   allFlasks,
+  allGasCollectors,
+  allThermalChambers,
   totalNodeCount,
   catalog,
   elementsBySymbol,
@@ -95,6 +111,14 @@ export function InspectorPanel({
   onToggleFlaskProbe,
   onToggleFlaskStirrer,
   onSetFlaskHeaterTarget,
+  onLinkGasCollectorToFlask,
+  onExtractGasFromCollector,
+  onSendGasToChamber,
+  onClearGasCollector,
+  onSetChamberTargetTemp,
+  onToggleChamberPower,
+  onExtractSampleFromChamber,
+  onClearChamberSample,
   onOpenTitration,
   onOpenInCatalog,
   onOpenInLewisBuilder,
@@ -125,9 +149,13 @@ export function InspectorPanel({
                     : 'Bloc solide'
                   : singleNode?.kind === 'flask'
                     ? 'Verrerie'
-                    : singleNode?.species.kind === 'ion'
-                      ? 'Ion'
-                      : 'Espèce'
+                    : singleNode?.kind === 'gas_collector'
+                      ? 'Collecteur de gaz'
+                      : singleNode?.kind === 'thermal_chamber'
+                        ? 'Chambre thermique'
+                        : singleNode?.species.kind === 'ion'
+                          ? 'Ion'
+                          : 'Espèce'
               : `${selectedNodes.length} éléments`}
           </span>
         )}
@@ -196,6 +224,7 @@ export function InspectorPanel({
               key={singleNode.id}
               node={singleNode}
               otherFlasks={allFlasks.filter((f) => f.id !== singleNode.id)}
+              gasCollectors={allGasCollectors}
               catalog={catalog}
               onAddWater={(ml) => onAddWaterToFlask(singleNode.id, ml)}
               onResize={(cap) => onResizeFlask(singleNode.id, cap)}
@@ -222,6 +251,16 @@ export function InspectorPanel({
               onSetHeaterTarget={(target) =>
                 onSetFlaskHeaterTarget(singleNode.id, target)
               }
+              onLinkGasCollector={(collectorId) => {
+                if (collectorId) {
+                  onLinkGasCollectorToFlask(collectorId, singleNode.id)
+                } else {
+                  const current = allGasCollectors.find(
+                    (c) => c.sourceFlaskId === singleNode.id,
+                  )
+                  if (current) onLinkGasCollectorToFlask(current.id, null)
+                }
+              }}
               onOpenTitration={onOpenTitration}
               onSetSoluteAmount={(spId, mol) =>
                 onSetFlaskSoluteAmount(singleNode.id, spId, mol)
@@ -235,6 +274,38 @@ export function InspectorPanel({
               onClearFilterCake={
                 onClearFilterCake ? () => onClearFilterCake(singleNode.id) : undefined
               }
+            />
+          )}
+
+          {singleNode?.kind === 'gas_collector' && (
+            <GasCollectorInspector
+              key={singleNode.id}
+              node={singleNode}
+              flasks={allFlasks}
+              thermalChambers={allThermalChambers}
+              onLinkSourceFlask={(flaskId) =>
+                onLinkGasCollectorToFlask(singleNode.id, flaskId)
+              }
+              onExtractGasToCanvas={(spId) =>
+                onExtractGasFromCollector(singleNode.id, spId)
+              }
+              onSendGasToChamber={(spId, chamberId) =>
+                onSendGasToChamber(singleNode.id, spId, chamberId)
+              }
+              onClearCollector={() => onClearGasCollector(singleNode.id)}
+            />
+          )}
+
+          {singleNode?.kind === 'thermal_chamber' && (
+            <ThermalChamberInspector
+              key={singleNode.id}
+              node={singleNode}
+              onSetTargetTemperature={(t) =>
+                onSetChamberTargetTemp(singleNode.id, t)
+              }
+              onTogglePower={() => onToggleChamberPower(singleNode.id)}
+              onExtractSample={() => onExtractSampleFromChamber(singleNode.id)}
+              onClearSample={() => onClearChamberSample(singleNode.id)}
             />
           )}
 

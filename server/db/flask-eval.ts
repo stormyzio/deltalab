@@ -1,10 +1,10 @@
 import {
-  ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID,
   type EvaluateFlaskAdditionRequest,
   type EvaluateFlaskAdditionResponse,
   type FilteredSolidItem,
   type FlaskSolutionState,
   type WorkspaceSnapshot,
+  getSolidSpeciesIdForElement,
 } from '../../shared/chemistry.ts'
 import { WATER_MOLAR_MASS, formatQtyFr, roundTo } from '../lib/math-format.ts'
 import { getSpeciesById, getVesselById } from './catalog.ts'
@@ -104,8 +104,8 @@ export function evaluateFlaskAddition(
           const delta = p.stoichiometry * xMol
           if (p.speciesId === 'h2o') {
             waterDeltaMol += delta
-          } else if (p.state === 'gas') {
-            // Gas escapes to atmosphere
+          } else if (p.state === 'gas' && req.commitReaction.gasCapturedByCollector) {
+            // Gas captured directly into the linked gas collector
           } else if (getSpeciesById(p.speciesId)) {
             elemSolutes[p.speciesId] = roundTo((elemSolutes[p.speciesId] ?? 0) + delta, 6)
           }
@@ -308,7 +308,7 @@ export function evaluateFlaskAddition(
   const resolvedSpeciesId =
     req.incomingSpeciesId ??
     (req.incomingElementSymbol
-      ? ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[req.incomingElementSymbol.trim()]
+      ? getSolidSpeciesIdForElement(req.incomingElementSymbol.trim())
       : undefined)
 
   if (!resolvedSpeciesId) {

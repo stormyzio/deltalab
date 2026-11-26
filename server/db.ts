@@ -9,11 +9,11 @@ export {
   listSpecies,
   listVessels,
   predictReactionByIds,
+  predictReactionsByIds,
 } from './db/catalog.ts'
 export {
   formatHillFormula,
   ionizeComposition,
-  lookupAndCachePubChem,
   matchLewisStructure,
   mergeAtoms,
 } from './db/species-actions.ts'

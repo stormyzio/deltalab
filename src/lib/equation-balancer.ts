@@ -552,8 +552,8 @@ export function parseChemTerm(
     }
   }
 
-  // Special case: free electron "e-"
-  if (s === 'e' && charge === -1) {
+  // Special case: free electron "e-" or "e"
+  if (s === 'e' && (charge === -1 || charge === 0)) {
     return {
       term: {
         raw: rawInput.trim(),
@@ -585,7 +585,26 @@ export function parseChemTerm(
   molarMass = Math.round(molarMass * 1000) / 1000
 
   const sig = buildCanonicalSignature(composition)
-  const matchedSpecies = speciesBySigAndCharge.get(`${sig}|${charge}`) ?? null
+  let matchedSpecies = speciesBySigAndCharge.get(`${sig}|${charge}`) ?? null
+
+  // If the user typed an uncharged polyatomic formula (e.g. "ClO", "MnO4", "Cr2O7", "SO4", "PO4", "CO3", "NH4")
+  // that does not exist as a neutral species in the catalog, resolve it to its catalog ion if one exists.
+  if (!matchedSpecies && charge === 0 && Object.keys(composition).length >= 2) {
+    const prefix = `${sig}|`
+    let bestIon: CatalogSpeciesRecord | null = null
+    for (const [key, sp] of speciesBySigAndCharge.entries()) {
+      if (key.startsWith(prefix) && sp.charge !== 0) {
+        if (!bestIon || sp.popularity > bestIon.popularity) {
+          bestIon = sp
+        }
+      }
+    }
+    if (bestIon) {
+      charge = bestIon.charge
+      matchedSpecies = bestIon
+    }
+  }
+
   const displayFormula = formatDisplayFormula(s, charge)
 
   return {
@@ -595,7 +614,15 @@ export function parseChemTerm(
       displayFormula,
       composition,
       charge,
-      state: state ?? (matchedSpecies ? matchedSpecies.standardState : null),
+      state:
+        state ??
+        (matchedSpecies
+          ? matchedSpecies.kind === 'ion'
+            ? 'aqueous'
+            : matchedSpecies.standardState
+          : charge !== 0
+            ? 'aqueous'
+            : null),
       userCoefficient,
       molarMass,
       matchedSpecies,
@@ -814,6 +841,168 @@ function classifyReaction(
   return tags.length > 0 ? tags.slice(0, 3) : ['Réaction chimique']
 }
 
+function getTermIdentityKey(t: ParsedEquationTerm): string {
+  if (t.formula === 'e' && t.charge === -1) return 'e|-1'
+  return `${buildCanonicalSignature(t.composition)}|${t.charge}|${t.formula}`
+}
+
+function mergeSameSideTerms(terms: ParsedEquationTerm[]): ParsedEquationTerm[] {
+  const byKey = new Map<string, ParsedEquationTerm>()
+  for (const t of terms) {
+    const key = getTermIdentityKey(t)
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, { ...t })
+    } else {
+      const c1 = existing.userCoefficient ?? 1
+      const c2 = t.userCoefficient ?? 1
+      existing.userCoefficient = c1 + c2
+    }
+  }
+  return [...byKey.values()]
+}
+
+function sortElementsChem(els: Iterable<string>): string[] {
+  return [...els].sort((a, b) => {
+    if (a === 'C') return -1
+    if (b === 'C') return 1
+    if (a === 'H') return -1
+    if (b === 'H') return 1
+    if (a === 'O') return -1
+    if (b === 'O') return 1
+    return a.localeCompare(b)
+  })
+}
+
+interface SolvedSystem {
+  reactants: ParsedEquationTerm[]
+  products: ParsedEquationTerm[]
+  coeffs: number[]
+  basisLength: number
+  allElements: string[]
+  hasCharge: boolean
+  autoCompleted: boolean
+}
+
+function trySolveTermSet(
+  rTerms: ParsedEquationTerm[],
+  pTerms: ParsedEquationTerm[],
+  autoCompleted = false,
+): SolvedSystem | null {
+  if (rTerms.length === 0 || pTerms.length === 0) return null
+  const leftEls = new Set<string>()
+  const rightEls = new Set<string>()
+  for (const r of rTerms) {
+    for (const sym of Object.keys(r.composition)) leftEls.add(sym)
+  }
+  for (const p of pTerms) {
+    for (const sym of Object.keys(p.composition)) rightEls.add(sym)
+  }
+  if (leftEls.size !== rightEls.size) return null
+  for (const sym of leftEls) {
+    if (!rightEls.has(sym)) return null
+  }
+
+  const allElements = sortElementsChem(leftEls)
+  const allTerms = [...rTerms, ...pTerms]
+  const hasCharge = allTerms.some((t) => t.charge !== 0)
+
+  const matrix: Rat[][] = []
+  for (const sym of allElements) {
+    const row: Rat[] = []
+    for (const r of rTerms) row.push(makeRat(BigInt(r.composition[sym] ?? 0)))
+    for (const p of pTerms) row.push(makeRat(-BigInt(p.composition[sym] ?? 0)))
+    matrix.push(row)
+  }
+  if (hasCharge) {
+    const row: Rat[] = []
+    for (const r of rTerms) row.push(makeRat(BigInt(r.charge)))
+    for (const p of pTerms) row.push(makeRat(-BigInt(p.charge)))
+    matrix.push(row)
+  }
+
+  if (matrix.length === 0) return null
+  const basis = solveNullspaceRref(matrix)
+  if (basis.length === 0) return null
+  if (autoCompleted && basis.length !== 1) return null
+
+  const coeffs = findPositiveCombination(basis)
+  if (!coeffs) return null
+
+  return {
+    reactants: rTerms,
+    products: pTerms,
+    coeffs,
+    basisLength: basis.length,
+    allElements,
+    hasCharge,
+    autoCompleted,
+  }
+}
+
+function gcdNumber(a: number, b: number): number {
+  let x = Math.abs(Math.round(a))
+  let y = Math.abs(Math.round(b))
+  while (y !== 0) {
+    const t = x % y
+    x = y
+    y = t
+  }
+  return x || 1
+}
+
+function simplifyBalancedParticipants(
+  rawReactants: BalancedParticipant[],
+  rawProducts: BalancedParticipant[],
+): { reactants: BalancedParticipant[]; products: BalancedParticipant[] } {
+  let reactants = rawReactants.map((r) => ({ ...r }))
+  let products = rawProducts.map((p) => ({ ...p }))
+
+  // Check if all species on left and right are identical (e.g. H2O -> H2O)
+  const rKeySet = new Set(reactants.map(getTermIdentityKey))
+  const pKeySet = new Set(products.map(getTermIdentityKey))
+  const allIdentical =
+    rKeySet.size === pKeySet.size && [...rKeySet].every((k) => pKeySet.has(k))
+
+  // Cancel any species appearing on both sides when there is a real net reaction
+  if (!allIdentical) {
+    for (const key of rKeySet) {
+      if (!pKeySet.has(key)) continue
+      const rItem = reactants.find((r) => getTermIdentityKey(r) === key)
+      const pItem = products.find((p) => getTermIdentityKey(p) === key)
+      if (!rItem || !pItem) continue
+      const minC = Math.min(rItem.coefficient, pItem.coefficient)
+      if (
+        reactants.length > (rItem.coefficient === minC ? 1 : 0) &&
+        products.length > (pItem.coefficient === minC ? 1 : 0)
+      ) {
+        rItem.coefficient -= minC
+        pItem.coefficient -= minC
+      }
+    }
+    reactants = reactants.filter((r) => r.coefficient > 0)
+    products = products.filter((p) => p.coefficient > 0)
+  }
+
+  // Divide all coefficients by their GCD for irreducible stoichiometry
+  const allCoeffs = [
+    ...reactants.map((r) => r.coefficient),
+    ...products.map((p) => p.coefficient),
+  ]
+  if (allCoeffs.length > 0) {
+    let g = allCoeffs[0]
+    for (let i = 1; i < allCoeffs.length; i++) {
+      g = gcdNumber(g, allCoeffs[i])
+    }
+    if (g > 1) {
+      for (const r of reactants) r.coefficient = Math.round(r.coefficient / g)
+      for (const p of products) p.coefficient = Math.round(p.coefficient / g)
+    }
+  }
+
+  return { reactants, products }
+}
+
 // --- Main public entry point ---
 
 export function balanceChemicalEquation(
@@ -865,23 +1054,38 @@ export function balanceChemicalEquation(
   const leftRawTerms = splitEquationSideTerms(leftStr)
   const rightRawTerms = splitEquationSideTerms(rightStr)
 
-  const reactants: ParsedEquationTerm[] = []
+  const parsedReactants: ParsedEquationTerm[] = []
   for (const raw of leftRawTerms) {
     const parsed = parseChemTerm(raw, elementsBySymbol, speciesBySigAndCharge)
     if ('errorFr' in parsed) {
-      return { ok: false, errorFr: parsed.errorFr, arrow, reactants, products: [] }
+      return {
+        ok: false,
+        errorFr: parsed.errorFr,
+        arrow,
+        reactants: parsedReactants,
+        products: [],
+      }
     }
-    reactants.push(parsed.term)
+    parsedReactants.push(parsed.term)
   }
 
-  const products: ParsedEquationTerm[] = []
+  const parsedProducts: ParsedEquationTerm[] = []
   for (const raw of rightRawTerms) {
     const parsed = parseChemTerm(raw, elementsBySymbol, speciesBySigAndCharge)
     if ('errorFr' in parsed) {
-      return { ok: false, errorFr: parsed.errorFr, arrow, reactants, products }
+      return {
+        ok: false,
+        errorFr: parsed.errorFr,
+        arrow,
+        reactants: parsedReactants,
+        products: parsedProducts,
+      }
     }
-    products.push(parsed.term)
+    parsedProducts.push(parsed.term)
   }
+
+  const reactants = mergeSameSideTerms(parsedReactants)
+  const products = mergeSameSideTerms(parsedProducts)
 
   if (reactants.length === 0 || products.length === 0) {
     return {
@@ -893,103 +1097,191 @@ export function balanceChemicalEquation(
     }
   }
 
-  // Verify every element appears on both sides
-  const leftEls = new Set<string>()
-  const rightEls = new Set<string>()
-  for (const r of reactants) {
-    for (const sym of Object.keys(r.composition)) leftEls.add(sym)
-  }
-  for (const p of products) {
-    for (const sym of Object.keys(p.composition)) rightEls.add(sym)
+  // If the user wrote the same species on both sides alongside other reacting species,
+  // also prepare a de-duplicated variant (removing the cross-side duplicate from one or both sides)
+  let solved: SolvedSystem | null = null
+
+  const rKeys = new Set(reactants.map(getTermIdentityKey))
+  const pKeys = new Set(products.map(getTermIdentityKey))
+  const sharedKeys = [...rKeys].filter((k) => pKeys.has(k))
+  const allSame =
+    sharedKeys.length === rKeys.size && sharedKeys.length === pKeys.size
+
+  if (sharedKeys.length > 0 && !allSame) {
+    // Try removing shared species from both sides (pure spectators), then from left only, then from right only
+    const rWithout = reactants.filter((r) => !sharedKeys.includes(getTermIdentityKey(r)))
+    const pWithout = products.filter((p) => !sharedKeys.includes(getTermIdentityKey(p)))
+    solved =
+      trySolveTermSet(rWithout, pWithout) ??
+      trySolveTermSet(rWithout, products) ??
+      trySolveTermSet(reactants, pWithout)
   }
 
-  const onlyLeft = [...leftEls].filter((s) => !rightEls.has(s))
-  const onlyRight = [...rightEls].filter((s) => !leftEls.has(s))
-  if (onlyLeft.length > 0 || onlyRight.length > 0) {
-    const msgs: string[] = []
-    if (onlyLeft.length > 0) {
-      msgs.push(`${onlyLeft.join(', ')} présent dans les réactifs mais absent des produits`)
+  if (!solved) {
+    solved = trySolveTermSet(reactants, products)
+  }
+
+  // If direct balancing failed, check if this is a half-equation or aqueous redox skeleton
+  // that can be automatically completed with e⁻, H⁺(aq), and/or H₂O(l).
+  if (!solved) {
+    const leftEls = new Set<string>()
+    const rightEls = new Set<string>()
+    for (const r of reactants) {
+      for (const sym of Object.keys(r.composition)) leftEls.add(sym)
     }
-    if (onlyRight.length > 0) {
-      msgs.push(`${onlyRight.join(', ')} présent dans les produits mais absent des réactifs`)
+    for (const p of products) {
+      for (const sym of Object.keys(p.composition)) rightEls.add(sym)
     }
-    return {
-      ok: false,
-      errorFr: `Conservation des éléments impossible : ${msgs.join(' ; ')}.`,
-      hintFr: 'Ajoutez l’espèce manquante (ex. H₂O, H⁺, O₂…) pour fermer le bilan.',
-      arrow,
-      reactants,
-      products,
+
+    const nonHOOnlyLeft = [...leftEls].filter(
+      (s) => s !== 'H' && s !== 'O' && !rightEls.has(s),
+    )
+    const nonHOOnlyRight = [...rightEls].filter(
+      (s) => s !== 'H' && s !== 'O' && !leftEls.has(s),
+    )
+
+    if (nonHOOnlyLeft.length === 0 && nonHOOnlyRight.length === 0) {
+      const presentKeys = new Set([
+        ...reactants.map(getTermIdentityKey),
+        ...products.map(getTermIdentityKey),
+      ])
+      const termElectron: ParsedEquationTerm = {
+        raw: 'e-',
+        formula: 'e',
+        displayFormula: 'e⁻',
+        composition: {},
+        charge: -1,
+        state: null,
+        userCoefficient: null,
+        molarMass: 0.000549,
+        matchedSpecies: null,
+      }
+      const hPlusSpecies = speciesBySigAndCharge.get('H1|1') ?? null
+      const termHPlus: ParsedEquationTerm = {
+        raw: 'H+(aq)',
+        formula: 'H',
+        displayFormula: 'H⁺',
+        composition: { H: 1 },
+        charge: 1,
+        state: 'aqueous',
+        userCoefficient: null,
+        molarMass: 1.008,
+        matchedSpecies: hPlusSpecies,
+      }
+      const h2oSpecies = speciesBySigAndCharge.get('H2O1|0') ?? null
+      const termH2O: ParsedEquationTerm = {
+        raw: 'H2O(l)',
+        formula: 'H2O',
+        displayFormula: 'H₂O',
+        composition: { H: 2, O: 1 },
+        charge: 0,
+        state: 'liquid',
+        userCoefficient: null,
+        molarMass: 18.015,
+        matchedSpecies: h2oSpecies,
+      }
+
+      const candidateGroups: ParsedEquationTerm[][] = [
+        [termElectron],
+        [termH2O],
+        [termHPlus],
+        [termHPlus, termElectron],
+        [termH2O, termElectron],
+        [termH2O, termHPlus],
+        [termH2O, termHPlus, termElectron],
+      ]
+
+      outer: for (const group of candidateGroups) {
+        const missingHelpers = group.filter(
+          (h) => !presentKeys.has(getTermIdentityKey(h)),
+        )
+        if (missingHelpers.length !== group.length) continue
+        const totalCombos = 1 << missingHelpers.length
+        for (let mask = 0; mask < totalCombos; mask++) {
+          const rCand = [...reactants]
+          const pCand = [...products]
+          for (let i = 0; i < missingHelpers.length; i++) {
+            if ((mask & (1 << i)) === 0) {
+              rCand.push(missingHelpers[i])
+            } else {
+              pCand.push(missingHelpers[i])
+            }
+          }
+          const attempt = trySolveTermSet(rCand, pCand, true)
+          if (attempt) {
+            solved = attempt
+            break outer
+          }
+        }
+      }
     }
   }
 
-  const allElements = [...leftEls].sort((a, b) => {
-    if (a === 'C') return -1
-    if (b === 'C') return 1
-    if (a === 'H') return -1
-    if (b === 'H') return 1
-    if (a === 'O') return -1
-    if (b === 'O') return 1
-    return a.localeCompare(b)
-  })
-  const allTerms = [...reactants, ...products]
-  const hasCharge = allTerms.some((t) => t.charge !== 0)
-
-  const matrix: Rat[][] = []
-  for (const sym of allElements) {
-    const row: Rat[] = []
-    for (const r of reactants) row.push(makeRat(BigInt(r.composition[sym] ?? 0)))
-    for (const p of products) row.push(makeRat(-BigInt(p.composition[sym] ?? 0)))
-    matrix.push(row)
-  }
-  if (hasCharge) {
-    const row: Rat[] = []
-    for (const r of reactants) row.push(makeRat(BigInt(r.charge)))
-    for (const p of products) row.push(makeRat(-BigInt(p.charge)))
-    matrix.push(row)
-  }
-
-  const basis = solveNullspaceRref(matrix)
-  if (basis.length === 0) {
-    return {
-      ok: false,
-      errorFr: 'Aucun jeu de coefficients ne permet d’équilibrer cette équation.',
-      hintFr: hasCharge
-        ? 'Vérifiez les charges électriques ou l’ajout de H⁺ / OH⁻ / H₂O.'
-        : 'Vérifiez les formules brutes des réactifs et produits.',
-      arrow,
-      reactants,
-      products,
+  if (!solved) {
+    // Detailed diagnostic error when even auto-completion cannot balance
+    const leftEls = new Set<string>()
+    const rightEls = new Set<string>()
+    for (const r of reactants) {
+      for (const sym of Object.keys(r.composition)) leftEls.add(sym)
     }
-  }
+    for (const p of products) {
+      for (const sym of Object.keys(p.composition)) rightEls.add(sym)
+    }
+    const onlyLeft = [...leftEls].filter((s) => !rightEls.has(s))
+    const onlyRight = [...rightEls].filter((s) => !leftEls.has(s))
+    if (onlyLeft.length > 0 || onlyRight.length > 0) {
+      const msgs: string[] = []
+      if (onlyLeft.length > 0) {
+        msgs.push(`${onlyLeft.join(', ')} présent dans les réactifs mais absent des produits`)
+      }
+      if (onlyRight.length > 0) {
+        msgs.push(`${onlyRight.join(', ')} présent dans les produits mais absent des réactifs`)
+      }
+      return {
+        ok: false,
+        errorFr: `Conservation des éléments impossible : ${msgs.join(' ; ')}.`,
+        hintFr: 'Ajoutez l’espèce manquante pour fermer le bilan.',
+        arrow,
+        reactants,
+        products,
+      }
+    }
 
-  const coeffs = findPositiveCombination(basis)
-  if (!coeffs) {
     return {
       ok: false,
       errorFr: 'Équilibrage impossible avec des coefficients strictement positifs.',
       hintFr:
-        'Un réactif ou un produit se trouve probablement du mauvais côté de la flèche, ou une espèce (ex. H₂O, H⁺, e⁻) manque.',
+        'Un réactif ou un produit se trouve probablement du mauvais côté de la flèche, ou une espèce manque.',
       arrow,
       reactants,
       products,
     }
   }
 
-  const balancedReactants: BalancedParticipant[] = reactants.map((r, i) => ({
+  const rawBalancedReactants: BalancedParticipant[] = solved.reactants.map((r, i) => ({
     ...r,
     side: 'reactant',
-    coefficient: coeffs[i],
+    coefficient: solved.coeffs[i],
   }))
-  const balancedProducts: BalancedParticipant[] = products.map((p, i) => ({
+  const rawBalancedProducts: BalancedParticipant[] = solved.products.map((p, i) => ({
     ...p,
     side: 'product',
-    coefficient: coeffs[reactants.length + i],
+    coefficient: solved.coeffs[solved.reactants.length + i],
   }))
 
-  const alreadyBalanced = allTerms.every(
-    (t, idx) => (t.userCoefficient ?? 1) === coeffs[idx],
-  )
+  const { reactants: balancedReactants, products: balancedProducts } =
+    simplifyBalancedParticipants(rawBalancedReactants, rawBalancedProducts)
+
+  const allElements = solved.allElements
+  const hasCharge = solved.hasCharge
+  const basis = { length: solved.basisLength }
+
+  const alreadyBalanced =
+    !solved.autoCompleted &&
+    balancedReactants.length === parsedReactants.length &&
+    balancedProducts.length === parsedProducts.length &&
+    balancedReactants.every((r, idx) => (parsedReactants[idx].userCoefficient ?? 1) === r.coefficient) &&
+    balancedProducts.every((p, idx) => (parsedProducts[idx].userCoefficient ?? 1) === p.coefficient)
 
   const conservation: ConservationRow[] = allElements.map((sym) => {
     const left = balancedReactants.reduce(

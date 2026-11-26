@@ -2,7 +2,6 @@ import type {
   FullCatalogResponse,
   ReactionConstantsResponse,
   SpeciesKind,
-  SpeciesSource,
 } from '../../../shared/chemistry.ts'
 import { ChemFormula } from '@/components/ui/chem-text'
 import { Separator } from '@/components/ui/separator'
@@ -18,8 +17,6 @@ interface CatalogFilterBarProps {
   reactionConstants: ReactionConstantsResponse | null
   speciesKindFilter: SpeciesKind | 'all'
   onSpeciesKindFilter: (val: SpeciesKind | 'all') => void
-  speciesSourceFilter: SpeciesSource | 'all'
-  onSpeciesSourceFilter: (val: SpeciesSource | 'all') => void
   solubilityFilter: 'all' | 'soluble' | 'insoluble'
   onSolubilityFilter: (val: 'all' | 'soluble' | 'insoluble') => void
   solutionPhFilter: 'all' | 'acid' | 'neutral' | 'base' | 'colored'
@@ -38,8 +35,6 @@ export function CatalogFilterBar({
   reactionConstants,
   speciesKindFilter,
   onSpeciesKindFilter,
-  speciesSourceFilter,
-  onSpeciesSourceFilter,
   solubilityFilter,
   onSolubilityFilter,
   solutionPhFilter,
@@ -69,23 +64,6 @@ export function CatalogFilterBar({
                 key={val}
                 active={speciesKindFilter === val}
                 onClick={() => onSpeciesKindFilter(val)}
-              >
-                {label}
-              </FilterChip>
-            ))}
-            <Separator orientation="vertical" className="mx-1.5 h-3.5" />
-            {(
-              [
-                ['all', 'Toutes sources'],
-                ['curated', 'Noyau labo'],
-                ['wikidata', 'Base étendue'],
-                ['pubchem_live', 'PubChem'],
-              ] as const
-            ).map(([val, label]) => (
-              <FilterChip
-                key={val}
-                active={speciesSourceFilter === val}
-                onClick={() => onSpeciesSourceFilter(val)}
               >
                 {label}
               </FilterChip>
@@ -147,7 +125,6 @@ export function CatalogFilterBar({
                 'pka',
                 `Acide / Base pKa (${reactionConstants?.acidBaseCouples.length ?? catalog.summary.acidBaseCouplesCount ?? 0})`,
               ],
-              ['predictor', 'Prédicteur'],
             ] as const
           ).map(([tabId, label]) => (
             <FilterChip

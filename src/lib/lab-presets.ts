@@ -39,7 +39,7 @@ export const LAB_TP_PRESETS: LabPresetDefinition[] = [
   {
     id: 'tp_titrage_vinaigre',
     titleFr: 'Titrage du vinaigre',
-    subtitleFr: 'CH₃COOH (0,10 M) titré par NaOH (0,10 M) · phénolphtaléine',
+    subtitleFr: 'CH₃COOH (0,10 mol/L) titré par NaOH (0,10 mol/L) · phénolphtaléine',
     categoryFr: 'Titrage',
     autoTitration: { buretteKey: 'burette', analyteKey: 'erlen' },
     flasks: [
@@ -49,7 +49,7 @@ export const LAB_TP_PRESETS: LabPresetDefinition[] = [
         capacityMl: 50,
         dx: -140,
         dy: -30,
-        customLabel: 'Titrant · NaOH 0,10 M',
+        customLabel: 'Titrant · NaOH 0,10 mol/L',
         waterVolumeMl: 45,
         solutesMol: { naoh: 0.0045 },
         pourStepMl: 1,
@@ -72,7 +72,7 @@ export const LAB_TP_PRESETS: LabPresetDefinition[] = [
   {
     id: 'tp_titrage_hcl_naoh',
     titleFr: 'Titrage acide fort / base forte',
-    subtitleFr: 'HCl (0,08 M) par NaOH (0,10 M) · BBT + pH-mètre + conductimètre',
+    subtitleFr: 'HCl (0,08 mol/L) par NaOH (0,10 mol/L) · BBT + pH-mètre + conductimètre',
     categoryFr: 'Titrage',
     autoTitration: { buretteKey: 'burette', analyteKey: 'becher' },
     flasks: [
@@ -82,7 +82,7 @@ export const LAB_TP_PRESETS: LabPresetDefinition[] = [
         capacityMl: 50,
         dx: -120,
         dy: -15,
-        customLabel: 'Titrant · NaOH 0,10 M',
+        customLabel: 'Titrant · NaOH 0,10 mol/L',
         waterVolumeMl: 40,
         solutesMol: { naoh: 0.004 },
         pourStepMl: 1,
@@ -105,7 +105,7 @@ export const LAB_TP_PRESETS: LabPresetDefinition[] = [
   {
     id: 'tp_titrage_h3po4',
     titleFr: 'Titrage polyacide (H₃PO₄)',
-    subtitleFr: 'Double saut de pH · H₃PO₄ (0,10 M) par NaOH (0,20 M)',
+    subtitleFr: 'Double saut de pH · H₃PO₄ (0,10 mol/L) par NaOH (0,20 mol/L)',
     categoryFr: 'Titrage',
     autoTitration: { buretteKey: 'burette', analyteKey: 'becher' },
     flasks: [
@@ -115,7 +115,7 @@ export const LAB_TP_PRESETS: LabPresetDefinition[] = [
         capacityMl: 50,
         dx: -120,
         dy: -15,
-        customLabel: 'Titrant · NaOH 0,20 M',
+        customLabel: 'Titrant · NaOH 0,20 mol/L',
         waterVolumeMl: 45,
         solutesMol: { naoh: 0.009 },
         pourStepMl: 1,

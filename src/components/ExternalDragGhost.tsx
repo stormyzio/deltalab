@@ -1,7 +1,13 @@
 import type { RefObject } from 'react'
 import type { ActiveExternalDrag } from '@/types/drag'
 import { CATEGORY_META } from '@/lib/chemistry-ui'
-import { ChemFormula } from '@/components/ui/chem-text'
+import { cn } from '@/lib/utils'
+import { ChemFormula, StateTag } from '@/components/ui/chem-text'
+import {
+  GasCollectorArtwork,
+  SpeciesPhaseGlyph,
+  ThermalChamberArtwork,
+} from '@/components/MachineArtwork'
 import { VesselArtwork } from '@/components/VesselArtwork'
 
 interface ExternalDragGhostProps {
@@ -21,23 +27,26 @@ export function ExternalDragGhost({ externalDrag, ghostRef }: ExternalDragGhostP
       }}
     >
       {externalDrag.item.kind === 'atom' && (
-        <div className="relative flex h-14 w-14 flex-col items-center justify-center rounded-xl border border-zinc-400 bg-card/95 shadow-2xl">
-          <span className="absolute left-1.5 top-1 text-[9px] tabular-nums text-muted-foreground">
+        <div
+          className="relative flex h-14 w-14 flex-col items-center justify-center rounded-full border border-zinc-400 bg-card/95 shadow-2xl"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 30% 24%, rgba(255,255,255,0.11), transparent 62%)',
+          }}
+        >
+          <span className="text-[8.5px] leading-none tabular-nums text-muted-foreground">
             {externalDrag.item.element.atomicNumber}
           </span>
+          <span className="mt-0.5 text-[15px] font-semibold leading-none text-foreground">
+            {externalDrag.item.element.symbol}
+          </span>
           <span
-            className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full"
+            className="mt-1 h-1 w-3.5 rounded-full"
             style={{
               backgroundColor:
                 CATEGORY_META[externalDrag.item.element.category].accentHex,
             }}
           />
-          <span className="mt-1 text-base font-semibold leading-none text-foreground">
-            {externalDrag.item.element.symbol}
-          </span>
-          <span className="mt-0.5 max-w-[46px] truncate text-[8.5px] text-muted-foreground">
-            {externalDrag.item.element.nameFr}
-          </span>
         </div>
       )}
 
@@ -56,13 +65,58 @@ export function ExternalDragGhost({ externalDrag, ghostRef }: ExternalDragGhostP
         </div>
       )}
 
-      {externalDrag.item.kind === 'molecule' && (
-        <div className="flex items-center gap-2 rounded-xl border border-zinc-400 bg-card/95 px-3 py-2 shadow-2xl">
-          <span className="text-sm font-semibold text-foreground">
-            <ChemFormula value={externalDrag.item.species.displayFormula} />
+      {externalDrag.item.kind === 'molecule' && (() => {
+        const sp = externalDrag.item.species
+        const isIon = sp.kind === 'ion'
+        const phase = sp.standardState
+        const glyphColor =
+          sp.solutionColorHex ?? sp.colorHex ?? (sp.isSolvent ? '#bae6fd' : null)
+        return (
+          <div
+            className={cn(
+              'flex items-center gap-2 border border-zinc-400 bg-card/95 px-3 py-2 shadow-2xl',
+              isIon
+                ? 'rounded-xl'
+                : phase === 'gas'
+                  ? 'rounded-full border-dashed px-3.5'
+                  : phase === 'liquid'
+                    ? 'rounded-2xl'
+                    : 'rounded-md',
+            )}
+          >
+            <SpeciesPhaseGlyph
+              phase={phase}
+              isIon={isIon}
+              charge={sp.charge}
+              colorHex={glyphColor}
+            />
+            <span className="text-sm font-semibold text-foreground">
+              <ChemFormula value={sp.displayFormula} />
+              {!isIon && <StateTag state={phase} />}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{sp.nameFr}</span>
+          </div>
+        )
+      })()}
+
+      {externalDrag.item.kind === 'gas_collector' && (
+        <div className="flex flex-col items-center rounded-xl border border-zinc-400 bg-card/95 px-4 py-2.5 shadow-2xl">
+          <GasCollectorArtwork fillRatio={0.2} gasColorHex="#7dd3fc" size="md" />
+          <span className="mt-1 text-xs font-medium text-foreground">
+            Collecteur de gaz
           </span>
-          <span className="text-[11px] text-muted-foreground">
-            {externalDrag.item.species.nameFr}
+        </div>
+      )}
+
+      {externalDrag.item.kind === 'thermal_chamber' && (
+        <div className="flex flex-col items-center rounded-xl border border-zinc-400 bg-card/95 px-4 py-2.5 shadow-2xl">
+          <ThermalChamberArtwork
+            temperatureC={externalDrag.item.initialTargetC ?? -20}
+            powerOn
+            size="md"
+          />
+          <span className="mt-1 text-xs font-medium text-foreground">
+            Chambre thermique
           </span>
         </div>
       )}

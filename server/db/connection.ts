@@ -67,19 +67,22 @@ export function getDb(): DatabaseSync {
     const hasLegacyUniqueComposition = speciesTableRow.sql.includes(
       'composition_key TEXT UNIQUE',
     )
+    const hasRemovedCols =
+      speciesCols.some((col) => col.name === 'source') ||
+      speciesCols.some((col) => col.name === 'smiles') ||
+      speciesCols.some((col) => col.name === 'inchikey') ||
+      speciesCols.some((col) => col.name === 'solubility_by_temp_json')
     const missingCols =
       !speciesCols.some((col) => col.name === 'lewis_json') ||
       !speciesCols.some((col) => col.name === 'lewis_topology_key') ||
       !speciesCols.some((col) => col.name === 'atom_signature') ||
-      !speciesCols.some((col) => col.name === 'source') ||
       !speciesCols.some((col) => col.name === 'popularity') ||
       !speciesCols.some((col) => col.name === 'families_json') ||
       !speciesCols.some((col) => col.name === 'cas_number') ||
       !speciesCols.some((col) => col.name === 'density_g_per_cm3') ||
-      !speciesCols.some((col) => col.name === 'pka_values_json') ||
-      !speciesCols.some((col) => col.name === 'solubility_by_temp_json')
+      !speciesCols.some((col) => col.name === 'pka_values_json')
 
-    if (hasLegacyUniqueComposition || missingCols) {
+    if (hasLegacyUniqueComposition || hasRemovedCols || missingCols) {
       db.exec('PRAGMA foreign_keys = OFF')
       db.exec('BEGIN TRANSACTION')
       try {
@@ -99,6 +102,23 @@ export function getDb(): DatabaseSync {
         db.exec('COMMIT')
       } finally {
         db.exec('PRAGMA foreign_keys = ON')
+      }
+    }
+  }
+
+  const alloysTableRow = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'alloys'")
+    .get() as { sql: string } | undefined
+  if (alloysTableRow) {
+    const alloyCols = db
+      .prepare('PRAGMA table_info(alloys)')
+      .all() as Array<{ name: string }>
+    if (alloyCols.some((c) => c.name === 'source')) {
+      db.exec('DROP TABLE IF EXISTS alloys')
+      try {
+        db.exec("DELETE FROM meta WHERE key = 'seed_version'")
+      } catch {
+        // meta may not exist yet
       }
     }
   }

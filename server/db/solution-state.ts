@@ -178,25 +178,6 @@ function getTemperatureAdjustedSolubility(
   solute: SpeciesRecord,
   temperatureC: number,
 ): number | null {
-  if (solute.solubilityByTempC) {
-    const pts = Object.entries(solute.solubilityByTempC)
-      .map(([tStr, val]) => [Number(tStr), val] as const)
-      .filter(([t, v]) => Number.isFinite(t) && Number.isFinite(v))
-      .sort((a, b) => a[0] - b[0])
-    if (pts.length >= 2) {
-      if (temperatureC <= pts[0][0]) return pts[0][1]
-      if (temperatureC >= pts[pts.length - 1][0]) return pts[pts.length - 1][1]
-      for (let i = 0; i < pts.length - 1; i++) {
-        const [t0, s0] = pts[i]
-        const [t1, s1] = pts[i + 1]
-        if (temperatureC >= t0 && temperatureC <= t1) {
-          const ratio = (temperatureC - t0) / (t1 - t0)
-          return roundTo(s0 + (s1 - s0) * ratio, 4)
-        }
-      }
-    }
-  }
-
   if (solute.solubilityGPerL === null) return null
   const deltaT = temperatureC - 20
   if (Math.abs(deltaT) < 0.1) return solute.solubilityGPerL
@@ -255,6 +236,7 @@ function computeAnhydrousState(
         displayFormula: solute.displayFormula,
         nameFr: solute.nameFr,
         molarMass: solute.molarMass,
+        standardState: solute.standardState,
         addedMol: roundTo(addedMol, 6),
         addedMassG: roundTo(addedMassG, 4),
         dissolvedMol: 0,
@@ -280,6 +262,7 @@ function computeAnhydrousState(
         displayFormula: solute.displayFormula,
         nameFr: solute.nameFr,
         molarMass: solute.molarMass,
+        standardState: solute.standardState,
         addedMol: roundTo(addedMol, 6),
         addedMassG: roundTo(addedMassG, 4),
         dissolvedMol: roundTo(addedMol, 6),
@@ -316,6 +299,7 @@ function computeAnhydrousState(
         displayFormula: solute.displayFormula,
         nameFr: solute.nameFr,
         molarMass: solute.molarMass,
+        standardState: solute.standardState,
         addedMol: roundTo(addedMol, 6),
         addedMassG: roundTo(addedMassG, 4),
         dissolvedMol: roundTo(addedMol, 6),
@@ -532,17 +516,13 @@ export function computeSolutionState(
           isSolvent: false,
           canDissolveInWater: false,
           solubilityGPerL: 0,
-          solubilityByTempC: null,
           dissolutionType: 'none',
           solutionColorHex: null,
           phCharacter: 'neutral',
           pkaValues: [],
           ghsPictograms: [],
           ghsSignalWord: null,
-          source: 'curated',
           popularity: 0,
-          smiles: null,
-          inchikey: null,
           pubchemCid: null,
           families: ['Précipité'],
           lewis: null,
@@ -598,16 +578,18 @@ export function computeSolutionState(
     const isImmersedSolid = !solute.canDissolveInWater && solute.standardState === 'solid'
     const isImmiscibleLiquid =
       !solute.canDissolveInWater && solute.standardState === 'liquid'
-    let dissolvedMassG = isImmersedSolid ? 0 : addedMassG
-    let undissolvedMassG = isImmersedSolid ? addedMassG : 0
+    const isInsolubleGas = !solute.canDissolveInWater && solute.standardState === 'gas'
+    let dissolvedMassG = isImmersedSolid || isInsolubleGas ? 0 : addedMassG
+    let undissolvedMassG = isImmersedSolid || isInsolubleGas ? addedMassG : 0
     let saturationRatio: number | null = null
     let isSaturated = false
 
-    const effectiveSolubility = isImmersedSolid
-      ? 0
-      : isImmiscibleLiquid
-        ? (getTemperatureAdjustedSolubility(solute, temperatureC) ?? 0)
-        : getTemperatureAdjustedSolubility(solute, temperatureC)
+    const effectiveSolubility =
+      isImmersedSolid || isInsolubleGas
+        ? 0
+        : isImmiscibleLiquid
+          ? (getTemperatureAdjustedSolubility(solute, temperatureC) ?? 0)
+          : getTemperatureAdjustedSolubility(solute, temperatureC)
 
     if (isImmersedSolid) {
       hasUndissolvedSolid = true
@@ -615,7 +597,7 @@ export function computeSolutionState(
         hex: solute.colorHex ?? '#d4d4d8',
         weight: Math.max(0.01, addedMassG),
       })
-    } else if (effectiveSolubility !== null && effectiveSolubility >= 0) {
+    } else if (!isInsolubleGas && effectiveSolubility !== null && effectiveSolubility >= 0) {
       const maxMassG = effectiveSolubility * waterVolumeL
       if (maxMassG > 0) saturationRatio = roundTo(addedMassG / maxMassG, 4)
       if (addedMassG > maxMassG + 1e-6) {
@@ -653,6 +635,7 @@ export function computeSolutionState(
       displayFormula: solute.displayFormula,
       nameFr: solute.nameFr,
       molarMass: solute.molarMass,
+      standardState: solute.standardState,
       addedMol: roundTo(addedMol, 6),
       addedMassG: roundTo(addedMassG, 4),
       dissolvedMol: roundTo(dissolvedMol, 6),

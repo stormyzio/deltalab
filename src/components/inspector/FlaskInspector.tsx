@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type {
   CanvasFlaskNode,
+  CanvasGasCollectorNode,
   FlaskProbeType,
   FullCatalogResponse,
   PhIndicatorId,
@@ -22,6 +23,7 @@ import { FlaskSettingsTab } from './FlaskSettingsTab'
 export function FlaskInspector({
   node,
   otherFlasks,
+  gasCollectors,
   catalog,
   onAddWater,
   onResize,
@@ -38,6 +40,7 @@ export function FlaskInspector({
   onToggleProbe,
   onToggleStirrer,
   onSetHeaterTarget,
+  onLinkGasCollector,
   onOpenTitration,
   onSetSoluteAmount,
   onSetWaterVolume,
@@ -46,6 +49,7 @@ export function FlaskInspector({
 }: {
   node: CanvasFlaskNode
   otherFlasks: CanvasFlaskNode[]
+  gasCollectors: CanvasGasCollectorNode[]
   catalog: FullCatalogResponse | null
   onAddWater: (volumeMl: number) => void
   onResize: (newCapacityMl: number) => void
@@ -62,6 +66,7 @@ export function FlaskInspector({
   onToggleProbe: (probe: FlaskProbeType) => void
   onToggleStirrer: () => void
   onSetHeaterTarget: (targetC: number | null) => void
+  onLinkGasCollector: (collectorId: string | null) => void
   onOpenTitration: (buretteId?: string, analyteId?: string) => void
   onSetSoluteAmount: (speciesId: string, amountMol: number) => void
   onSetWaterVolume: (volumeMl: number) => void
@@ -181,6 +186,8 @@ export function FlaskInspector({
               hasFilterCake={hasFilterCake}
               filterCakeColorHex={filterCakeColorHex}
               bubbling={projected.evolvingGas}
+              hasHeadspaceGas={projected.gasProduced.length > 0}
+              headspaceGasColorHex={projected.gasProduced[0]?.colorHex ?? null}
               temperatureC={temperatureC}
               size="sm"
             />
@@ -265,7 +272,7 @@ export function FlaskInspector({
       <div
         role="tablist"
         aria-label="Sections de la verrerie"
-        className="flex gap-5 overflow-x-auto border-b border-border/70"
+        className="flex gap-5 border-b border-border/70"
       >
         <button
           type="button"
@@ -336,6 +343,7 @@ export function FlaskInspector({
         <FlaskSettingsTab
           node={node}
           otherFlasks={otherFlasks}
+          gasCollectors={gasCollectors}
           hasFilter={hasFilter}
           temperatureC={temperatureC}
           fillPercent={fillPercent}
@@ -355,6 +363,7 @@ export function FlaskInspector({
           onToggleProbe={onToggleProbe}
           onToggleStirrer={onToggleStirrer}
           onSetHeaterTarget={onSetHeaterTarget}
+          onLinkGasCollector={onLinkGasCollector}
           onOpenTitration={onOpenTitration}
         />
       )}

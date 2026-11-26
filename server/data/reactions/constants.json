@@ -1,5 +1,4 @@
 {
-  "generatedAt": "2026-11-22T17:53:08.225Z",
   "redoxCouples": [
     {
       "id": "rx_f2_f",
@@ -121,23 +120,6 @@
       "source": "CRC/IUPAC"
     },
     {
-      "id": "rx_hclo_cl2",
-      "coupleLabel": "HClO / Cl₂",
-      "oxFormula": "HClO",
-      "redFormula": "Cl₂",
-      "oxSpeciesId": "hclo",
-      "redSpeciesId": "cl2",
-      "oxStoich": 2,
-      "redStoich": 1,
-      "electrons": 2,
-      "hPlus": 2,
-      "h2o": 2,
-      "halfEquation": "2 HClO + 2 H⁺ + 2 e⁻ ⇌ Cl₂ + 2 H₂O",
-      "e0V": 1.61,
-      "medium": "acidic",
-      "source": "CRC/IUPAC"
-    },
-    {
       "id": "rx_mno4_mn2",
       "coupleLabel": "MnO₄⁻ / Mn²⁺",
       "oxFormula": "MnO₄⁻",
@@ -169,57 +151,6 @@
       "halfEquation": "Au³⁺ + 3 e⁻ ⇌ Au",
       "e0V": 1.5,
       "medium": "neutral",
-      "source": "CRC/IUPAC"
-    },
-    {
-      "id": "rx_hclo_cl",
-      "coupleLabel": "HClO / Cl⁻",
-      "oxFormula": "HClO",
-      "redFormula": "Cl⁻",
-      "oxSpeciesId": "hclo",
-      "redSpeciesId": "cl_minus",
-      "oxStoich": 1,
-      "redStoich": 1,
-      "electrons": 2,
-      "hPlus": 1,
-      "h2o": 1,
-      "halfEquation": "HClO + H⁺ + 2 e⁻ ⇌ Cl⁻ + H₂O",
-      "e0V": 1.49,
-      "medium": "acidic",
-      "source": "CRC/IUPAC"
-    },
-    {
-      "id": "rx_clo3_cl2",
-      "coupleLabel": "ClO₃⁻ / Cl₂",
-      "oxFormula": "ClO₃⁻",
-      "redFormula": "Cl₂",
-      "oxSpeciesId": "clo3_minus",
-      "redSpeciesId": "cl2",
-      "oxStoich": 2,
-      "redStoich": 1,
-      "electrons": 10,
-      "hPlus": 12,
-      "h2o": 6,
-      "halfEquation": "2 ClO₃⁻ + 12 H⁺ + 10 e⁻ ⇌ Cl₂ + 6 H₂O",
-      "e0V": 1.47,
-      "medium": "acidic",
-      "source": "CRC/IUPAC"
-    },
-    {
-      "id": "rx_clo3_cl",
-      "coupleLabel": "ClO₃⁻ / Cl⁻",
-      "oxFormula": "ClO₃⁻",
-      "redFormula": "Cl⁻",
-      "oxSpeciesId": "clo3_minus",
-      "redSpeciesId": "cl_minus",
-      "oxStoich": 1,
-      "redStoich": 1,
-      "electrons": 6,
-      "hPlus": 6,
-      "h2o": 3,
-      "halfEquation": "ClO₃⁻ + 6 H⁺ + 6 e⁻ ⇌ Cl⁻ + 3 H₂O",
-      "e0V": 1.45,
-      "medium": "acidic",
       "source": "CRC/IUPAC"
     },
     {
@@ -854,23 +785,6 @@
   ],
   "solubilityProducts": [
     {
-      "id": "ks_caso4",
-      "solidSpeciesId": "caso4",
-      "solidFormula": "CaSO₄",
-      "solidNameFr": "Sulfate de calcium",
-      "cationSpeciesId": "ca2_plus",
-      "cationFormula": "Ca²⁺",
-      "cationStoich": 1,
-      "anionSpeciesId": "so4_2minus",
-      "anionFormula": "SO₄²⁻",
-      "anionStoich": 1,
-      "pKs": 4.31,
-      "ks": 0.0000493,
-      "precipitateColorHex": "#f4f4f5",
-      "precipitateColorFr": "Blanc",
-      "source": "CRC/IUPAC"
-    },
-    {
       "id": "ks_pbcl2",
       "solidSpeciesId": null,
       "solidFormula": "PbCl₂",
@@ -900,23 +814,6 @@
       "anionStoich": 1,
       "pKs": 4.92,
       "ks": 0.000012,
-      "precipitateColorHex": "#f4f4f5",
-      "precipitateColorFr": "Blanc",
-      "source": "CRC/IUPAC"
-    },
-    {
-      "id": "ks_mgco3",
-      "solidSpeciesId": "mgco3",
-      "solidFormula": "MgCO₃",
-      "solidNameFr": "Carbonate de magnésium",
-      "cationSpeciesId": "mg2_plus",
-      "cationFormula": "Mg²⁺",
-      "cationStoich": 1,
-      "anionSpeciesId": "co3_2minus",
-      "anionFormula": "CO₃²⁻",
-      "anionStoich": 1,
-      "pKs": 5.17,
-      "ks": 0.00000682,
       "precipitateColorHex": "#f4f4f5",
       "precipitateColorFr": "Blanc",
       "source": "CRC/IUPAC"
@@ -1109,23 +1006,6 @@
       "source": "CRC/IUPAC"
     },
     {
-      "id": "ks_mgoh2",
-      "solidSpeciesId": "mgoh2",
-      "solidFormula": "Mg(OH)₂",
-      "solidNameFr": "Hydroxyde de magnésium",
-      "cationSpeciesId": "mg2_plus",
-      "cationFormula": "Mg²⁺",
-      "cationStoich": 1,
-      "anionSpeciesId": "oh_minus",
-      "anionFormula": "OH⁻",
-      "anionStoich": 2,
-      "pKs": 11.25,
-      "ks": 5.61e-12,
-      "precipitateColorHex": "#f4f4f5",
-      "precipitateColorFr": "Blanc gélatineux",
-      "source": "CRC/IUPAC"
-    },
-    {
       "id": "ks_ag2cro4",
       "solidSpeciesId": null,
       "solidFormula": "Ag₂CrO₄",
@@ -1314,13 +1194,13 @@
     },
     {
       "id": "ks_fes",
-      "solidSpeciesId": null,
+      "solidSpeciesId": "fes",
       "solidFormula": "FeS",
       "solidNameFr": "Sulfure de fer(II)",
       "cationSpeciesId": "fe2_plus",
       "cationFormula": "Fe²⁺",
       "cationStoich": 1,
-      "anionSpeciesId": "s_2minus",
+      "anionSpeciesId": "s2_minus",
       "anionFormula": "S²⁻",
       "anionStoich": 1,
       "pKs": 18.1,
@@ -1371,7 +1251,7 @@
       "cationSpeciesId": "zn2_plus",
       "cationFormula": "Zn²⁺",
       "cationStoich": 1,
-      "anionSpeciesId": "s_2minus",
+      "anionSpeciesId": "s2_minus",
       "anionFormula": "S²⁻",
       "anionStoich": 1,
       "pKs": 24.7,
@@ -1388,7 +1268,7 @@
       "cationSpeciesId": "pb2_plus",
       "cationFormula": "Pb²⁺",
       "cationStoich": 1,
-      "anionSpeciesId": "s_2minus",
+      "anionSpeciesId": "s2_minus",
       "anionFormula": "S²⁻",
       "anionStoich": 1,
       "pKs": 27.5,
@@ -1450,13 +1330,13 @@
     },
     {
       "id": "ks_cus",
-      "solidSpeciesId": null,
+      "solidSpeciesId": "cus",
       "solidFormula": "CuS",
       "solidNameFr": "Sulfure de cuivre(II)",
       "cationSpeciesId": "cu2_plus",
       "cationFormula": "Cu²⁺",
       "cationStoich": 1,
-      "anionSpeciesId": "s_2minus",
+      "anionSpeciesId": "s2_minus",
       "anionFormula": "S²⁻",
       "anionStoich": 1,
       "pKs": 35.9,
@@ -1490,7 +1370,7 @@
       "cationSpeciesId": "ag_plus",
       "cationFormula": "Ag⁺",
       "cationStoich": 2,
-      "anionSpeciesId": "s_2minus",
+      "anionSpeciesId": "s2_minus",
       "anionFormula": "S²⁻",
       "anionStoich": 1,
       "pKs": 49.2,
@@ -1632,46 +1512,6 @@
       "source": "IUPAC"
     },
     {
-      "id": "ab_hcooh",
-      "acidSpeciesId": "hcooh",
-      "baseSpeciesId": null,
-      "acidFormula": "HCOOH",
-      "baseFormula": "HCOO⁻",
-      "acidNameFr": "Acide méthanoïque (formique)",
-      "pKa": 3.75,
-      "source": "IUPAC"
-    },
-    {
-      "id": "ab_lactic",
-      "acidSpeciesId": "c3h6o3",
-      "baseSpeciesId": null,
-      "acidFormula": "C₃H₆O₃",
-      "baseFormula": "C₃H₅O₃⁻",
-      "acidNameFr": "Acide lactique",
-      "pKa": 3.86,
-      "source": "IUPAC"
-    },
-    {
-      "id": "ab_ascorbic",
-      "acidSpeciesId": "c6h8o6",
-      "baseSpeciesId": null,
-      "acidFormula": "C₆H₈O₆",
-      "baseFormula": "C₆H₇O₆⁻",
-      "acidNameFr": "Acide ascorbique (vitamine C)",
-      "pKa": 4.1,
-      "source": "IUPAC"
-    },
-    {
-      "id": "ab_benzoic",
-      "acidSpeciesId": "c7h6o2",
-      "baseSpeciesId": null,
-      "acidFormula": "C₆H₅COOH",
-      "baseFormula": "C₆H₅COO⁻",
-      "acidNameFr": "Acide benzoïque",
-      "pKa": 4.2,
-      "source": "IUPAC"
-    },
-    {
       "id": "ab_ch3cooh",
       "acidSpeciesId": "ch3cooh",
       "baseSpeciesId": "ch3coo_minus",
@@ -1679,16 +1519,6 @@
       "baseFormula": "CH₃COO⁻",
       "acidNameFr": "Acide éthanoïque (acétique)",
       "pKa": 4.76,
-      "source": "IUPAC"
-    },
-    {
-      "id": "ab_c2h5cooh",
-      "acidSpeciesId": "cid_1032",
-      "baseSpeciesId": null,
-      "acidFormula": "C₂H₅COOH",
-      "baseFormula": "C₂H₅COO⁻",
-      "acidNameFr": "Acide propanoïque",
-      "pKa": 4.87,
       "source": "IUPAC"
     },
     {
@@ -1722,26 +1552,6 @@
       "source": "IUPAC"
     },
     {
-      "id": "ab_hclo",
-      "acidSpeciesId": "hclo",
-      "baseSpeciesId": "clo_minus",
-      "acidFormula": "HClO",
-      "baseFormula": "ClO⁻",
-      "acidNameFr": "Acide hypochloreux",
-      "pKa": 7.54,
-      "source": "IUPAC"
-    },
-    {
-      "id": "ab_hcn",
-      "acidSpeciesId": "hcn",
-      "baseSpeciesId": "cn_minus",
-      "acidFormula": "HCN",
-      "baseFormula": "CN⁻",
-      "acidNameFr": "Acide cyanhydrique",
-      "pKa": 9.21,
-      "source": "IUPAC"
-    },
-    {
       "id": "ab_nh4",
       "acidSpeciesId": "nh4_plus",
       "baseSpeciesId": "nh3",
@@ -1752,16 +1562,6 @@
       "source": "IUPAC"
     },
     {
-      "id": "ab_phenol",
-      "acidSpeciesId": "c6h6o",
-      "baseSpeciesId": null,
-      "acidFormula": "C₆H₅OH",
-      "baseFormula": "C₆H₅O⁻",
-      "acidNameFr": "Phénol",
-      "pKa": 9.99,
-      "source": "IUPAC"
-    },
-    {
       "id": "ab_hco3",
       "acidSpeciesId": "hco3_minus",
       "baseSpeciesId": "co3_2minus",
@@ -1769,16 +1569,6 @@
       "baseFormula": "CO₃²⁻",
       "acidNameFr": "Ion hydrogénocarbonate (pKa₂)",
       "pKa": 10.33,
-      "source": "IUPAC"
-    },
-    {
-      "id": "ab_ch3nh3",
-      "acidSpeciesId": null,
-      "baseSpeciesId": "cid_6329",
-      "acidFormula": "CH₃NH₃⁺",
-      "baseFormula": "CH₃NH₂",
-      "acidNameFr": "Ion méthylammonium / Méthylamine",
-      "pKa": 10.66,
       "source": "IUPAC"
     },
     {

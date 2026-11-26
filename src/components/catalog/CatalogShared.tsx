@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { ChemText } from '@/components/ui/chem-text'
 
 export type CatalogSection = 'species' | 'solutions' | 'reactions' | 'vessels' | 'alloys'
-export type ReactionSubTab = 'named' | 'redox' | 'ks' | 'pka' | 'predictor'
+export type ReactionSubTab = 'named' | 'redox' | 'ks' | 'pka'
 export type SortDir = 'asc' | 'desc'
 
 export interface ReactionSpawnSetup {

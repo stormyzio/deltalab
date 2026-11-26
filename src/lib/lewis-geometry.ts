@@ -332,9 +332,36 @@ export const CLIENT_VALENCE_ELECTRONS: Record<string, number> = {
   Ca: 2,
   Cr: 6,
   Mn: 7,
+  Ga: 3,
+  Ge: 4,
+  As: 5,
+  Se: 6,
   Br: 7,
+  Kr: 8,
+  Rb: 1,
+  Sr: 2,
+  In: 3,
+  Sn: 4,
+  Sb: 5,
+  Te: 6,
   I: 7,
+  Xe: 8,
+  Cs: 1,
   Ba: 2,
+  Tl: 3,
+  Pb: 4,
+  Bi: 5,
+  Po: 6,
+  At: 7,
+  Rn: 8,
+  Fr: 1,
+  Ra: 2,
+  Nh: 3,
+  Fl: 4,
+  Mc: 5,
+  Lv: 6,
+  Ts: 7,
+  Og: 8,
 }
 
 export function getAtomBondOrderSum(atomId: string, bonds: LewisBond[]): number {
@@ -358,6 +385,73 @@ export function computeExpectedFormalCharge(
 export function getAtomShellElectrons(atom: LewisAtom, bonds: LewisBond[]): number {
   const bondOrderSum = getAtomBondOrderSum(atom.id, bonds)
   return bondOrderSum * 2 + atom.lonePairs * 2
+}
+
+const PERIOD_2_OCTET = new Set(['C', 'N', 'O', 'F', 'Ne'])
+const HYPOVALENT_GROUP_13 = new Set(['B', 'Al', 'Ga', 'In', 'Tl'])
+const ALKALI_ALKALINE = new Set([
+  'Li', 'Na', 'K', 'Rb', 'Cs', 'Fr',
+  'Be', 'Mg', 'Ca', 'Sr', 'Ba', 'Ra',
+])
+const D_BLOCK_VALENCE = new Set(['Cr', 'Mn'])
+
+function clampLewisCharge(q: number): number {
+  return Math.max(-3, Math.min(4, q))
+}
+
+function clampLonePairs(lp: number): number {
+  return Math.max(0, Math.min(4, lp))
+}
+
+/**
+ * Computes consistent lone pairs and formal charges for every atom from the
+ * drawn bond topology (duet/octet/hypervalent valence rules).
+ */
+export function autoCompleteLewisElectrons(
+  atoms: LewisAtom[],
+  bonds: LewisBond[],
+): LewisAtom[] {
+  return atoms.map((a) => {
+    const valence = CLIENT_VALENCE_ELECTRONS[a.symbol]
+    if (valence === undefined) return a
+    const bondSum = getAtomBondOrderSum(a.id, bonds)
+
+    if (a.symbol === 'H') {
+      if (bondSum >= 1) {
+        return { ...a, lonePairs: 0, charge: clampLewisCharge(1 - bondSum) }
+      }
+      return { ...a, lonePairs: a.charge < 0 ? 1 : 0 }
+    }
+
+    if (a.symbol === 'He') {
+      const lp = clampLonePairs(1 - bondSum)
+      return { ...a, lonePairs: lp, charge: clampLewisCharge(2 - bondSum - lp * 2) }
+    }
+
+    if (ALKALI_ALKALINE.has(a.symbol) || HYPOVALENT_GROUP_13.has(a.symbol)) {
+      if (bondSum === 0) return { ...a, lonePairs: 0 }
+      return { ...a, lonePairs: 0, charge: clampLewisCharge(valence - bondSum) }
+    }
+
+    if (D_BLOCK_VALENCE.has(a.symbol)) {
+      if (bondSum === 0) return a
+      const lp = clampLonePairs(Math.floor((valence - bondSum) / 2))
+      return { ...a, lonePairs: lp, charge: clampLewisCharge(valence - bondSum - lp * 2) }
+    }
+
+    if (bondSum === 0 && valence <= 4) {
+      return { ...a, lonePairs: 0 }
+    }
+
+    if (PERIOD_2_OCTET.has(a.symbol)) {
+      const lp = clampLonePairs(4 - bondSum)
+      return { ...a, lonePairs: lp, charge: clampLewisCharge(valence - bondSum - lp * 2) }
+    }
+
+    // Period 3+ nonmetals/metalloids: fill octet up to 4 bonds, expand valence if bondSum > 4
+    const lp = clampLonePairs(Math.max(4 - bondSum, Math.floor((valence - bondSum) / 2)))
+    return { ...a, lonePairs: lp, charge: clampLewisCharge(valence - bondSum - lp * 2) }
+  })
 }
 
 function computeClientWlColors(

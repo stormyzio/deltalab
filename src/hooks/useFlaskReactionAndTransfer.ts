@@ -8,13 +8,19 @@ import type {
   CanvasFlaskNode,
   CanvasMoleculeNode,
   CanvasNode,
+  CanvasThermalChamberNode,
   FilteredSolidItem,
   SpeciesRecord,
+  ThermalChamberSample,
   VesselRecord,
 } from '../../shared/chemistry.ts'
 import { api } from '@/lib/api'
 import { createEmptySolution } from '@/lib/chemistry-ui'
 import { getSelectedFlaskReaction } from '@/lib/flask-reaction-ui'
+import {
+  getSpeciesPhaseAtTemperature,
+  mergeGasIntoCollector,
+} from '@/lib/phase-changes'
 import { createNodeId, getPendingReactionCommit } from '@/lib/workbench-helpers'
 import type { CanvasNotice } from '@/components/LabCanvas'
 
@@ -98,6 +104,31 @@ export function useFlaskReactionAndTransfer({
       if (!flask) return
       const commit = getPendingReactionCommit(flask)
       if (!commit) return
+      const rxn = getSelectedFlaskReaction(flask.solution, flask.selectedReactionId)
+      const evolvedGases =
+        rxn && commit.xMol > 1e-8
+          ? rxn.products
+              .filter((p) => p.state === 'gas' && p.stoichiometry > 0)
+              .map((p) => {
+                const sp = speciesMap.get(p.speciesId)
+                return {
+                  speciesId: p.speciesId,
+                  formula: sp?.formula ?? p.displayFormula,
+                  displayFormula: p.displayFormula,
+                  nameFr: p.nameFr,
+                  amountMol: Math.round(commit.xMol * p.stoichiometry * 1e6) / 1e6,
+                  molarMass: p.molarMass || sp?.molarMass || 28,
+                  colorHex: p.colorHex ?? sp?.colorHex ?? null,
+                  meltingPointC: sp?.meltingPointC ?? null,
+                  boilingPointC: sp?.boilingPointC ?? null,
+                }
+              })
+              .filter((g) => g.amountMol > 1e-8)
+          : []
+
+      const hasLinkedCollector = nodesRef.current.some(
+        (n) => n.kind === 'gas_collector' && n.sourceFlaskId === flaskId,
+      )
 
       try {
         const res = await api.evaluateFlaskAddition({
@@ -106,32 +137,54 @@ export function useFlaskReactionAndTransfer({
           temperatureC: flask.temperatureC ?? 20,
           currentWaterVolumeMl: flask.solution.waterVolumeMl,
           currentSolutesMol: flask.solution.solutesMol,
-          commitReaction: commit,
+          commitReaction: {
+            ...commit,
+            gasCapturedByCollector: hasLinkedCollector,
+          },
         })
         if (!res.ok) {
           triggerShake([flaskId])
           showNotice('warning', res.messageFr)
           return
         }
+        let capturedByCollector = false
         setNodes((prev) =>
-          prev.map((n) =>
-            n.id === flaskId && n.kind === 'flask'
-              ? {
-                  ...n,
-                  solution: res.solution,
-                  reactionExtentMol: 0,
-                  selectedReactionId: undefined,
-                }
-              : n,
-          ),
+          prev.map((n) => {
+            if (n.id === flaskId && n.kind === 'flask') {
+              return {
+                ...n,
+                solution: res.solution,
+                reactionExtentMol: 0,
+                selectedReactionId: undefined,
+              }
+            }
+            if (
+              n.kind === 'gas_collector' &&
+              n.sourceFlaskId === flaskId &&
+              evolvedGases.length > 0
+            ) {
+              capturedByCollector = true
+              let nextGases = n.gases
+              for (const g of evolvedGases) {
+                nextGases = mergeGasIntoCollector(nextGases, g)
+              }
+              return { ...n, gases: nextGases }
+            }
+            return n
+          }),
         )
         triggerFlaskPulse(flaskId)
-        showNotice('success', res.messageFr)
+        showNotice(
+          'success',
+          capturedByCollector
+            ? `${res.messageFr} · Gaz capturé dans le collecteur.`
+            : res.messageFr,
+        )
       } catch {
         showNotice('warning', 'Erreur lors de la validation de la réaction.')
       }
     },
-    [nodesRef, setNodes, showNotice, triggerFlaskPulse, triggerShake],
+    [nodesRef, setNodes, showNotice, speciesMap, triggerFlaskPulse, triggerShake],
   )
 
   const handleBalanceFlaskStoichiometry = useCallback(
@@ -403,7 +456,7 @@ export function useFlaskReactionAndTransfer({
   )
 
   const handleExtractFilteredSolid = useCallback(
-    (flaskId: string, speciesId: string) => {
+    (flaskId: string, speciesId: string, dropPos?: { x: number; y: number }) => {
       const flask = nodesRef.current.find(
         (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === flaskId,
       )
@@ -423,7 +476,6 @@ export function useFlaskReactionAndTransfer({
         nameFr: targetItem.nameFr,
         iupacName: null,
         casNumber: null,
-        inchikey: null,
         kind: 'ionic_compound',
         charge: 0,
         molarMass,
@@ -439,16 +491,13 @@ export function useFlaskReactionAndTransfer({
         isSolvent: false,
         canDissolveInWater: false,
         solubilityGPerL: 0,
-        solubilityByTempC: null,
         dissolutionType: 'none',
         solutionColorHex: null,
         phCharacter: 'neutral',
         pkaValues: [],
         ghsPictograms: [],
         ghsSignalWord: null,
-        source: 'curated',
         popularity: 0,
-        smiles: null,
         pubchemCid: null,
         families: ['Précipité'],
         lewis: null,
@@ -458,8 +507,8 @@ export function useFlaskReactionAndTransfer({
       const newNode: CanvasMoleculeNode = {
         id: createNodeId('mol'),
         kind: 'molecule',
-        x: flask.x + 170,
-        y: flask.y - 36,
+        x: dropPos ? dropPos.x : flask.x + 170,
+        y: dropPos ? dropPos.y : flask.y - 36,
         species: speciesRecord,
         amountMol: Math.max(0.0001, targetItem.amountMol),
       }
@@ -480,6 +529,153 @@ export function useFlaskReactionAndTransfer({
       setSelectedIds(new Set([newNode.id]))
       triggerFresh(newNode.id)
       showNotice('success', `${targetItem.displayFormula}(s) récupéré sur la paillasse.`)
+    },
+    [nodesRef, setNodes, setSelectedIds, showNotice, speciesMap, triggerFresh],
+  )
+
+  const handleTransferFilteredSolidToFlask = useCallback(
+    async (sourceFlaskId: string, speciesId: string, targetFlaskId: string) => {
+      const src = nodesRef.current.find(
+        (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === sourceFlaskId,
+      )
+      const tgt = nodesRef.current.find(
+        (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === targetFlaskId,
+      )
+      if (!src || !tgt || !src.filteredSolids) return
+      const item = src.filteredSolids.find((s) => s.speciesId === speciesId)
+      if (!item) return
+
+      try {
+        const res = await api.evaluateFlaskAddition({
+          vesselId: tgt.vessel.id,
+          vesselCapacityMl: tgt.vessel.capacityMl,
+          temperatureC: tgt.temperatureC ?? 20,
+          currentWaterVolumeMl: tgt.solution.waterVolumeMl,
+          currentSolutesMol: tgt.solution.solutesMol,
+          commitReaction: getPendingReactionCommit(tgt),
+          incomingSpeciesId: item.speciesId,
+          incomingAmountMol: Math.max(0.0001, item.amountMol),
+        })
+        if (!res.ok) {
+          triggerShake([sourceFlaskId, targetFlaskId])
+          showNotice('warning', res.messageFr)
+          return
+        }
+        setNodes((prev) =>
+          prev.map((n) => {
+            if (n.id === sourceFlaskId && n.kind === 'flask') {
+              const remaining = (n.filteredSolids ?? []).filter(
+                (s) => s.speciesId !== speciesId,
+              )
+              return n.id === targetFlaskId
+                ? {
+                    ...n,
+                    filteredSolids: remaining,
+                    solution: res.solution,
+                    reactionExtentMol: 0,
+                    selectedReactionId: undefined,
+                  }
+                : { ...n, filteredSolids: remaining }
+            }
+            if (n.id === targetFlaskId && n.kind === 'flask') {
+              return {
+                ...n,
+                solution: res.solution,
+                reactionExtentMol: 0,
+                selectedReactionId: undefined,
+              }
+            }
+            return n
+          }),
+        )
+        triggerFlaskPulse(targetFlaskId)
+        showNotice(
+          'success',
+          `${item.displayFormula}(s) transféré du filtre vers ${tgt.customLabel || tgt.vessel.nameFr}.`,
+        )
+      } catch {
+        showNotice('warning', 'Erreur lors du transfert du solide filtré.')
+      }
+    },
+    [nodesRef, setNodes, showNotice, triggerFlaskPulse, triggerShake],
+  )
+
+  const handleTransferFilteredSolidToChamber = useCallback(
+    (sourceFlaskId: string, speciesId: string, chamberId: string) => {
+      const src = nodesRef.current.find(
+        (n): n is CanvasFlaskNode => n.kind === 'flask' && n.id === sourceFlaskId,
+      )
+      const chamber = nodesRef.current.find(
+        (n): n is CanvasThermalChamberNode =>
+          n.kind === 'thermal_chamber' && n.id === chamberId,
+      )
+      if (!src || !chamber || !src.filteredSolids) return
+      const item = src.filteredSolids.find((s) => s.speciesId === speciesId)
+      if (!item) return
+
+      const catalogSp = speciesMap.get(speciesId)
+      const molarMass =
+        item.amountMol > 1e-8
+          ? Math.round((item.massG / item.amountMol) * 100) / 100
+          : (catalogSp?.molarMass ?? 100)
+      const sp: SpeciesRecord = catalogSp ?? {
+        id: item.speciesId,
+        formula: item.displayFormula,
+        displayFormula: item.displayFormula,
+        nameFr: item.nameFr,
+        iupacName: null,
+        casNumber: null,
+        kind: 'ionic_compound',
+        charge: 0,
+        molarMass,
+        standardState: 'solid',
+        meltingPointC: null,
+        boilingPointC: null,
+        thermalNote: null,
+        densityGPerCm3: 3.5,
+        appearanceFr: 'Précipité isolé par filtration',
+        colorHex: item.colorHex,
+        composition: {},
+        compositionKey: null,
+        isSolvent: false,
+        canDissolveInWater: false,
+        solubilityGPerL: 0,
+        dissolutionType: 'none',
+        solutionColorHex: null,
+        phCharacter: 'neutral',
+        pkaValues: [],
+        ghsPictograms: [],
+        ghsSignalWord: null,
+        popularity: 0,
+        pubchemCid: null,
+        families: ['Précipité'],
+        lewis: null,
+        behaviors: {},
+      }
+      const sample: ThermalChamberSample = {
+        species: sp,
+        amountMol: Math.max(0.0001, item.amountMol),
+        currentState: getSpeciesPhaseAtTemperature(sp, chamber.temperatureC),
+      }
+      setNodes((prev) =>
+        prev.map((n) => {
+          if (n.id === sourceFlaskId && n.kind === 'flask') {
+            return {
+              ...n,
+              filteredSolids: (n.filteredSolids ?? []).filter(
+                (s) => s.speciesId !== speciesId,
+              ),
+            }
+          }
+          if (n.id === chamberId && n.kind === 'thermal_chamber') {
+            return { ...n, sample }
+          }
+          return n
+        }),
+      )
+      setSelectedIds(new Set([chamberId]))
+      triggerFresh(chamberId)
+      showNotice('success', `${item.displayFormula}(s) transféré dans la chambre thermique.`)
     },
     [nodesRef, setNodes, setSelectedIds, showNotice, speciesMap, triggerFresh],
   )
@@ -506,6 +702,8 @@ export function useFlaskReactionAndTransfer({
     handlePourBetweenFlasks,
     handleExtractAliquot,
     handleExtractFilteredSolid,
+    handleTransferFilteredSolidToFlask,
+    handleTransferFilteredSolidToChamber,
     handleClearFilterCake,
   }
 }

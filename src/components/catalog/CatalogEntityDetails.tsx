@@ -19,9 +19,11 @@ import type { ReactionSpawnSetup } from './CatalogShared'
 export function SolutionDetail({
   solution,
   onJumpToSpecies,
+  onSpawn,
 }: {
   solution: CatalogSolutionRecord
   onJumpToSpecies: (id: string) => void
+  onSpawn?: () => void
 }) {
   const isChromatic =
     Boolean(solution.colorHex) &&
@@ -30,29 +32,38 @@ export function SolutionDetail({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <VesselArtwork
-          vesselType="erlenmeyer"
-          fillRatio={0.62}
-          liquidColorHex={solution.colorHex}
-          liquidOpacity={isChromatic ? 0.65 : 0.28}
-          size="md"
-          className="h-16 w-14 shrink-0"
-        />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-foreground">{solution.nameFr}</h2>
-          <p className="mt-1 break-words text-xs text-zinc-300">
-            <ChemFormula value={solution.formulaLabel} />
-          </p>
-          <p
-            className={cn(
-              'mt-1 text-[11px] tabular-nums',
-              solution.phEstimate === null ? 'text-muted-foreground' : 'text-zinc-200',
-            )}
-          >
-            pH estimé : {solution.phEstimate !== null ? formatFrNumber(solution.phEstimate, 1) : '—'}
-          </p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <VesselArtwork
+            vesselType="erlenmeyer"
+            fillRatio={0.62}
+            liquidColorHex={solution.colorHex}
+            liquidOpacity={isChromatic ? 0.65 : 0.28}
+            size="md"
+            className="h-16 w-14 shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold text-foreground">{solution.nameFr}</h2>
+            <p className="mt-1 break-words text-xs text-zinc-300">
+              <ChemFormula value={solution.formulaLabel} />
+            </p>
+            <p
+              className={cn(
+                'mt-1 text-[11px] tabular-nums',
+                solution.phEstimate === null ? 'text-muted-foreground' : 'text-zinc-200',
+              )}
+            >
+              pH estimé : {solution.phEstimate !== null ? formatFrNumber(solution.phEstimate, 1) : '—'}
+            </p>
+          </div>
         </div>
+
+        {onSpawn && (
+          <Button size="sm" variant="secondary" className="shrink-0" onClick={onSpawn}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.7} />
+            <span>Paillasse</span>
+          </Button>
+        )}
       </div>
 
       <div className="border-t border-border/60 pt-3.5">

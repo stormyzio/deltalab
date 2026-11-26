@@ -64,6 +64,35 @@ export function cloneCanvasNode(node: CanvasNode, dx: number, dy: number): Canva
       components: node.components.map((c) => ({ ...c })),
     }
   }
+  if (node.kind === 'gas_collector') {
+    return {
+      ...node,
+      id,
+      x: node.x + dx,
+      y: node.y + dy,
+      sourceFlaskId: null,
+      gases: node.gases.map((g) => ({ ...g })),
+    }
+  }
+  if (node.kind === 'thermal_chamber') {
+    return {
+      ...node,
+      id,
+      x: node.x + dx,
+      y: node.y + dy,
+      sample: node.sample
+        ? {
+            ...node.sample,
+            solidBlock: node.sample.solidBlock
+              ? {
+                  ...node.sample.solidBlock,
+                  components: node.sample.solidBlock.components.map((c) => ({ ...c })),
+                }
+              : undefined,
+          }
+        : null,
+    }
+  }
   return {
     ...node,
     id,

@@ -6,7 +6,7 @@ import type {
   ElementRecord,
   SpeciesRecord,
 } from '../../../shared/chemistry.ts'
-import { SPECIES_SOURCE_LABEL, formatFrNumber } from '@/lib/chemistry-ui'
+import { formatFrNumber } from '@/lib/chemistry-ui'
 import { describeWaterBehavior } from '@/lib/water-behavior'
 import { ChemFormula, ChemText } from '@/components/ui/chem-text'
 import { VesselArtwork } from '@/components/VesselArtwork'
@@ -31,7 +31,6 @@ export interface MassBreakdownItem {
 export function SpeciesChemistryTab({
   sp,
   enriched,
-  isUnknownSolubility,
   linkedSolution,
   linkedReactions,
   massBreakdown,
@@ -41,7 +40,6 @@ export function SpeciesChemistryTab({
 }: {
   sp: SpeciesRecord
   enriched: CatalogSpeciesRecord | null
-  isUnknownSolubility: boolean
   linkedSolution: CatalogSolutionRecord | null
   linkedReactions: CatalogReactionRecord[]
   massBreakdown: MassBreakdownItem[]
@@ -49,7 +47,7 @@ export function SpeciesChemistryTab({
   elementsBySymbol: Map<string, ElementRecord>
   onOpenInCatalog: (target: CatalogJumpTarget) => void
 }) {
-  const waterBehavior = describeWaterBehavior(sp, isUnknownSolubility)
+  const waterBehavior = describeWaterBehavior(sp)
   return (
     <div className="space-y-4">
       <section className="space-y-2">
@@ -93,26 +91,6 @@ export function SpeciesChemistryTab({
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             <ChemText value={waterBehavior.descriptionFr} />
           </p>
-        )}
-
-        {sp.solubilityByTempC && Object.keys(sp.solubilityByTempC).length >= 2 && (
-          <div className="pt-1">
-            <span className="block text-[10.5px] text-muted-foreground">
-              Solubilité dans <ChemFormula value="H2O" /> (g/L)
-            </span>
-            <dl className="mt-1.5 grid grid-cols-4 divide-x divide-border/60 border-y border-border/60 py-1.5 text-center">
-              {['0', '20', '60', '100']
-                .filter((t) => sp.solubilityByTempC?.[t] !== undefined)
-                .map((t) => (
-                  <div key={t} className="px-1">
-                    <dt className="text-[9.5px] text-muted-foreground">{t} °C</dt>
-                    <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
-                      {formatFrNumber(sp.solubilityByTempC![t], 0)}
-                    </dd>
-                  </div>
-                ))}
-            </dl>
-          </div>
         )}
       </section>
 
@@ -246,12 +224,6 @@ export function SpeciesChemistryTab({
             <dt className="text-[10.5px] text-muted-foreground">PubChem CID</dt>
             <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
               {sp.pubchemCid ? sp.pubchemCid : <UnknownValue />}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10.5px] text-muted-foreground">Source</dt>
-            <dd className="mt-0.5 text-[11px] text-zinc-300">
-              {SPECIES_SOURCE_LABEL[sp.source]}
             </dd>
           </div>
         </dl>

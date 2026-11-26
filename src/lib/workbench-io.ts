@@ -1,9 +1,11 @@
 import type {
   CanvasAtomNode,
   CanvasFlaskNode,
+  CanvasGasCollectorNode,
   CanvasMoleculeNode,
   CanvasNode,
   CanvasSolidNode,
+  CanvasThermalChamberNode,
 } from '../../shared/chemistry.ts'
 import { createEmptySolution } from './chemistry-ui'
 import { createNodeId } from './workbench-helpers'
@@ -145,6 +147,46 @@ function normalizeImportedNode(raw: unknown): CanvasNode | null {
     }
   }
 
+  if (kind === 'gas_collector') {
+    const gc = obj as unknown as CanvasGasCollectorNode
+    return {
+      ...gc,
+      id,
+      kind: 'gas_collector',
+      x,
+      y,
+      capacityMl:
+        typeof gc.capacityMl === 'number' && gc.capacityMl > 0 ? gc.capacityMl : 1000,
+      temperatureC:
+        typeof gc.temperatureC === 'number' && Number.isFinite(gc.temperatureC)
+          ? gc.temperatureC
+          : 20,
+      sourceFlaskId: typeof gc.sourceFlaskId === 'string' ? gc.sourceFlaskId : null,
+      gases: Array.isArray(gc.gases) ? gc.gases : [],
+    }
+  }
+
+  if (kind === 'thermal_chamber') {
+    const tc = obj as unknown as CanvasThermalChamberNode
+    return {
+      ...tc,
+      id,
+      kind: 'thermal_chamber',
+      x,
+      y,
+      temperatureC:
+        typeof tc.temperatureC === 'number' && Number.isFinite(tc.temperatureC)
+          ? tc.temperatureC
+          : 20,
+      targetTemperatureC:
+        typeof tc.targetTemperatureC === 'number' && Number.isFinite(tc.targetTemperatureC)
+          ? tc.targetTemperatureC
+          : -20,
+      powerOn: typeof tc.powerOn === 'boolean' ? tc.powerOn : true,
+      sample: tc.sample && typeof tc.sample === 'object' ? tc.sample : null,
+    }
+  }
+
   return null
 }
 
@@ -249,28 +291,42 @@ export function cloneNodesWithFreshIds(
   offsetY = 0,
 ): CanvasNode[] {
   const copy = JSON.parse(JSON.stringify(nodes)) as CanvasNode[]
-  return copy.map((node) => ({
-    ...node,
-    id: createNodeId(node.kind),
-    x: Math.round(node.x + offsetX),
-    y: Math.round(node.y + offsetY),
-  }))
+  const idMap = new Map<string, string>()
+  for (const node of copy) {
+    idMap.set(node.id, createNodeId(node.kind))
+  }
+  return copy.map((node) => {
+    const nextId = idMap.get(node.id) ?? createNodeId(node.kind)
+    const base = {
+      ...node,
+      id: nextId,
+      x: Math.round(node.x + offsetX),
+      y: Math.round(node.y + offsetY),
+    }
+    if (base.kind === 'gas_collector' && base.sourceFlaskId) {
+      return { ...base, sourceFlaskId: idMap.get(base.sourceFlaskId) ?? null }
+    }
+    return base
+  })
 }
 
 export function summarizeWorkbenchNodes(nodes: CanvasNode[]): string {
   if (nodes.length === 0) return 'Vide'
   let flasks = 0
+  let machines = 0
   let solids = 0
   let molecules = 0
   let atoms = 0
   for (const n of nodes) {
     if (n.kind === 'flask') flasks++
+    else if (n.kind === 'gas_collector' || n.kind === 'thermal_chamber') machines++
     else if (n.kind === 'solid') solids++
     else if (n.kind === 'molecule') molecules++
     else if (n.kind === 'atom') atoms++
   }
   const parts: string[] = []
   if (flasks > 0) parts.push(`${flasks} verrerie${flasks > 1 ? 's' : ''}`)
+  if (machines > 0) parts.push(`${machines} appareil${machines > 1 ? 's' : ''}`)
   if (solids > 0) parts.push(`${solids} solide${solids > 1 ? 's' : ''}`)
   if (molecules > 0) parts.push(`${molecules} espèce${molecules > 1 ? 's' : ''}`)
   if (atoms > 0) parts.push(`${atoms} atome${atoms > 1 ? 's' : ''}`)

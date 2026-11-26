@@ -4,7 +4,7 @@ import type {
   SpeciesRecord,
 } from '../../../shared/chemistry.ts'
 
-export type BuilderTool = 'build' | 'move' | 'bond' | 'lonepair' | 'charge'
+export type BuilderTool = 'build' | 'move'
 
 export interface Snapshot {
   atoms: LewisAtom[]
@@ -16,8 +16,6 @@ export const COMMON_PALETTE_SYMBOLS = [
   'Br', 'I', 'Si', 'Na', 'K', 'Ca', 'Mg', 'Al',
   'Fe', 'Cu', 'Zn', 'Ag', 'Mn', 'Cr', 'Ba', 'Pb',
 ]
-
-export const QUICK_TEMPLATE_IDS = ['h2o', 'c3h6o', 'oh_minus', 'nh4_plus', 'so4_2minus']
 
 export const GRID_STEP = 16
 export const BOND_SPROUT_DIST = 56

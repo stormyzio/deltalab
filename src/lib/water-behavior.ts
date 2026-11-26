@@ -39,10 +39,7 @@ function formatSolubilityValue(val: number): string {
  *   - 0,01 – 1 g/L  : Peu soluble / Peu miscible (+ valeur g/L)
  *   - >= 1 g/L      : Soluble / Miscible (+ valeur g/L, ou Miscible en toutes proportions)
  */
-export function describeWaterBehavior(
-  sp: SpeciesRecord,
-  isUnknownOverride?: boolean,
-): WaterBehaviorSummary {
+export function describeWaterBehavior(sp: SpeciesRecord): WaterBehaviorSummary {
   if (sp.isSolvent) {
     return {
       tier: 'solvent',
@@ -151,19 +148,6 @@ export function describeWaterBehavior(
   }
 
   // Fallback when solubilityGPerL is null
-  const unknown =
-    isUnknownOverride ?? (sp.source !== 'curated' && !sp.canDissolveInWater)
-  if (unknown) {
-    return {
-      tier: 'unknown',
-      tierLabel: 'Non renseigné',
-      valueLabel: null,
-      shortLabel: 'Non renseigné',
-      descriptionFr: 'Solubilité dans l’eau non renseignée pour cette espèce.',
-      isEffectivelySoluble: false,
-    }
-  }
-
   if (sp.canDissolveInWater) {
     const tierLabel = isLiquid ? 'Miscible' : 'Soluble'
     return {
@@ -213,6 +197,5 @@ export function getSolubilitySortValue(sp: SpeciesRecord): number | null {
     return sp.solubilityGPerL
   }
   if (sp.canDissolveInWater) return 1e12
-  if (sp.source !== 'curated') return null
   return 0
 }

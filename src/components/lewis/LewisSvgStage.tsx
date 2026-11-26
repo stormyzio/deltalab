@@ -39,6 +39,8 @@ interface LewisSvgStageProps {
   viewport: LewisViewport
   spacePressed: boolean
   isPanning: boolean
+  marqueeActive: boolean
+  marqueeElRef: RefObject<HTMLDivElement | null>
   strictMode: boolean
   diagnosticsByAtomId: Map<string, LewisAtomDiagnostic>
   tool: BuilderTool
@@ -46,9 +48,8 @@ interface LewisSvgStageProps {
   atoms: LewisAtom[]
   bonds: LewisBond[]
   atomById: Map<string, LewisAtom>
-  selectedAtomId: string | null
+  selectedAtomIds: Set<string>
   selectedBondKey: string | null
-  pendingBondFromId: string | null
   bondPreview: BondPreviewState | null
   liveIonBracket: LiveIonBracket | null
   onZoomStep: (delta: number) => void
@@ -66,6 +67,8 @@ export function LewisSvgStage({
   viewport,
   spacePressed,
   isPanning,
+  marqueeActive,
+  marqueeElRef,
   strictMode,
   diagnosticsByAtomId,
   tool,
@@ -73,9 +76,8 @@ export function LewisSvgStage({
   atoms,
   bonds,
   atomById,
-  selectedAtomId,
+  selectedAtomIds,
   selectedBondKey,
-  pendingBondFromId,
   bondPreview,
   liveIonBracket,
   onZoomStep,
@@ -114,9 +116,11 @@ export function LewisSvgStage({
           'h-full w-full touch-none',
           isPanning
             ? 'cursor-grabbing'
-            : spacePressed || tool === 'move'
+            : spacePressed
               ? 'cursor-grab'
-              : 'cursor-crosshair',
+              : tool === 'build'
+                ? 'cursor-crosshair'
+                : 'cursor-default',
         )}
       >
         <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
@@ -266,8 +270,7 @@ export function LewisSvgStage({
         {/* Atoms */}
         <g>
           {atoms.map((atom) => {
-            const isSelected = selectedAtomId === atom.id
-            const isPendingBond = pendingBondFromId === atom.id
+            const isSelected = selectedAtomIds.has(atom.id)
             const isBondHoverTarget = bondPreview?.hoverAtomId === atom.id
             const diagnostic = strictMode ? diagnosticsByAtomId.get(atom.id) : undefined
             const chargePos =
@@ -311,21 +314,18 @@ export function LewisSvgStage({
                   fill={
                     isBondHoverTarget
                       ? 'rgba(56, 189, 248, 0.14)'
-                      : isSelected || isPendingBond
+                      : isSelected
                         ? 'rgba(255, 255, 255, 0.06)'
                         : 'transparent'
                   }
                   stroke={
                     isBondHoverTarget
                       ? '#38bdf8'
-                      : isPendingBond
-                        ? '#7dd3fc'
-                        : isSelected
-                          ? '#a1a1aa'
-                          : 'transparent'
+                      : isSelected
+                        ? '#a1a1aa'
+                        : 'transparent'
                   }
                   strokeWidth="1.25"
-                  strokeDasharray={isPendingBond ? '3 2.5' : undefined}
                 />
 
                 <text
@@ -400,19 +400,21 @@ export function LewisSvgStage({
         </g>
       </svg>
 
+      {marqueeActive && (
+        <div
+          ref={marqueeElRef}
+          className="pointer-events-none absolute left-0 top-0 rounded-sm border border-zinc-400/70 bg-zinc-400/10 will-change-transform"
+          style={{ width: 0, height: 0 }}
+        />
+      )}
+
       {/* Subtle bottom-left status bar */}
       <div className="pointer-events-none absolute bottom-3 left-3 right-36 truncate text-[10px] text-muted-foreground/80">
         <span>
           {tool === 'build' &&
-            `Construire (${activeSymbol}) · Clic : poser/lier · Molette : zoom · Espace+glisser : naviguer`}
+            `Poser (${activeSymbol}) · Clic : poser/lier · Clic liaison : 1→2→3 · Molette : zoom · Espace+glisser : naviguer`}
           {tool === 'move' &&
-            'Déplacer · Glisser le fond : naviguer · Shift+glisser : lier · Alt+glisser : dupliquer'}
-          {tool === 'bond' &&
-            'Glisser A → B (ou cliquer A puis B) · Clic liaison : 1 → 2 → 3 · Molette : zoom'}
-          {tool === 'lonepair' &&
-            'Cliquer un atome : +1 doublet · Clic droit / Shift : −1'}
-          {tool === 'charge' &&
-            'Cliquer un atome : +1 charge · Clic droit / Shift : −1'}
+            'Déplacer · Glisser le fond : sélectionner · Alt+glisser : dupliquer · Espace+glisser : naviguer'}
         </span>
       </div>
 

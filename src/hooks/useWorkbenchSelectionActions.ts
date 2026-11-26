@@ -12,6 +12,7 @@ import type {
   CanvasMoleculeNode,
   CanvasNode,
   CanvasSolidNode,
+  CatalogSolutionRecord,
   CatalogSpeciesRecord,
   ElementRecord,
   SpeciesRecord,
@@ -20,6 +21,10 @@ import type {
 import type { ExternalDragItem } from '@/types/drag'
 import { api } from '@/lib/api'
 import { createEmptySolution, getDefaultSpeciesAmountMol } from '@/lib/chemistry-ui'
+import {
+  createGasCollectorNode,
+  createThermalChamberNode,
+} from '@/lib/phase-changes'
 import {
   createSolidNodeFromAlloy,
   createSolidNodeFromElement,
@@ -107,6 +112,10 @@ export function useWorkbenchSelectionActions({
           pourStepMl: item.vessel.defaultPourStepMl,
           solution: createEmptySolution(),
         } satisfies CanvasFlaskNode
+      } else if (item.kind === 'gas_collector') {
+        newNode = createGasCollectorNode(worldX, worldY)
+      } else if (item.kind === 'thermal_chamber') {
+        newNode = createThermalChamberNode(worldX, worldY, item.initialTargetC ?? -20)
       } else {
         const compEntries = Object.entries(item.species.composition)
         const singleEl =
@@ -628,7 +637,16 @@ export function useWorkbenchSelectionActions({
     (ids: string[]) => {
       if (ids.length === 0) return
       const remove = new Set(ids)
-      setNodes((prev) => prev.filter((n) => !remove.has(n.id)))
+      setNodes((prev) =>
+        prev
+          .filter((n) => !remove.has(n.id))
+          .map((n) => {
+            if (n.kind === 'gas_collector' && n.sourceFlaskId && remove.has(n.sourceFlaskId)) {
+              return { ...n, sourceFlaskId: null }
+            }
+            return n
+          }),
+      )
       setSelectedIds((prev) => {
         const next = new Set(prev)
         for (const id of ids) next.delete(id)
@@ -838,6 +856,72 @@ export function useWorkbenchSelectionActions({
     ],
   )
 
+  const handleSpawnSolution = useCallback(
+    async (solution: CatalogSolutionRecord) => {
+      const defaultVessel =
+        vessels.find((v) => v.id === 'erlenmeyer_250') ??
+        vessels.find((v) => v.vesselType === 'erlenmeyer') ??
+        vessels[0]
+      if (!defaultVessel) return
+
+      const targetSolutes: Record<string, number> = {}
+      for (const soluteId of solution.soluteIds) {
+        if (soluteId === 'h2o') continue
+        targetSolutes[soluteId] = 0.01
+      }
+
+      try {
+        const res = await api.evaluateFlaskAddition({
+          vesselId: defaultVessel.id,
+          vesselCapacityMl: defaultVessel.capacityMl,
+          temperatureC: 20,
+          currentWaterVolumeMl: 0,
+          currentSolutesMol: {},
+          setWaterVolumeMl: 100,
+          setSolutesMol: targetSolutes,
+        })
+        if (!res.ok) {
+          showNotice('warning', res.messageFr)
+          return
+        }
+
+        handleViewChange('workbench')
+        requestAnimationFrame(() => {
+          const pt = getSpawnWorldPoint()
+          const newFlask: CanvasFlaskNode = {
+            id: createNodeId('flask'),
+            kind: 'flask',
+            x: pt.x,
+            y: pt.y - 36,
+            vessel: { ...defaultVessel },
+            temperatureC: 20,
+            pourStepMl: defaultVessel.defaultPourStepMl,
+            customLabel: solution.nameFr.slice(0, 32),
+            solution: res.solution,
+            reactionExtentMol: 0,
+          }
+          setNodes((prev) => [...prev, newFlask])
+          setSelectedIds(new Set([newFlask.id]))
+          triggerFresh(newFlask.id)
+          triggerFlaskPulse(newFlask.id)
+          showNotice('success', `Solution préparée : ${solution.nameFr}`)
+        })
+      } catch {
+        showNotice('warning', 'Erreur lors de la préparation de la solution.')
+      }
+    },
+    [
+      getSpawnWorldPoint,
+      handleViewChange,
+      setNodes,
+      setSelectedIds,
+      showNotice,
+      triggerFlaskPulse,
+      triggerFresh,
+      vessels,
+    ],
+  )
+
   const handleAddFromLewisBuilder = useCallback(
     (species: SpeciesRecord, switchToWorkbench: boolean) => {
       setDiscoveredSpeciesIds((prev) =>
@@ -879,6 +963,7 @@ export function useWorkbenchSelectionActions({
     handleClearCanvas,
     handleSpawnFromCatalog,
     handleSpawnReactionSetup,
+    handleSpawnSolution,
     handleAddFromLewisBuilder,
   }
 }

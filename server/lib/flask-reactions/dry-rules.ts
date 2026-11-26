@@ -118,6 +118,21 @@ const NON_AQUEOUS_RULES: NonAqueousReactionRule[] = [
     ],
   },
   {
+    id: 'flask_synthese_fes_simple',
+    nameFr: 'Synthèse du sulfure de fer(II)',
+    category: 'synthesis',
+    equilibriumLabel: 'Voie sèche · Exothermique',
+    observationsFr: 'Incandescence formant un solide gris-noir de sulfure de fer(II) FeS(s).',
+    priority: 94,
+    reactants: [
+      { id: 'fe_solid', stoich: 1, formula: 'Fe', nameFr: 'Fer métallique', state: 'solid' },
+      { id: 's_solid', stoich: 1, formula: 'S', nameFr: 'Soufre solide', state: 'solid' },
+    ],
+    products: [
+      { id: 'fes', stoich: 1, formula: 'FeS', nameFr: 'Sulfure de fer(II)', state: 'solid', colorHex: '#3f3f46', molarMass: 87.91 },
+    ],
+  },
+  {
     id: 'flask_aluminothermie',
     nameFr: 'Aluminothermie (réaction thermite)',
     category: 'redox',
@@ -222,6 +237,21 @@ const NON_AQUEOUS_RULES: NonAqueousReactionRule[] = [
     ],
     products: [
       { id: 'so2', stoich: 8, formula: 'SO₂', nameFr: 'Dioxyde de soufre', state: 'gas', molarMass: 64.07 },
+    ],
+  },
+  {
+    id: 'flask_combustion_soufre_simple',
+    nameFr: 'Combustion du soufre dans le dioxygène',
+    category: 'combustion',
+    equilibriumLabel: 'Flamme bleue · SO₂(g)',
+    observationsFr: 'Flamme bleue caractéristique avec dégagement irritant de dioxyde de soufre SO₂(g).',
+    priority: 92,
+    reactants: [
+      { id: 's_solid', stoich: 1, formula: 'S', nameFr: 'Soufre solide', state: 'solid' },
+      { id: 'o2', stoich: 1, formula: 'O₂', nameFr: 'Dioxygène', state: 'gas' },
+    ],
+    products: [
+      { id: 'so2', stoich: 1, formula: 'SO₂', nameFr: 'Dioxyde de soufre', state: 'gas', molarMass: 64.07 },
     ],
   },
   {

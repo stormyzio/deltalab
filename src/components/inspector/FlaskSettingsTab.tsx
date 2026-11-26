@@ -1,5 +1,6 @@
 import type {
   CanvasFlaskNode,
+  CanvasGasCollectorNode,
   FlaskProbeType,
   PhIndicatorId,
 } from '../../../shared/chemistry.ts'
@@ -31,6 +32,7 @@ const CAPACITY_INLINE_UNITS: InlineUnitOption[] = [
 export function FlaskSettingsTab({
   node,
   otherFlasks,
+  gasCollectors,
   hasFilter,
   temperatureC,
   fillPercent,
@@ -50,10 +52,12 @@ export function FlaskSettingsTab({
   onToggleProbe,
   onToggleStirrer,
   onSetHeaterTarget,
+  onLinkGasCollector,
   onOpenTitration,
 }: {
   node: CanvasFlaskNode
   otherFlasks: CanvasFlaskNode[]
+  gasCollectors: CanvasGasCollectorNode[]
   hasFilter: boolean
   temperatureC: number
   fillPercent: number
@@ -73,6 +77,7 @@ export function FlaskSettingsTab({
   onToggleProbe: (probe: FlaskProbeType) => void
   onToggleStirrer: () => void
   onSetHeaterTarget: (targetC: number | null) => void
+  onLinkGasCollector: (collectorId: string | null) => void
   onOpenTitration: (buretteId?: string, analyteId?: string) => void
 }) {
   const { vessel, solution } = node
@@ -319,6 +324,36 @@ export function FlaskSettingsTab({
                 </div>
               </div>
             )}
+
+            {/* Sortie vapeur : Collecteur de gaz */}
+            {gasCollectors.length > 0 && (() => {
+              const linkedCol = gasCollectors.find((c) => c.sourceFlaskId === node.id)
+              return (
+                <div className="space-y-2 border-t border-border/50 pt-2.5">
+                  <span className="block text-[10.5px] font-medium text-muted-foreground">
+                    Sortie vapeur & gaz
+                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="shrink-0 text-[11px] text-foreground">
+                      Collecteur gaz
+                    </span>
+                    <select
+                      value={linkedCol?.id ?? ''}
+                      onChange={(e) => onLinkGasCollector(e.target.value || null)}
+                      aria-label="Relier à un collecteur de gaz"
+                      className="h-7 min-w-0 max-w-[180px] flex-1 rounded-md border border-border bg-card px-2 text-[11px] text-foreground focus-visible:border-zinc-500 focus-visible:outline-none"
+                    >
+                      <option value="">Non raccordé</option>
+                      {gasCollectors.map((col, idx) => (
+                        <option key={col.id} value={col.id}>
+                          {col.label || `Collecteur #${idx + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )
+            })()}
           </>
         ) : (
           <p className="text-[11px] leading-relaxed text-muted-foreground">

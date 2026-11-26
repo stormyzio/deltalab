@@ -35,8 +35,8 @@ export const VOLUME_UNITS: ScrubUnitOption[] = [
 ]
 
 export const CONC_MOL_UNITS: ScrubUnitOption[] = [
-  { id: 'M', label: 'M', toBase: 1, step: 0.01 },
-  { id: 'mM', label: 'mM', toBase: 0.001, step: 1 },
+  { id: 'mol/L', label: 'mol/L', toBase: 1, step: 0.01 },
+  { id: 'mmol/L', label: 'mmol/L', toBase: 0.001, step: 1 },
 ]
 
 export const CONC_MASS_UNITS: ScrubUnitOption[] = [

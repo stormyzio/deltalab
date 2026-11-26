@@ -61,14 +61,21 @@ function EditableSoluteRow({
   const effectiveMol = liveMol ?? sol.addedMol
   const molarMass = Math.max(1e-6, sol.molarMass)
   const effectiveMassG = effectiveMol * molarMass
-  const isSolid = sol.isImmersedSolid || (!hasWater && sol.undissolvedMol > 0)
+  const isHeadspaceGas =
+    sol.standardState === 'gas' && (!hasWater || sol.dissolvedMol <= 1e-7)
+  const isSolid =
+    Boolean(sol.isImmersedSolid) ||
+    (!hasWater && (sol.standardState ?? 'solid') === 'solid' && sol.undissolvedMol > 0)
   const isImmiscible = Boolean(sol.isImmiscibleLiquid)
-  const showConc = hasWater && !isSolid && !isImmiscible && totalVolumeL > 1e-6
+  const showConc =
+    hasWater && !isSolid && !isImmiscible && !isHeadspaceGas && totalVolumeL > 1e-6
   const effectiveConcMolL = showConc ? effectiveMol / totalVolumeL : 0
   const effectiveConcGL = showConc ? effectiveMassG / totalVolumeL : 0
 
+  const MIN_SOLUTE_MOL = 0.001
+
   const scheduleMolUpdate = (nextMol: number) => {
-    const clean = Math.max(0, Math.min(500, nextMol))
+    const clean = Math.max(0.0001, Math.min(500, nextMol))
     setLiveMol(clean)
     pendingMolRef.current = clean
     if (throttleTimerRef.current === null) {
@@ -87,10 +94,20 @@ function EditableSoluteRow({
       window.clearTimeout(throttleTimerRef.current)
       throttleTimerRef.current = null
     }
-    const clean = Math.max(0, Math.min(500, nextMol))
+    const clean = Math.max(0.0001, Math.min(500, nextMol))
     pendingMolRef.current = null
     setLiveMol(null)
     onSetAmountMol(clean)
+  }
+
+  const removeSolute = () => {
+    if (throttleTimerRef.current !== null) {
+      window.clearTimeout(throttleTimerRef.current)
+      throttleTimerRef.current = null
+    }
+    pendingMolRef.current = null
+    setLiveMol(null)
+    onSetAmountMol(0)
   }
 
   const saturationMol =
@@ -116,7 +133,19 @@ function EditableSoluteRow({
             )}
           <span className="shrink-0 text-xs font-semibold text-foreground hover:text-white">
             <ChemFormula value={sol.displayFormula} />
-            <StateTag state={isSolid ? 's' : isImmiscible ? 'l' : hasWater ? 'aq' : 'l'} />
+            <StateTag
+              state={
+                isHeadspaceGas
+                  ? 'g'
+                  : isSolid
+                    ? 's'
+                    : isImmiscible
+                      ? 'l'
+                      : hasWater
+                        ? 'aq'
+                        : 'l'
+              }
+            />
           </span>
           <span className="truncate text-[11px] text-muted-foreground">{sol.nameFr}</span>
         </button>
@@ -135,7 +164,7 @@ function EditableSoluteRow({
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => commitMolImmediate(0)}
+            onClick={removeSolute}
             aria-label={`Retirer ${sol.displayFormula}`}
             className="h-6 w-6 text-muted-foreground hover:text-red-400"
           >
@@ -164,7 +193,7 @@ function EditableSoluteRow({
           value={effectiveMol}
           units={MOL_UNITS}
           defaultUnitId={sol.addedMol >= 0.5 ? 'mol' : 'mmol'}
-          min={0}
+          min={MIN_SOLUTE_MOL}
           max={500}
           ariaLabel={`Quantité de matière de ${sol.displayFormula}`}
           onChange={scheduleMolUpdate}
@@ -176,7 +205,7 @@ function EditableSoluteRow({
           value={effectiveMassG}
           units={MASS_UNITS}
           defaultUnitId={sol.addedMassG < 0.5 ? 'mg' : 'g'}
-          min={0}
+          min={0.001}
           max={50000}
           ariaLabel={`Masse de ${sol.displayFormula}`}
           onChange={(nextG) => scheduleMolUpdate(nextG / molarMass)}
@@ -189,8 +218,8 @@ function EditableSoluteRow({
               prefixLabel="C"
               value={effectiveConcMolL}
               units={CONC_MOL_UNITS}
-              defaultUnitId={sol.concentrationMolPerL < 0.02 ? 'mM' : 'M'}
-              min={0}
+              defaultUnitId={sol.concentrationMolPerL < 0.02 ? 'mmol/L' : 'mol/L'}
+              min={0.001}
               max={25}
               ariaLabel={`Concentration molaire de ${sol.displayFormula}`}
               onChange={(nextC) => scheduleMolUpdate(nextC * totalVolumeL)}
@@ -202,7 +231,7 @@ function EditableSoluteRow({
               value={effectiveConcGL}
               units={CONC_MASS_UNITS}
               defaultUnitId={sol.massConcentrationGPerL < 1 ? 'mg/L' : 'g/L'}
-              min={0}
+              min={0.001}
               max={2500}
               ariaLabel={`Concentration massique de ${sol.displayFormula}`}
               onChange={(nextCm) =>
@@ -245,7 +274,7 @@ function EditableSoluteRow({
                     onClick={() => commitMolImmediate(cVal * totalVolumeL)}
                     className="rounded px-1.5 py-0.5 tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
                   >
-                    {formatFrNumber(cVal, cVal < 0.1 ? 2 : cVal < 1 ? 1 : 0)} M
+                    {formatFrNumber(cVal, cVal < 0.1 ? 2 : cVal < 1 ? 1 : 0)} mol/L
                   </button>
                 ))}
                 {saturationMol !== null && (
@@ -364,7 +393,7 @@ export function FlaskOverviewTab({
   }, [])
 
   const scheduleWaterUpdate = (nextMl: number) => {
-    const clean = Math.max(0, Math.min(vessel.capacityMl, nextMl))
+    const clean = Math.max(1, Math.min(vessel.capacityMl, nextMl))
     setLiveWaterMl(clean)
     pendingWaterRef.current = clean
     if (waterTimerRef.current === null) {
@@ -381,7 +410,7 @@ export function FlaskOverviewTab({
       window.clearTimeout(waterTimerRef.current)
       waterTimerRef.current = null
     }
-    const clean = Math.max(0, Math.min(vessel.capacityMl, nextMl))
+    const clean = Math.max(1, Math.min(vessel.capacityMl, nextMl))
     pendingWaterRef.current = null
     setLiveWaterMl(null)
     onSetWaterVolume(clean)
@@ -844,7 +873,7 @@ export function FlaskOverviewTab({
                 value={displayedWaterMl}
                 units={VOLUME_UNITS}
                 defaultUnitId={vessel.capacityMl >= 1000 ? 'L' : 'mL'}
-                min={0}
+                min={1}
                 max={vessel.capacityMl}
                 ariaLabel="Volume d’eau dans la verrerie"
                 onChange={scheduleWaterUpdate}

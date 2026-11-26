@@ -4,6 +4,8 @@ export type ExternalDragItem =
   | { kind: 'atom'; element: ElementRecord }
   | { kind: 'vessel'; vessel: VesselRecord }
   | { kind: 'molecule'; species: SpeciesRecord }
+  | { kind: 'gas_collector' }
+  | { kind: 'thermal_chamber'; initialTargetC?: number }
 
 export interface ActiveExternalDrag {
   item: ExternalDragItem

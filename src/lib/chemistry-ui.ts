@@ -8,7 +8,6 @@ import type {
   ReactionCategory,
   SpeciesKind,
   SpeciesRecord,
-  SpeciesSource,
 } from '../../shared/chemistry.ts'
 
 export interface CategoryMeta {
@@ -66,12 +65,6 @@ export const PH_CHAR_LABEL: Record<PhCharacter, string> = {
   acidic_weak: 'Acide faible',
   basic_strong: 'Base forte',
   basic_weak: 'Base faible',
-}
-
-export const SPECIES_SOURCE_LABEL: Record<SpeciesSource, string> = {
-  curated: 'Noyau labo',
-  wikidata: 'Base étendue',
-  pubchem_live: 'PubChem',
 }
 
 export const REACTION_CATEGORY_LABEL: Record<ReactionCategory, string> = {
@@ -165,7 +158,7 @@ export function formatDensity(
 
 export function getDefaultSpeciesAmountMol(species: SpeciesRecord): number {
   if (species.isSolvent) {
-    return Math.round((50 / WATER_MOLAR_MASS) * 10000) / 10000
+    return 50 / WATER_MOLAR_MASS
   }
   if (species.standardState === 'liquid') {
     return 0.05

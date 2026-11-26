@@ -2,6 +2,7 @@ import type {
   CatalogReactionRecord,
   CatalogSpeciesRecord,
   ElementRecord,
+  PredictReactionResponse,
   PredictedReactionItem,
 } from '../../shared/chemistry.ts'
 import { api } from './api.ts'
@@ -230,9 +231,9 @@ function extractPredictIds(participants: BalancedParticipant[]): string[] | null
   }
   const nonWater = uniqueIds.filter((id) => id !== 'h2o')
   const picked =
-    nonWater.length >= 2 && nonWater.length <= 3
+    nonWater.length >= 1 && nonWater.length <= 4
       ? nonWater
-      : uniqueIds.length >= 2 && uniqueIds.length <= 3
+      : uniqueIds.length >= 1 && uniqueIds.length <= 4
         ? uniqueIds
         : null
   return picked
@@ -380,6 +381,28 @@ function matchPredictedItems(
   return null
 }
 
+function collectAllPredictedItems(
+  resp: PredictReactionResponse,
+): PredictedReactionItem[] {
+  const out: PredictedReactionItem[] = []
+  const seen = new Set<string>()
+  for (const item of resp.reactions) {
+    if (!seen.has(item.equationDisplay)) {
+      seen.add(item.equationDisplay)
+      out.push(item)
+    }
+  }
+  for (const group of resp.contextGroups ?? []) {
+    for (const item of group.reactions) {
+      if (!seen.has(item.equationDisplay)) {
+        seen.add(item.equationDisplay)
+        out.push(item)
+      }
+    }
+  }
+  return out
+}
+
 export async function verifyEquationRealityAsync(params: {
   reactants: BalancedParticipant[]
   products: BalancedParticipant[]
@@ -405,9 +428,10 @@ export async function verifyEquationRealityAsync(params: {
   const fwdIds = extractPredictIds(reactants)
   if (fwdIds) {
     try {
-      const resp = await api.predictReaction(fwdIds[0], fwdIds[1], fwdIds[2])
+      const resp = await api.predictReactions(fwdIds, { includeContexts: true })
+      const allItems = collectAllPredictedItems(resp)
       const hit = matchPredictedItems(
-        resp.reactions,
+        allItems,
         userSig,
         elementsBySymbol,
         speciesBySigAndCharge,
@@ -430,7 +454,9 @@ export async function verifyEquationRealityAsync(params: {
           equilibriumLabel: hit.matched.equilibriumLabel,
         }
       }
-      const firstSpontaneous = resp.reactions.find((r) => r.spontaneous)
+      const firstSpontaneous =
+        resp.reactions.find((r) => r.spontaneous) ??
+        allItems.find((r) => r.spontaneous)
       if (firstSpontaneous) {
         suggestedEquation = firstSpontaneous.equationDisplay
       }
@@ -445,9 +471,9 @@ export async function verifyEquationRealityAsync(params: {
   const revIds = extractPredictIds(products)
   if (revIds) {
     try {
-      const resp = await api.predictReaction(revIds[0], revIds[1], revIds[2])
+      const resp = await api.predictReactions(revIds, { includeContexts: true })
       const hit = matchPredictedItems(
-        resp.reactions,
+        collectAllPredictedItems(resp),
         userSig,
         elementsBySymbol,
         speciesBySigAndCharge,

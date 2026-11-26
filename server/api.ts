@@ -17,10 +17,9 @@ import {
   listElements,
   listSpecies,
   listVessels,
-  lookupAndCachePubChem,
   matchLewisStructure,
   mergeAtoms,
-  predictReactionByIds,
+  predictReactionsByIds,
   saveWorkspaceSnapshot,
 } from './db.ts'
 
@@ -79,15 +78,6 @@ apiApp.post('/api/species/merge', async (c) => {
 apiApp.post('/api/species/match-lewis', async (c) => {
   const body = (await c.req.json()) as Partial<MatchLewisRequest>
   const result = matchLewisStructure({
-    atoms: Array.isArray(body.atoms) ? body.atoms : [],
-    bonds: Array.isArray(body.bonds) ? body.bonds : [],
-  })
-  return c.json(result)
-})
-
-apiApp.post('/api/species/lookup-pubchem', async (c) => {
-  const body = (await c.req.json()) as Partial<MatchLewisRequest>
-  const result = await lookupAndCachePubChem({
     atoms: Array.isArray(body.atoms) ? body.atoms : [],
     bonds: Array.isArray(body.bonds) ? body.bonds : [],
   })
@@ -158,15 +148,20 @@ apiApp.get('/api/reactions/constants', (c) => {
 
 apiApp.post('/api/reactions/predict', async (c) => {
   const body = (await c.req.json()) as {
+    speciesIds?: unknown[]
     speciesAId?: string
     speciesBId?: string
     speciesCId?: string
+    includeContexts?: boolean
   }
-  const result = predictReactionByIds(
-    String(body.speciesAId ?? ''),
-    String(body.speciesBId ?? ''),
-    body.speciesCId ? String(body.speciesCId) : undefined,
-  )
+  const ids = Array.isArray(body.speciesIds)
+    ? body.speciesIds.map(String)
+    : [body.speciesAId, body.speciesBId, body.speciesCId].filter(
+        (v): v is string => typeof v === 'string' && v.trim().length > 0,
+      )
+  const result = predictReactionsByIds(ids, {
+    includeContexts: Boolean(body.includeContexts),
+  })
   if (!result) {
     return c.json({ error: 'Espèces introuvables.' }, 404)
   }

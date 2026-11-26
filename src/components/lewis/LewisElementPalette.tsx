@@ -1,9 +1,9 @@
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react'
 import { Search, X } from 'lucide-react'
-import type { ElementRecord, SpeciesRecord } from '../../../shared/chemistry.ts'
+import type { ElementRecord } from '../../../shared/chemistry.ts'
 import { CLIENT_VALENCE_ELECTRONS, getLewisAtomColor } from '@/lib/lewis-geometry'
 import { cn } from '@/lib/utils'
-import { ChemFormula, ChemVar } from '@/components/ui/chem-text'
+import { ChemVar } from '@/components/ui/chem-text'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function LewisElementPalette({
@@ -12,22 +12,18 @@ export function LewisElementPalette({
   onPaletteQueryChange,
   paletteSearchRef,
   filteredElements,
-  quickTemplates,
   onSelectSymbol,
   onStartDrag,
   onDoubleClickAdd,
-  onLoadTemplate,
 }: {
   activeSymbol: string
   paletteQuery: string
   onPaletteQueryChange: (q: string) => void
   paletteSearchRef: RefObject<HTMLInputElement | null>
   filteredElements: ElementRecord[]
-  quickTemplates: SpeciesRecord[]
   onSelectSymbol: (symbol: string) => void
   onStartDrag: (el: ElementRecord, e: ReactPointerEvent<HTMLButtonElement>) => void
   onDoubleClickAdd: (symbol: string) => void
-  onLoadTemplate: (tpl: SpeciesRecord) => void
 }) {
   return (
     <aside
@@ -141,24 +137,6 @@ export function LewisElementPalette({
           </p>
         )}
       </div>
-
-      {quickTemplates.length > 0 && (
-        <div className="shrink-0 border-t border-border p-2.5">
-          <p className="mb-1.5 text-[10.5px] font-medium text-muted-foreground">Modèles</p>
-          <div className="flex flex-wrap gap-1">
-            {quickTemplates.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => onLoadTemplate(tpl)}
-                className="shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10.5px] text-zinc-300 hover:bg-accent hover:text-foreground"
-              >
-                <ChemFormula value={tpl.displayFormula} />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </aside>
   )
 }

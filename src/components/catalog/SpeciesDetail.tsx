@@ -7,7 +7,6 @@ import {
   GHS_LABEL_FR,
   PH_CHAR_LABEL,
   SPECIES_KIND_LABEL,
-  SPECIES_SOURCE_LABEL,
   STATE_META,
   THERMAL_NOTE_FR,
   formatDensity,
@@ -17,6 +16,7 @@ import {
   buildCanonicalSignature,
   extractNotableBehaviors,
   formatChargeLabel,
+  isPkaApplicable,
 } from '@/lib/chemistry-calc'
 import { describeWaterBehavior } from '@/lib/water-behavior'
 import { cn } from '@/lib/utils'
@@ -30,6 +30,14 @@ function UnknownValue({ title = 'Donnée non renseignée en base' }: { title?: s
   return (
     <span title={title} className="text-muted-foreground">
       ?
+    </span>
+  )
+}
+
+function NotApplicableValue({ title = 'Non applicable' }: { title?: string }) {
+  return (
+    <span title={title} className="text-muted-foreground">
+      —
     </span>
   )
 }
@@ -164,8 +172,8 @@ export function SpeciesDetail({
         </div>
       </dl>
 
-      <div className="space-y-3 border-t border-border/60 pt-3.5">
-        <p className="text-[11px] font-medium text-muted-foreground">
+      <div className="border-t border-border/60 pt-3.5">
+        <p className="mb-2 text-[11px] font-medium text-muted-foreground">
           Constantes physico-chimiques
         </p>
 
@@ -176,7 +184,18 @@ export function SpeciesDetail({
                 <dt className="text-[10.5px] text-muted-foreground">T° fusion</dt>
                 <dd className="mt-0.5 tabular-nums text-foreground">
                   {species.meltingPointC !== null ? (
-                    `${formatFrNumber(species.meltingPointC, 1)} °C`
+                    <>
+                      {formatFrNumber(species.meltingPointC, 1)} °C
+                      {species.boilingPointC === null && species.thermalNote && (
+                        <span className="ml-1 text-[10px] text-muted-foreground">
+                          ({THERMAL_NOTE_FR[species.thermalNote] ?? species.thermalNote})
+                        </span>
+                      )}
+                    </>
+                  ) : species.thermalNote ? (
+                    <span className="text-muted-foreground">
+                      {THERMAL_NOTE_FR[species.thermalNote] ?? species.thermalNote}
+                    </span>
                   ) : (
                     <UnknownValue />
                   )}
@@ -188,12 +207,16 @@ export function SpeciesDetail({
                   {species.boilingPointC !== null ? (
                     <>
                       {formatFrNumber(species.boilingPointC, 1)} °C
-                      {species.thermalNote ? (
+                      {species.thermalNote && (
                         <span className="ml-1 text-[10px] text-muted-foreground">
                           ({THERMAL_NOTE_FR[species.thermalNote] ?? species.thermalNote})
                         </span>
-                      ) : null}
+                      )}
                     </>
+                  ) : species.thermalNote ? (
+                    <span className="text-muted-foreground">
+                      {THERMAL_NOTE_FR[species.thermalNote] ?? species.thermalNote}
+                    </span>
                   ) : (
                     <UnknownValue />
                   )}
@@ -206,24 +229,6 @@ export function SpeciesDetail({
                     <ChemText
                       value={formatDensity(species.densityGPerCm3, species.standardState)}
                     />
-                  ) : (
-                    <UnknownValue />
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[10.5px] text-muted-foreground">Aspect pur</dt>
-                <dd className="mt-0.5 flex items-center gap-1.5 text-foreground">
-                  {species.appearanceFr ? (
-                    <>
-                      {species.colorHex && (
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full border border-white/20"
-                          style={{ backgroundColor: species.colorHex }}
-                        />
-                      )}
-                      <span className="truncate">{species.appearanceFr}</span>
-                    </>
                   ) : (
                     <UnknownValue />
                   )}
@@ -249,13 +254,36 @@ export function SpeciesDetail({
                     {formatFrNumber(val, 2)}
                   </span>
                 ))
+              ) : isPkaApplicable(species) ? (
+                <UnknownValue title="pKa aqueux non renseigné en base" />
               ) : (
-                <UnknownValue title="Aucun pKa aqueux renseigné" />
+                <NotApplicableValue title="Non applicable (pas de dissociation acide propre en solution aqueuse)" />
               )}
             </dd>
           </div>
 
-          <div>
+          {!isIon && (
+            <div className="col-span-2">
+              <dt className="text-[10.5px] text-muted-foreground">Aspect pur</dt>
+              <dd className="mt-0.5 flex items-center gap-1.5 text-foreground">
+                {species.appearanceFr ? (
+                  <>
+                    {species.colorHex && (
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full border border-white/20"
+                        style={{ backgroundColor: species.colorHex }}
+                      />
+                    )}
+                    <span>{species.appearanceFr}</span>
+                  </>
+                ) : (
+                  <UnknownValue />
+                )}
+              </dd>
+            </div>
+          )}
+
+          <div className="col-span-2">
             <dt className="text-[10.5px] text-muted-foreground">Sécurité SGH</dt>
             <dd className="mt-0.5 text-[11px] text-muted-foreground">
               {species.ghsPictograms.length > 0 ? (
@@ -278,35 +306,46 @@ export function SpeciesDetail({
                       .join(' · ')}
                   </span>
                 </>
+              ) : species.ghsSignalWord === 'Non classé' ? (
+                <span
+                  title="Évalué ECHA / SGH : non classé dangereux"
+                  className="text-muted-foreground"
+                >
+                  Non classé
+                </span>
+              ) : isIon ? (
+                <NotApplicableValue title="Non applicable à un ion isolé en solution" />
               ) : (
                 <UnknownValue title="Pictogrammes SGH non renseignés" />
               )}
             </dd>
           </div>
         </dl>
-
-        {species.solubilityByTempC && Object.keys(species.solubilityByTempC).length >= 2 && (
-          <div>
-            <span className="block text-[10.5px] text-muted-foreground">
-              Solubilité <ChemFormula value="H2O" /> (g/L)
-            </span>
-            <div className="mt-1.5 grid grid-cols-4 divide-x divide-border/60 text-center">
-              {['0', '20', '60', '100']
-                .filter((t) => species.solubilityByTempC?.[t] !== undefined)
-                .map((t) => (
-                  <div key={t} className="px-1.5 py-0.5">
-                    <span className="block text-[9.5px] text-muted-foreground">
-                      {t} °C
-                    </span>
-                    <span className="text-[11px] tabular-nums text-zinc-200">
-                      {formatFrNumber(species.solubilityByTempC![t], 0)}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {(typeof species.behaviors?.usesFr === 'string' ||
+        typeof species.behaviors?.identificationFr === 'string') && (
+        <div className="space-y-2 border-t border-border/60 pt-3.5 text-xs leading-relaxed">
+          {typeof species.behaviors?.usesFr === 'string' && (
+            <div>
+              <p className="text-[10.5px] font-medium text-muted-foreground">En pratique</p>
+              <p className="mt-0.5 text-zinc-200">
+                <ChemText value={species.behaviors.usesFr} />
+              </p>
+            </div>
+          )}
+          {typeof species.behaviors?.identificationFr === 'string' && (
+            <div>
+              <p className="text-[10.5px] font-medium text-muted-foreground">
+                Test caractéristique
+              </p>
+              <p className="mt-0.5 text-zinc-300">
+                <ChemText value={species.behaviors.identificationFr} />
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="border-t border-border/60 pt-3.5">
         <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
@@ -488,12 +527,6 @@ export function SpeciesDetail({
             <dt className="text-[10.5px] text-muted-foreground">PubChem CID</dt>
             <dd className="mt-0.5 text-[11px] tabular-nums text-foreground">
               {species.pubchemCid ? species.pubchemCid : <UnknownValue />}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[10.5px] text-muted-foreground">Source</dt>
-            <dd className="mt-0.5 text-[11px] text-zinc-300">
-              {SPECIES_SOURCE_LABEL[species.source]}
             </dd>
           </div>
         </dl>

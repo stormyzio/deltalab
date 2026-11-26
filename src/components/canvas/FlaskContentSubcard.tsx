@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { CanvasFlaskNode } from '../../../shared/chemistry.ts'
 import type { ProjectedFlaskState } from '@/lib/flask-reaction-ui'
 import {
@@ -8,7 +9,7 @@ import {
   formatVolumeMl,
 } from '@/lib/chemistry-ui'
 import { PH_INDICATOR_BY_ID, evaluateIndicatorVisual } from '@/lib/lab-indicators'
-import { ChemFormula, StateTag } from '@/components/ui/chem-text'
+import { ChemFormula } from '@/components/ui/chem-text'
 
 function isChromaticHex(hex: string | null | undefined): hex is string {
   if (!hex) return false
@@ -20,6 +21,32 @@ function isChromaticHex(hex: string | null | undefined): hex is string {
     h !== '#d4d4d8' &&
     h !== '#bae6fd' &&
     h !== '#e0f2fe'
+  )
+}
+
+function SubcardSection({
+  title,
+  meta,
+  children,
+}: {
+  title: string
+  meta?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div className="py-1.5 first:pt-0 last:pb-0">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[9.5px] font-medium uppercase tracking-wider text-muted-foreground/85">
+          {title}
+        </span>
+        {meta !== undefined && meta !== null && (
+          <span className="shrink-0 whitespace-nowrap text-[9.5px] tabular-nums text-muted-foreground">
+            {meta}
+          </span>
+        )}
+      </div>
+      <div className="mt-1 space-y-0.5">{children}</div>
+    </div>
   )
 }
 
@@ -38,23 +65,51 @@ export function FlaskContentSubcard({
       ? evaluateIndicatorVisual(node.indicatorId, projected.phEstimate).hex
       : indicatorSpec?.baseHex ?? null
 
-  const soluteIds = new Set(solution.solutes.map((s) => s.speciesId))
-  const hasDissociatedIons = projected.dissolvedSpecies.some(
-    (d) => !soluteIds.has(d.speciesId),
-  )
+  const hasFilter = Boolean(node.hasFilter || filteredSolids.length > 0)
+  const hasGases = projected.gasProduced.length > 0
   const hasSolids = projected.solidSpecies.length > 0
-  const hasSplitState = hasDissociatedIons || hasSolids || Boolean(solution.immisciblePhase)
-  const hasLiquidOrSolutes = solution.hasWater || solution.solutes.length > 0
+  const hasDissolved = projected.dissolvedSpecies.length > 0
+  const immiscible = solution.immisciblePhase ?? null
+
+  if (
+    filteredSolids.length === 0 &&
+    !solution.hasWater &&
+    !hasGases &&
+    !hasDissolved &&
+    !hasSolids &&
+    !immiscible &&
+    !indicatorSpec
+  ) {
+    return null
+  }
+
+  const soluteById = new Map(solution.solutes.map((s) => [s.speciesId, s]))
+
+  const isSatExcess = (speciesId: string): boolean => {
+    const meta = soluteById.get(speciesId)
+    return Boolean(meta && !meta.isImmersedSolid && meta.dissolvedMol > 1e-7)
+  }
+
+  const satFlags = projected.solidSpecies.map((s) => isSatExcess(s.speciesId))
+  const allSatExcess = satFlags.length > 0 && satFlags.every(Boolean)
+  const noneSatExcess = satFlags.length > 0 && satFlags.every((v) => !v)
+  const isMixedSolids = solution.hasWater && !allSatExcess && !noneSatExcess
+  const solidSectionTitle = !solution.hasWater
+    ? 'Solide'
+    : allSatExcess
+      ? 'Excès non dissous'
+      : noneSatExcess
+        ? 'Non soluble'
+        : 'Solides non dissous'
+
+  const hasLowerPhaseBelowGas =
+    solution.hasWater || hasSolids || hasDissolved || Boolean(immiscible)
 
   return (
-    <div className="w-[228px] rounded-lg border border-border/90 bg-panel/95 px-2.5 py-2 text-left shadow-lg">
-      {/* 1. Solids retained on filter paper (filtration_funnel) */}
+    <div className="w-[236px] divide-y divide-border/60 rounded-lg border border-border/90 bg-panel/95 px-2.5 py-2 text-left shadow-lg">
+      {/* 1. Solids retained on filter paper */}
       {filteredSolids.length > 0 && (
-        <div className={hasLiquidOrSolutes ? 'mb-1.5 border-b border-border/60 pb-1.5' : ''}>
-          <div className="flex items-center justify-between gap-2 pb-0.5 text-[10px] text-muted-foreground">
-            <span className="font-medium">Sur le filtre</span>
-            <span className="text-[9.5px]">retenu</span>
-          </div>
+        <SubcardSection title="Sur le filtre" meta="retenu">
           <ul className="space-y-0.5">
             {filteredSolids.map((item) => (
               <li
@@ -65,7 +120,7 @@ export function FlaskContentSubcard({
                   {isChromaticHex(item.colorHex) && (
                     <span
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: item.colorHex ?? undefined }}
+                      style={{ backgroundColor: item.colorHex }}
                     />
                   )}
                   <span className="truncate font-medium text-foreground">
@@ -78,192 +133,236 @@ export function FlaskContentSubcard({
               </li>
             ))}
           </ul>
-        </div>
+        </SubcardSection>
       )}
 
-      {/* 2. Real present state vs. raw inputs */}
-      {hasLiquidOrSolutes && hasSplitState ? (
-        <div className="space-y-1.5">
-          {/* Compact 1-line summary of what was added */}
-          <div className="flex items-baseline justify-between gap-2 text-[10px] text-muted-foreground">
-            <span className="shrink-0 font-medium">Ajouts</span>
-            <span className="min-w-0 truncate text-right text-[9.5px] tabular-nums text-zinc-400">
-              {solution.hasWater && (
-                <>
-                  <ChemFormula value="H2O" /> {formatVolumeMl(solution.waterVolumeMl)}
-                </>
-              )}
-              {solution.hasWater && solution.solutes.length > 0 ? ' · ' : ''}
-              {solution.solutes.map((s, idx) => (
-                <span key={s.speciesId}>
-                  {idx > 0 && ' · '}
-                  <ChemFormula value={s.displayFormula} />
+      {/* 2. Headspace gases */}
+      {hasGases && (
+        <SubcardSection
+          title="Gaz"
+          meta={hasLowerPhaseBelowGas ? 'en haut' : undefined}
+        >
+          <ul className="space-y-0.5">
+            {projected.gasProduced.map((g) => (
+              <li
+                key={`gas-${g.speciesId}`}
+                className="flex items-baseline justify-between gap-2 text-[10.5px]"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full border border-dashed border-sky-300/70"
+                    style={{
+                      backgroundColor: isChromaticHex(g.colorHex)
+                        ? g.colorHex
+                        : 'rgba(125,211,252,0.28)',
+                    }}
+                  />
+                  <span className="truncate font-medium text-foreground">
+                    <ChemFormula value={g.displayFormula} state="g" />
+                  </span>
                 </span>
-              ))}
+                <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
+                  {formatVolumeMl(g.volumeMl)} · {formatMol(g.amountMol)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </SubcardSection>
+      )}
+
+      {/* 3. Immiscible top liquid layer */}
+      {immiscible && immiscible.position === 'top' && (
+        <SubcardSection
+          title="Non miscible"
+          meta={`flotte · d ${formatFrNumber(immiscible.densityGPerCm3, 2)}`}
+        >
+          <div className="flex items-baseline justify-between gap-2 text-[10.5px]">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: immiscible.colorHex }}
+              />
+              <span className="truncate font-medium text-foreground">
+                <ChemFormula value={immiscible.formula} state="l" />
+              </span>
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
+              {formatVolumeMl(immiscible.volumeMl)}
             </span>
           </div>
+        </SubcardSection>
+      )}
 
-          {/* Present physical state */}
-          <div className="border-t border-border/60 pt-1.5">
-            <div className="flex items-center justify-between gap-2 pb-1 text-[10px] text-muted-foreground">
-              <span className="font-medium text-zinc-300">
-                {node.hasFilter || filteredSolids.length > 0 ? 'Filtrat' : 'Présent'}
-              </span>
-              <span className="shrink-0 tabular-nums">
-                {solution.hasWater ? formatVolumeMl(solution.totalVolumeMl) : 'Hors solvant'}
-              </span>
-            </div>
-
-            <ul className="divide-y divide-border/40">
-              {/* Solids / precipitates */}
-              {projected.solidSpecies.map((s) => (
-                <li
-                  key={`sol-${s.speciesId}`}
-                  className="flex items-baseline justify-between gap-2 py-1 text-[10.5px]"
-                >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span
-                      className="h-1.5 w-1.5 shrink-0 rounded-full border border-white/15"
-                      style={{ backgroundColor: s.colorHex ?? '#d4d4d8' }}
-                    />
-                    <span className="truncate font-medium text-foreground">
-                      <ChemFormula value={s.displayFormula} state="s" />
+      {/* 4. Aqueous solution or anhydrous liquid */}
+      {solution.hasWater ? (
+        hasDissolved ? (
+          <SubcardSection
+            title={hasFilter ? 'Filtrat · en solution' : 'En solution'}
+            meta={
+              <>
+                <ChemFormula value="H2O" /> {formatVolumeMl(solution.waterVolumeMl)}
+              </>
+            }
+          >
+            <ul className="space-y-0.5">
+              {projected.dissolvedSpecies.slice(0, 6).map((d) => {
+                const isSat = Boolean(soluteById.get(d.speciesId)?.isSaturated)
+                return (
+                  <li
+                    key={`aq-${d.speciesId}`}
+                    className="flex items-baseline justify-between gap-2 text-[10.5px]"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {isChromaticHex(d.colorHex) && (
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: d.colorHex }}
+                        />
+                      )}
+                      <span className="truncate font-medium text-foreground">
+                        <ChemFormula value={d.displayFormula} state="aq" />
+                      </span>
+                      {isSat && (
+                        <span className="shrink-0 text-[9px] text-amber-300">
+                          sat.
+                        </span>
+                      )}
                     </span>
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
-                    {formatMassG(s.massG)}
-                  </span>
-                </li>
-              ))}
-
-              {/* Immiscible liquid layer */}
-              {solution.immisciblePhase && (
-                <li className="flex items-baseline justify-between gap-2 py-1 text-[10.5px]">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span
-                      className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: solution.immisciblePhase.colorHex }}
-                    />
-                    <span className="truncate font-medium text-foreground">
-                      <ChemFormula value={solution.immisciblePhase.formula} state="l" />
+                    <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
+                      {d.concentrationMolPerL > 0
+                        ? formatConcMolL(d.concentrationMolPerL)
+                        : formatMol(d.amountMol)}
                     </span>
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-[9.5px] tabular-nums text-muted-foreground">
-                    {solution.immisciblePhase.position === 'top' ? 'flotte' : 'en bas'} · d{' '}
-                    {formatFrNumber(solution.immisciblePhase.densityGPerCm3, 2)}
-                  </span>
-                </li>
-              )}
-
-              {/* Dissolved ions & molecules */}
-              {projected.dissolvedSpecies.slice(0, 5).map((d) => (
-                <li
-                  key={`aq-${d.speciesId}`}
-                  className="flex items-baseline justify-between gap-2 py-1 text-[10.5px]"
-                >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    {isChromaticHex(d.colorHex) && (
-                      <span
-                        className="h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: d.colorHex ?? undefined }}
-                      />
-                    )}
-                    <span className="truncate font-medium text-foreground">
-                      <ChemFormula value={d.displayFormula} state="aq" />
-                    </span>
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
-                    {d.concentrationMolPerL > 0
-                      ? formatConcMolL(d.concentrationMolPerL)
-                      : formatMol(d.amountMol)}
-                  </span>
-                </li>
-              ))}
-              {projected.dissolvedSpecies.length > 5 && (
-                <li className="py-1 text-[9.5px] text-muted-foreground">
-                  +{projected.dissolvedSpecies.length - 5} autres en solution
+                  </li>
+                )
+              })}
+              {projected.dissolvedSpecies.length > 6 && (
+                <li className="text-[9.5px] text-muted-foreground">
+                  +{projected.dissolvedSpecies.length - 6} autres
                 </li>
               )}
             </ul>
-          </div>
-        </div>
-      ) : hasLiquidOrSolutes ? (
-        /* Simple non-dissociating case (pure water, glucose, ethanol…): single clean list */
-        <>
-          <div className="flex items-center justify-between gap-2 pb-1 text-[10px] text-muted-foreground">
-            <span className="font-medium">
-              {node.hasFilter || filteredSolids.length > 0 ? 'Filtrat' : 'Contenu'}
-            </span>
-            <span className="shrink-0 whitespace-nowrap tabular-nums">
-              {solution.hasWater
-                ? formatVolumeMl(solution.totalVolumeMl)
-                : 'Hors solvant'}
-            </span>
-          </div>
-
-          <ul className="divide-y divide-border/40 border-t border-border/50">
-            {solution.hasWater && (
-              <li className="flex items-baseline justify-between gap-2 py-1 text-[10.5px]">
-                <span className="shrink-0 font-medium text-zinc-300">
-                  <ChemFormula value="H₂O" state="l" />
+          </SubcardSection>
+        ) : (
+          <SubcardSection title={hasFilter ? 'Filtrat' : 'Liquide'}>
+            <div className="flex items-baseline justify-between gap-2 text-[10.5px]">
+              <span className="font-medium text-foreground">
+                <ChemFormula value="H2O" state="l" />
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
+                {formatVolumeMl(solution.waterVolumeMl)}
+              </span>
+            </div>
+          </SubcardSection>
+        )
+      ) : hasDissolved ? (
+        <SubcardSection
+          title="Liquide"
+          meta={
+            solution.totalVolumeMl > 0
+              ? formatVolumeMl(solution.totalVolumeMl)
+              : undefined
+          }
+        >
+          <ul className="space-y-0.5">
+            {projected.dissolvedSpecies.slice(0, 6).map((d) => (
+              <li
+                key={`liq-${d.speciesId}`}
+                className="flex items-baseline justify-between gap-2 text-[10.5px]"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {isChromaticHex(d.colorHex) && (
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: d.colorHex }}
+                    />
+                  )}
+                  <span className="truncate font-medium text-foreground">
+                    <ChemFormula value={d.displayFormula} state="l" />
+                  </span>
                 </span>
-                <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">
-                  {formatVolumeMl(solution.waterVolumeMl)}
+                <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
+                  {formatMol(d.amountMol)}
                 </span>
               </li>
+            ))}
+            {projected.dissolvedSpecies.length > 6 && (
+              <li className="text-[9.5px] text-muted-foreground">
+                +{projected.dissolvedSpecies.length - 6} autres
+              </li>
             )}
-
-            {solution.solutes.map((sol) => {
-              const showDot = isChromaticHex(sol.colorHex)
-              const st = solution.hasWater ? 'aq' : 'l'
-              return (
-                <li
-                  key={sol.speciesId}
-                  className="flex items-baseline justify-between gap-2 py-1 text-[10.5px]"
-                >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    {showDot && (
-                      <span
-                        className="h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: sol.colorHex ?? undefined }}
-                      />
-                    )}
-                    <span className="truncate font-medium text-foreground">
-                      <ChemFormula value={sol.displayFormula} />
-                      <StateTag state={st} />
-                    </span>
-                    {sol.isSaturated && (
-                      <span className="shrink-0 text-[9px] text-amber-300">
-                        sat.
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
-                    {formatMol(sol.addedMol)}
-                    {solution.hasWater && sol.concentrationMolPerL > 0 && (
-                      <span className="inline-block min-w-[7.5ch] text-right text-muted-foreground">
-                        {' '}
-                        · {formatConcMolL(sol.concentrationMolPerL)}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              )
-            })}
           </ul>
-        </>
+        </SubcardSection>
       ) : null}
 
+      {/* 5. Immiscible bottom liquid layer */}
+      {immiscible && immiscible.position === 'bottom' && (
+        <SubcardSection
+          title="Non miscible"
+          meta={`au fond · d ${formatFrNumber(immiscible.densityGPerCm3, 2)}`}
+        >
+          <div className="flex items-baseline justify-between gap-2 text-[10.5px]">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: immiscible.colorHex }}
+              />
+              <span className="truncate font-medium text-foreground">
+                <ChemFormula value={immiscible.formula} state="l" />
+              </span>
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
+              {formatVolumeMl(immiscible.volumeMl)}
+            </span>
+          </div>
+        </SubcardSection>
+      )}
+
+      {/* 6. Undissolved solids / insoluble / precipitates */}
+      {hasSolids && (
+        <SubcardSection title={solidSectionTitle}>
+          <ul className="space-y-0.5">
+            {projected.solidSpecies.map((s) => (
+              <li
+                key={`sol-${s.speciesId}`}
+                className="flex items-baseline justify-between gap-2 text-[10.5px]"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full border border-white/15"
+                    style={{ backgroundColor: s.colorHex ?? '#d4d4d8' }}
+                  />
+                  <span className="truncate font-medium text-foreground">
+                    <ChemFormula value={s.displayFormula} state="s" />
+                  </span>
+                  {isMixedSolids && isSatExcess(s.speciesId) && (
+                    <span className="shrink-0 text-[9px] text-amber-300">
+                      sat.
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-zinc-300">
+                  {formatMassG(s.massG)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </SubcardSection>
+      )}
+
+      {/* 7. pH Indicator */}
       {indicatorSpec && (
-        <div className="mt-1 flex items-center gap-1.5 border-t border-border/50 pt-1 text-[10px] text-muted-foreground">
-          {indicatorColor && (
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: indicatorColor }}
-            />
-          )}
-          <span className="truncate">{indicatorSpec.nameFr}</span>
-        </div>
+        <SubcardSection title="Indicateur">
+          <div className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
+            {indicatorColor && (
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: indicatorColor }}
+              />
+            )}
+            <span className="truncate text-foreground/90">{indicatorSpec.nameFr}</span>
+          </div>
+        </SubcardSection>
       )}
     </div>
   )

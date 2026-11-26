@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Search, X } from 'lucide-react'
 import type { SpeciesRecord } from '../../../shared/chemistry.ts'
+import { normalizeChemSearch, normalizeFormulaSearch } from '@/lib/chemistry-calc'
 import { STATE_META } from '@/lib/chemistry-ui'
 import { Button } from '@/components/ui/button'
 import { ChemFormula } from '@/components/ui/chem-text'
@@ -24,16 +25,17 @@ export function IsomerPickerDialog({
   const [filter, setFilter] = useState('')
   const [showAll, setShowAll] = useState(false)
 
-  const q = filter.trim().toLowerCase()
+  const q = normalizeChemSearch(filter)
+  const qCompact = normalizeFormulaSearch(filter)
   const filtered = useMemo(() => {
     if (!q) return pending.candidates
     return pending.candidates.filter(
       (c) =>
-        c.nameFr.toLowerCase().includes(q) ||
-        c.displayFormula.toLowerCase().includes(q) ||
-        c.families.some((f) => f.toLowerCase().includes(q)),
+        normalizeChemSearch(c.nameFr).includes(q) ||
+        normalizeFormulaSearch(c.displayFormula).includes(qCompact) ||
+        c.families.some((f) => normalizeChemSearch(f).includes(q)),
     )
-  }, [pending.candidates, q])
+  }, [pending.candidates, q, qCompact])
 
   const INITIAL_VISIBLE = 4
   const displayed = q || showAll ? filtered : filtered.slice(0, INITIAL_VISIBLE)
@@ -126,9 +128,6 @@ export function IsomerPickerDialog({
                   <p className="mt-0.5 text-[10px] text-muted-foreground">
                     <ChemFormula value={cand.displayFormula} /> ·{' '}
                     {STATE_META[cand.standardState].tag}
-                    {cand.source !== 'curated'
-                      ? ` · ${cand.source === 'pubchem_live' ? 'PubChem' : 'Étendue'}`
-                      : ''}
                   </p>
                 </div>
                 {!q && idx < 9 && (

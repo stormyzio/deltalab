@@ -5,6 +5,7 @@ import type {
   PhysicalState,
   ReactionCategory,
   SpeciesKind,
+  ThermalNote,
 } from '../../shared/chemistry.ts'
 
 export interface DissolutionProductDef {
@@ -38,14 +39,29 @@ export interface SpeciesSeed {
   formula: string
   displayFormula: string
   nameFr: string
+  iupacName?: string | null
+  casNumber?: string | null
+  pubchemCid?: number | null
   kind: SpeciesKind
   charge?: number
   molarMass: number
   standardState: PhysicalState
+  meltingPointC?: number | null
+  boilingPointC?: number | null
+  thermalNote?: ThermalNote
+  densityGPerCm3?: number | null
+  appearanceFr?: string | null
   colorHex?: string | null
   composition: Record<string, number>
   mergeable?: boolean
   isSolvent?: boolean
+  families?: string[]
+  popularity?: number
+  pkaValues?: number[]
+  ghsPictograms?: string[]
+  ghsSignalWord?: string | null
+  usesFr?: string
+  identificationFr?: string
   aqueous?: AqueousBehaviorDef
   lewis?: LewisStructure
   behaviors?: Record<string, unknown>

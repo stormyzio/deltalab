@@ -56,16 +56,12 @@ CREATE TABLE IF NOT EXISTS species (
   atom_signature TEXT NOT NULL DEFAULT '',
   lewis_json TEXT,
   lewis_topology_key TEXT,
-  source TEXT NOT NULL DEFAULT 'curated',
   popularity INTEGER NOT NULL DEFAULT 0,
-  smiles TEXT,
-  inchikey TEXT,
   pubchem_cid INTEGER,
   families_json TEXT NOT NULL DEFAULT '[]',
   is_solvent INTEGER NOT NULL DEFAULT 0,
   can_dissolve_in_water INTEGER NOT NULL DEFAULT 0,
   solubility_g_per_l REAL,
-  solubility_by_temp_json TEXT,
   dissolution_type TEXT NOT NULL DEFAULT 'none',
   solution_color_hex TEXT,
   ph_character TEXT NOT NULL DEFAULT 'neutral',
@@ -195,8 +191,7 @@ CREATE TABLE IF NOT EXISTS alloys (
   density_g_per_cm3 REAL NOT NULL,
   melting_point_c REAL,
   color_hex TEXT NOT NULL,
-  uses_fr TEXT NOT NULL DEFAULT '',
-  source TEXT NOT NULL DEFAULT 'curated'
+  uses_fr TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_alloys_base_element ON alloys(base_element);

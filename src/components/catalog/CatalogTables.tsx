@@ -59,10 +59,6 @@ export function SpeciesCatalogTable({
           {displayedSpecies.map((sp) => {
             const isSel = selectedSpeciesId === sp.id
             const dotColor = sp.solutionColorHex ?? (sp.isSolvent ? '#bae6fd' : null)
-            const isUnknownSolubility =
-              sp.source !== 'curated' &&
-              !sp.canDissolveInWater &&
-              sp.solubilityGPerL === null
             return (
               <tr
                 key={sp.id}
@@ -90,11 +86,6 @@ export function SpeciesCatalogTable({
                 <td className="overflow-hidden px-4 py-2.5 text-zinc-200">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate">{sp.nameFr}</span>
-                    {sp.source === 'pubchem_live' && (
-                      <span className="shrink-0 whitespace-nowrap text-[9.5px] text-muted-foreground">
-                        PubChem
-                      </span>
-                    )}
                   </div>
                 </td>
                 <td className="hidden truncate px-4 py-2.5 text-muted-foreground md:table-cell">
@@ -105,7 +96,7 @@ export function SpeciesCatalogTable({
                 </td>
                 <td className="hidden truncate px-4 py-2.5 lg:table-cell">
                   {(() => {
-                    const wb = describeWaterBehavior(sp, isUnknownSolubility)
+                    const wb = describeWaterBehavior(sp)
                     return (
                       <span
                         className={cn(
@@ -160,6 +151,7 @@ export function SolutionsCatalogTable({
   sortDir,
   onSort,
   onSelect,
+  onSpawnSolution,
 }: {
   solutions: CatalogSolutionRecord[]
   selectedSolutionId: string | null
@@ -167,6 +159,7 @@ export function SolutionsCatalogTable({
   sortDir: SortDir
   onSort: (k: string) => void
   onSelect: (id: string) => void
+  onSpawnSolution?: (sol: CatalogSolutionRecord) => void
 }) {
   return (
     <table className="w-full table-fixed border-collapse text-left text-xs">
@@ -175,7 +168,8 @@ export function SolutionsCatalogTable({
           <SortTh label="Solution" activeKey={sortKey} colKey="name" dir={sortDir} onSort={onSort} className="pl-4" />
           <SortTh label="Formule aqueuse" activeKey={sortKey} colKey="formula" dir={sortDir} onSort={onSort} className="w-44" />
           <th className="hidden w-32 whitespace-nowrap px-3 py-2 font-medium md:table-cell">Soluté</th>
-          <SortTh label="pH" activeKey={sortKey} colKey="ph" dir={sortDir} onSort={onSort} align="right" className="w-16 pr-4" />
+          <SortTh label="pH" activeKey={sortKey} colKey="ph" dir={sortDir} onSort={onSort} align="right" className="w-16 pr-3" />
+          <th className="w-24 whitespace-nowrap py-2 pl-2 pr-4 text-right font-medium" />
         </tr>
       </thead>
       <tbody className="divide-y divide-border/50">
@@ -209,11 +203,26 @@ export function SolutionsCatalogTable({
               </td>
               <td
                 className={cn(
-                  'whitespace-nowrap py-2.5 pl-3 pr-4 text-right text-[11px] tabular-nums',
+                  'whitespace-nowrap py-2.5 pl-3 pr-3 text-right text-[11px] tabular-nums',
                   sol.phEstimate === null ? 'text-muted-foreground' : 'text-zinc-200',
                 )}
               >
                 {sol.phEstimate !== null ? formatFrNumber(sol.phEstimate, 1) : '—'}
+              </td>
+              <td className="whitespace-nowrap py-1.5 pl-2 pr-4 text-right">
+                {onSpawnSolution && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSpawnSolution(sol)
+                    }}
+                    className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded px-2 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <Plus className="h-3 w-3 shrink-0" strokeWidth={1.7} />
+                    <span>Paillasse</span>
+                  </button>
+                )}
               </td>
             </tr>
           )

@@ -19,7 +19,9 @@ import type {
 import {
   NODE_HALF_SIZE,
   getFlaskHitTest,
+  getGasCollectorHitTest,
   getSolidHitTest,
+  getThermalChamberHitTest,
 } from '@/lib/canvas-geometry'
 import { findTitrationPairs } from '@/lib/titration-engine'
 import type { LabPresetDefinition, SavedWorkbenchRecord } from '@/lib/lab-presets'
@@ -27,13 +29,21 @@ import { cn } from '@/lib/utils'
 import { ChemFormula } from '@/components/ui/chem-text'
 import {
   computeCanvasDropHint,
+  computeGasCollectorDropHint,
   computeSolidDropHint,
+  computeThermalChamberDropHint,
 } from '@/components/canvas/canvas-drop-hints'
+import {
+  CanvasConnectionsLayer,
+  type CanvasConnectionsLayerHandle,
+} from '@/components/canvas/CanvasConnectionsLayer'
 import {
   AtomTile,
   FlaskTile,
+  GasCollectorTile,
   MoleculeTile,
   SolidBlockTile,
+  ThermalChamberTile,
 } from '@/components/canvas/CanvasTiles'
 import {
   IsomerPickerDialog,
@@ -89,6 +99,49 @@ interface LabCanvasProps {
   onDropSolidOnSolid: (draggedId: string, targetSolidId: string) => void
   onConvertAtomToSolid: (atomNodeId: string) => void
   onDropMoleculeOnFlask: (moleculeNodeId: string, flaskId: string) => void
+  onDropNodeOnGasCollector: (sourceNodeId: string, collectorId: string) => void
+  onDropGasCollectorOnFlask: (collectorId: string, flaskId: string) => void
+  onDropNodeOnThermalChamber: (sourceNodeId: string, chamberId: string) => void
+  onClearGasCollector: (collectorId: string) => void
+  onLinkGasCollectorToFlask: (collectorId: string, flaskId: string | null) => void
+  onExtractGasFromCollector: (
+    collectorId: string,
+    speciesId: string,
+    dropPos?: { x: number; y: number },
+  ) => void
+  onBubbleGasIntoFlask: (collectorId: string, speciesId: string, flaskId: string) => void
+  onSendGasToChamber: (collectorId: string, speciesId: string, chamberId: string) => void
+  onTransferGasBetweenCollectors: (
+    sourceCollectorId: string,
+    speciesId: string,
+    targetCollectorId: string,
+  ) => void
+  onExtractSampleFromChamber: (
+    chamberId: string,
+    dropPos?: { x: number; y: number },
+  ) => void
+  onTransferChamberSampleToFlask: (chamberId: string, flaskId: string) => void
+  onTransferChamberSampleToCollector: (chamberId: string, collectorId: string) => void
+  onTransferChamberSampleToChamber: (
+    sourceChamberId: string,
+    targetChamberId: string,
+  ) => void
+  onTransferFlaskLiquidToChamber: (flaskId: string, chamberId: string) => void
+  onExtractFilteredSolid: (
+    flaskId: string,
+    speciesId: string,
+    dropPos?: { x: number; y: number },
+  ) => void
+  onTransferFilteredSolidToFlask: (
+    sourceFlaskId: string,
+    speciesId: string,
+    targetFlaskId: string,
+  ) => void
+  onTransferFilteredSolidToChamber: (
+    sourceFlaskId: string,
+    speciesId: string,
+    chamberId: string,
+  ) => void
   onPourBetweenFlasks: (
     sourceFlaskId: string,
     targetFlaskId: string,
@@ -142,16 +195,29 @@ interface MarqueeState {
   lastSelectedIds: Set<string>
 }
 
-interface PourDragState {
+type TransferDragKind =
+  | 'pour'
+  | 'filter_cake'
+  | 'gas_link'
+  | 'gas_extract'
+  | 'chamber_extract'
+
+interface TransferDragState {
   pointerId: number
-  sourceFlaskId: string
+  kind: TransferDragKind
+  sourceNodeId: string
+  speciesId?: string
+  startClientX: number
+  startClientY: number
   startX: number
   startY: number
   currentX: number
   currentY: number
   hoveredTargetId: string | null
+  hoveredTargetKind: 'flask' | 'gas_collector' | 'thermal_chamber' | null
   hoveredHint: { text: string; valid: boolean } | null
   hoveredKey: string | null
+  moved: boolean
   rafId: number | null
 }
 
@@ -181,6 +247,23 @@ export function LabCanvas({
   onDropSolidOnSolid,
   onConvertAtomToSolid,
   onDropMoleculeOnFlask,
+  onDropNodeOnGasCollector,
+  onDropGasCollectorOnFlask,
+  onDropNodeOnThermalChamber,
+  onClearGasCollector,
+  onLinkGasCollectorToFlask,
+  onExtractGasFromCollector,
+  onBubbleGasIntoFlask,
+  onSendGasToChamber,
+  onTransferGasBetweenCollectors,
+  onExtractSampleFromChamber,
+  onTransferChamberSampleToFlask,
+  onTransferChamberSampleToCollector,
+  onTransferChamberSampleToChamber,
+  onTransferFlaskLiquidToChamber,
+  onExtractFilteredSolid,
+  onTransferFilteredSolidToFlask,
+  onTransferFilteredSolidToChamber,
   onPourBetweenFlasks,
   onChangeFlaskReactionExtent,
   onSelectFlaskReaction,
@@ -236,14 +319,27 @@ export function LabCanvas({
     text: string
     valid: boolean
   } | null>(null)
-  const [pourActive, setPourActive] = useState<{
-    sourceFlaskId: string
+  const [hoveredCollectorId, setHoveredCollectorId] = useState<string | null>(null)
+  const [hoveredCollectorHint, setHoveredCollectorHint] = useState<{
+    text: string
+    valid: boolean
+  } | null>(null)
+  const [hoveredChamberId, setHoveredChamberId] = useState<string | null>(null)
+  const [hoveredChamberHint, setHoveredChamberHint] = useState<{
+    text: string
+    valid: boolean
+  } | null>(null)
+  const [transferActive, setTransferActive] = useState<{
+    kind: TransferDragKind
+    sourceNodeId: string
     startX: number
     startY: number
     currentX: number
     currentY: number
     hoveredTargetId: string | null
+    hoveredTargetKind: 'flask' | 'gas_collector' | 'thermal_chamber' | null
     hoveredHint: { text: string; valid: boolean } | null
+    moved: boolean
   } | null>(null)
   const [pendingPour, setPendingPour] = useState<{
     sourceFlaskId: string
@@ -253,9 +349,11 @@ export function LabCanvas({
   const worldLayerRef = useRef<HTMLDivElement | null>(null)
   const marqueeElRef = useRef<HTMLDivElement | null>(null)
   const marqueeStateRef = useRef<MarqueeState | null>(null)
-  const pourDragRef = useRef<PourDragState | null>(null)
+  const transferDragRef = useRef<TransferDragState | null>(null)
   const pourPathRef = useRef<SVGPathElement | null>(null)
   const pourTipRef = useRef<SVGCircleElement | null>(null)
+  const transferTipLabelRef = useRef<HTMLDivElement | null>(null)
+  const connectionsLayerRef = useRef<CanvasConnectionsLayerHandle | null>(null)
   const nodeElMapRef = useRef<Map<string, HTMLDivElement>>(new Map())
   const viewportRef = useRef<ViewportTransform>(viewport)
   useEffect(() => {
@@ -266,7 +364,10 @@ export function LabCanvas({
     if (el) {
       nodeElMapRef.current.set(id, el)
     } else {
-      nodeElMapRef.current.delete(id)
+      const existing = nodeElMapRef.current.get(id)
+      if (existing && !existing.isConnected) {
+        nodeElMapRef.current.delete(id)
+      }
     }
   }, [])
 
@@ -286,6 +387,8 @@ export function LabCanvas({
 
   const hoveredFlaskKeyRef = useRef<string | null>(null)
   const hoveredSolidKeyRef = useRef<string | null>(null)
+  const hoveredCollectorKeyRef = useRef<string | null>(null)
+  const hoveredChamberKeyRef = useRef<string | null>(null)
 
   const dragNodesRef = useRef<{
     pointerId: number
@@ -312,7 +415,9 @@ export function LabCanvas({
       if (marqueeStateRef.current?.rafId != null) {
         cancelAnimationFrame(marqueeStateRef.current.rafId)
       }
-      if (pourDragRef.current?.rafId != null) cancelAnimationFrame(pourDragRef.current.rafId)
+      if (transferDragRef.current?.rafId != null) {
+        cancelAnimationFrame(transferDragRef.current.rafId)
+      }
     }
   }, [])
 
@@ -455,98 +560,196 @@ export function LabCanvas({
     setMarqueeActive(true)
   }
 
-  const handleStartPourDrag = useCallback(
-    (e: ReactPointerEvent<HTMLButtonElement>, sourceFlask: CanvasFlaskNode) => {
+  const handleStartTransferDrag = useCallback(
+    (
+      e: ReactPointerEvent<HTMLButtonElement>,
+      kind: TransferDragKind,
+      sourceNodeId: string,
+      speciesId?: string,
+    ) => {
       if (e.button !== 0) return
       e.preventDefault()
       e.stopPropagation()
       setPendingPour(null)
       canvasRef.current?.setPointerCapture(e.pointerId)
       const worldPt = clientToWorld(e.clientX, e.clientY)
-      pourDragRef.current = {
+      transferDragRef.current = {
         pointerId: e.pointerId,
-        sourceFlaskId: sourceFlask.id,
+        kind,
+        sourceNodeId,
+        speciesId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
         startX: worldPt.x,
         startY: worldPt.y,
         currentX: worldPt.x,
         currentY: worldPt.y,
         hoveredTargetId: null,
+        hoveredTargetKind: null,
         hoveredHint: null,
         hoveredKey: null,
+        moved: false,
         rafId: null,
       }
-      setPourActive({
-        sourceFlaskId: sourceFlask.id,
+      setTransferActive({
+        kind,
+        sourceNodeId,
         startX: worldPt.x,
         startY: worldPt.y,
         currentX: worldPt.x,
         currentY: worldPt.y,
         hoveredTargetId: null,
+        hoveredTargetKind: null,
         hoveredHint: null,
+        moved: false,
       })
     },
     [canvasRef, clientToWorld],
   )
 
   const handleCanvasPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (pourDragRef.current) {
-      const pd = pourDragRef.current
-      if (pd.pointerId !== e.pointerId) return
+    if (transferDragRef.current) {
+      const td = transferDragRef.current
+      if (td.pointerId !== e.pointerId) return
       const worldPt = clientToWorld(e.clientX, e.clientY)
-      pd.currentX = worldPt.x
-      pd.currentY = worldPt.y
+      td.currentX = worldPt.x
+      td.currentY = worldPt.y
+      if (!td.moved && Math.hypot(e.clientX - td.startClientX, e.clientY - td.startClientY) > 6) {
+        td.moved = true
+      }
 
-      // Direct 120fps DOM update of the live pour SVG arc without React re-renders
-      if (pd.rafId === null) {
-        pd.rafId = requestAnimationFrame(() => {
-          pd.rafId = null
-          const mx = (pd.startX + pd.currentX) * 0.5
+      // Direct 120fps DOM update of the live curved transfer wire without React re-renders
+      if (td.rafId === null) {
+        td.rafId = requestAnimationFrame(() => {
+          td.rafId = null
+          const mx = (td.startX + td.currentX) * 0.5
           const arcLift = Math.min(
             64,
             Math.max(
               18,
-              Math.hypot(pd.currentX - pd.startX, pd.currentY - pd.startY) * 0.22,
+              Math.hypot(td.currentX - td.startX, td.currentY - td.startY) * 0.22,
             ),
           )
-          const my = Math.min(pd.startY, pd.currentY) - arcLift
+          const my = Math.min(td.startY, td.currentY) - arcLift
           if (pourPathRef.current) {
             pourPathRef.current.setAttribute(
               'd',
-              `M ${pd.startX} ${pd.startY} Q ${mx} ${my} ${pd.currentX} ${pd.currentY}`,
+              `M ${td.startX} ${td.startY} Q ${mx} ${my} ${td.currentX} ${td.currentY}`,
             )
           }
           if (pourTipRef.current) {
-            pourTipRef.current.setAttribute('cx', String(pd.currentX))
-            pourTipRef.current.setAttribute('cy', String(pd.currentY))
+            pourTipRef.current.setAttribute('cx', String(td.currentX))
+            pourTipRef.current.setAttribute('cy', String(td.currentY))
+          }
+          if (transferTipLabelRef.current) {
+            transferTipLabelRef.current.style.transform = `translate3d(${td.currentX}px, ${td.currentY - 14}px, 0) translate(-50%, -100%)`
           }
         })
       }
 
-      const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, pd.sourceFlaskId)
+      const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, td.sourceNodeId)
+      const targetCollector = !targetFlask
+        ? getGasCollectorHitTest(nodes, worldPt.x, worldPt.y, td.sourceNodeId)
+        : null
+      const targetChamber =
+        !targetFlask && !targetCollector
+          ? getThermalChamberHitTest(nodes, worldPt.x, worldPt.y, td.sourceNodeId)
+          : null
+
+      let hoveredTargetId: string | null = null
+      let hoveredTargetKind: 'flask' | 'gas_collector' | 'thermal_chamber' | null = null
       let hoveredHint: { text: string; valid: boolean } | null = null
-      if (targetFlask) {
-        if (targetFlask.vessel.capacityMl - targetFlask.solution.totalVolumeMl <= 0.1) {
-          hoveredHint = { text: 'Verrerie pleine', valid: false }
-        } else {
+
+      if (td.kind === 'pour') {
+        if (targetFlask) {
+          hoveredTargetId = targetFlask.id
+          hoveredTargetKind = 'flask'
+          if (targetFlask.vessel.capacityMl - targetFlask.solution.totalVolumeMl <= 0.1) {
+            hoveredHint = { text: 'Verrerie pleine', valid: false }
+          } else {
+            const targetName = targetFlask.customLabel || targetFlask.vessel.nameFr
+            hoveredHint = { text: `Verser dans ${targetName}`, valid: true }
+          }
+        } else if (targetChamber) {
+          hoveredTargetId = targetChamber.id
+          hoveredTargetKind = 'thermal_chamber'
+          hoveredHint = { text: 'Prélever liquide vers la chambre', valid: true }
+        }
+      } else if (td.kind === 'gas_link') {
+        if (targetFlask) {
+          hoveredTargetId = targetFlask.id
+          hoveredTargetKind = 'flask'
           const targetName = targetFlask.customLabel || targetFlask.vessel.nameFr
-          hoveredHint = { text: `Verser dans ${targetName}`, valid: true }
+          hoveredHint = { text: `Raccorder tuyau ← ${targetName}`, valid: true }
+        }
+      } else if (td.kind === 'filter_cake') {
+        if (targetFlask) {
+          hoveredTargetId = targetFlask.id
+          hoveredTargetKind = 'flask'
+          const targetName = targetFlask.customLabel || targetFlask.vessel.nameFr
+          hoveredHint = { text: `Transférer solide → ${targetName}`, valid: true }
+        } else if (targetChamber) {
+          hoveredTargetId = targetChamber.id
+          hoveredTargetKind = 'thermal_chamber'
+          hoveredHint = { text: 'Placer le solide dans la chambre', valid: true }
+        }
+      } else if (td.kind === 'gas_extract') {
+        if (targetChamber) {
+          hoveredTargetId = targetChamber.id
+          hoveredTargetKind = 'thermal_chamber'
+          hoveredHint = { text: 'Transférer le gaz dans la chambre', valid: true }
+        } else if (targetFlask) {
+          hoveredTargetId = targetFlask.id
+          hoveredTargetKind = 'flask'
+          const targetName = targetFlask.customLabel || targetFlask.vessel.nameFr
+          hoveredHint = { text: `Injecter le gaz dans ${targetName}`, valid: true }
+        } else if (targetCollector) {
+          hoveredTargetId = targetCollector.id
+          hoveredTargetKind = 'gas_collector'
+          hoveredHint = { text: 'Transvaser vers ce collecteur', valid: true }
+        }
+      } else if (td.kind === 'chamber_extract') {
+        const srcChamber = nodes.find(
+          (n) => n.kind === 'thermal_chamber' && n.id === td.sourceNodeId,
+        )
+        const sampleState =
+          srcChamber?.kind === 'thermal_chamber' ? srcChamber.sample?.currentState : null
+        if (targetFlask) {
+          hoveredTargetId = targetFlask.id
+          hoveredTargetKind = 'flask'
+          const targetName = targetFlask.customLabel || targetFlask.vessel.nameFr
+          hoveredHint = { text: `Transférer dans ${targetName}`, valid: true }
+        } else if (targetCollector) {
+          hoveredTargetId = targetCollector.id
+          hoveredTargetKind = 'gas_collector'
+          hoveredHint =
+            sampleState === 'gas'
+              ? { text: 'Capturer le gaz dans le collecteur', valid: true }
+              : { text: 'L’échantillon n’est pas gazeux', valid: false }
+        } else if (targetChamber) {
+          hoveredTargetId = targetChamber.id
+          hoveredTargetKind = 'thermal_chamber'
+          hoveredHint = { text: 'Transférer dans cette chambre', valid: true }
         }
       }
-      const nextKey = targetFlask
-        ? `${targetFlask.id}|${hoveredHint?.text ?? ''}|${hoveredHint?.valid ?? ''}`
-        : null
-      if (pd.hoveredKey !== nextKey) {
-        pd.hoveredKey = nextKey
-        pd.hoveredTargetId = targetFlask?.id ?? null
-        pd.hoveredHint = hoveredHint
-        setPourActive({
-          sourceFlaskId: pd.sourceFlaskId,
-          startX: pd.startX,
-          startY: pd.startY,
-          currentX: pd.currentX,
-          currentY: pd.currentY,
-          hoveredTargetId: pd.hoveredTargetId,
-          hoveredHint: pd.hoveredHint,
+
+      const nextKey = `${td.moved ? '1' : '0'}|${hoveredTargetId ?? ''}|${hoveredHint?.text ?? ''}|${hoveredHint?.valid ?? ''}`
+      if (td.hoveredKey !== nextKey) {
+        td.hoveredKey = nextKey
+        td.hoveredTargetId = hoveredTargetId
+        td.hoveredTargetKind = hoveredTargetKind
+        td.hoveredHint = hoveredHint
+        setTransferActive({
+          kind: td.kind,
+          sourceNodeId: td.sourceNodeId,
+          startX: td.startX,
+          startY: td.startY,
+          currentX: td.currentX,
+          currentY: td.currentY,
+          hoveredTargetId: td.hoveredTargetId,
+          hoveredTargetKind: td.hoveredTargetKind,
+          hoveredHint: td.hoveredHint,
+          moved: td.moved,
         })
       }
       return
@@ -677,17 +880,33 @@ export function LabCanvas({
                 el.style.zIndex = '15'
               }
             }
+            connectionsLayerRef.current?.syncLivePositions(drag.lastUpdates)
           })
         }
       }
 
-      // Check flask or solid drop target when dragging a single node
+      // Check flask, solid, gas collector, or thermal chamber drop target when dragging a single node
       if (drag.origins.size === 1) {
         const worldPt = clientToWorld(e.clientX, e.clientY)
         const targetFlask = getFlaskHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
         const targetSolid =
           !targetFlask && (drag.primaryKind === 'solid' || drag.primaryKind === 'atom')
             ? getSolidHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+            : null
+        const targetCollector =
+          !targetFlask &&
+          !targetSolid &&
+          (drag.primaryKind === 'molecule' || drag.primaryKind === 'flask')
+            ? getGasCollectorHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+            : null
+        const targetChamber =
+          !targetFlask &&
+          !targetSolid &&
+          !targetCollector &&
+          (drag.primaryKind === 'molecule' ||
+            drag.primaryKind === 'solid' ||
+            drag.primaryKind === 'gas_collector')
+            ? getThermalChamberHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
             : null
         const draggedNode =
           nodes.find((n) => n.id === drag.primaryNodeId) ??
@@ -698,6 +917,7 @@ export function LabCanvas({
           (drag.primaryKind === 'atom' ||
             drag.primaryKind === 'molecule' ||
             drag.primaryKind === 'solid' ||
+            drag.primaryKind === 'gas_collector' ||
             (drag.primaryKind === 'flask' &&
               Boolean(targetFlask.hasFilter) &&
               draggedNode?.kind === 'flask' &&
@@ -742,24 +962,132 @@ export function LabCanvas({
           setHoveredSolidId(null)
           setHoveredSolidHint(null)
         }
+
+        if (targetCollector && draggedNode) {
+          const nextHint = computeGasCollectorDropHint(draggedNode, targetCollector)
+          const key = nextHint
+            ? `${targetCollector.id}|${nextHint.text}|${nextHint.valid}`
+            : null
+          if (hoveredCollectorKeyRef.current !== key) {
+            hoveredCollectorKeyRef.current = key
+            setHoveredCollectorId(nextHint ? targetCollector.id : null)
+            setHoveredCollectorHint(nextHint)
+          }
+        } else if (hoveredCollectorKeyRef.current !== null) {
+          hoveredCollectorKeyRef.current = null
+          setHoveredCollectorId(null)
+          setHoveredCollectorHint(null)
+        }
+
+        if (targetChamber && draggedNode) {
+          const nextHint = computeThermalChamberDropHint(draggedNode, targetChamber)
+          const key = nextHint
+            ? `${targetChamber.id}|${nextHint.text}|${nextHint.valid}`
+            : null
+          if (hoveredChamberKeyRef.current !== key) {
+            hoveredChamberKeyRef.current = key
+            setHoveredChamberId(nextHint ? targetChamber.id : null)
+            setHoveredChamberHint(nextHint)
+          }
+        } else if (hoveredChamberKeyRef.current !== null) {
+          hoveredChamberKeyRef.current = null
+          setHoveredChamberId(null)
+          setHoveredChamberHint(null)
+        }
       }
     }
   }
 
   const handleCanvasPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (pourDragRef.current) {
-      const pd = pourDragRef.current
-      pourDragRef.current = null
-      if (pd.rafId !== null) cancelAnimationFrame(pd.rafId)
-      setPourActive(null)
+    if (transferDragRef.current) {
+      const td = transferDragRef.current
+      transferDragRef.current = null
+      if (td.rafId !== null) cancelAnimationFrame(td.rafId)
+      setTransferActive(null)
       if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
         canvasRef.current.releasePointerCapture(e.pointerId)
       }
-      if (pd.hoveredTargetId && pd.hoveredHint?.valid) {
-        setPendingPour({
-          sourceFlaskId: pd.sourceFlaskId,
-          targetFlaskId: pd.hoveredTargetId,
-        })
+
+      const worldPt = clientToWorld(e.clientX, e.clientY)
+
+      if (!td.moved) {
+        // Simple click without dragging: quick action per handle type
+        if (td.kind === 'filter_cake' && td.speciesId) {
+          onExtractFilteredSolid(td.sourceNodeId, td.speciesId)
+        } else if (td.kind === 'gas_extract' && td.speciesId) {
+          onExtractGasFromCollector(td.sourceNodeId, td.speciesId)
+        } else if (td.kind === 'chamber_extract') {
+          onExtractSampleFromChamber(td.sourceNodeId)
+        } else if (td.kind === 'gas_link') {
+          const col = nodes.find(
+            (n) => n.kind === 'gas_collector' && n.id === td.sourceNodeId,
+          )
+          if (col?.kind === 'gas_collector' && col.sourceFlaskId) {
+            onLinkGasCollectorToFlask(col.id, null)
+          }
+        }
+        return
+      }
+
+      if (td.hoveredTargetId && td.hoveredHint?.valid) {
+        if (td.kind === 'pour') {
+          if (td.hoveredTargetKind === 'flask') {
+            setPendingPour({
+              sourceFlaskId: td.sourceNodeId,
+              targetFlaskId: td.hoveredTargetId,
+            })
+          } else if (td.hoveredTargetKind === 'thermal_chamber') {
+            onTransferFlaskLiquidToChamber(td.sourceNodeId, td.hoveredTargetId)
+          }
+        } else if (td.kind === 'gas_link' && td.hoveredTargetKind === 'flask') {
+          onLinkGasCollectorToFlask(td.sourceNodeId, td.hoveredTargetId)
+        } else if (td.kind === 'filter_cake' && td.speciesId) {
+          if (td.hoveredTargetKind === 'flask') {
+            onTransferFilteredSolidToFlask(
+              td.sourceNodeId,
+              td.speciesId,
+              td.hoveredTargetId,
+            )
+          } else if (td.hoveredTargetKind === 'thermal_chamber') {
+            onTransferFilteredSolidToChamber(
+              td.sourceNodeId,
+              td.speciesId,
+              td.hoveredTargetId,
+            )
+          }
+        } else if (td.kind === 'gas_extract' && td.speciesId) {
+          if (td.hoveredTargetKind === 'thermal_chamber') {
+            onSendGasToChamber(td.sourceNodeId, td.speciesId, td.hoveredTargetId)
+          } else if (td.hoveredTargetKind === 'flask') {
+            onBubbleGasIntoFlask(td.sourceNodeId, td.speciesId, td.hoveredTargetId)
+          } else if (td.hoveredTargetKind === 'gas_collector') {
+            onTransferGasBetweenCollectors(
+              td.sourceNodeId,
+              td.speciesId,
+              td.hoveredTargetId,
+            )
+          }
+        } else if (td.kind === 'chamber_extract') {
+          if (td.hoveredTargetKind === 'flask') {
+            onTransferChamberSampleToFlask(td.sourceNodeId, td.hoveredTargetId)
+          } else if (td.hoveredTargetKind === 'gas_collector') {
+            onTransferChamberSampleToCollector(td.sourceNodeId, td.hoveredTargetId)
+          } else if (td.hoveredTargetKind === 'thermal_chamber') {
+            onTransferChamberSampleToChamber(td.sourceNodeId, td.hoveredTargetId)
+          }
+        }
+        return
+      }
+
+      // Dropped onto open workbench space for extractable handles -> spawn exactly at drop point!
+      if (!td.hoveredTargetId) {
+        if (td.kind === 'filter_cake' && td.speciesId) {
+          onExtractFilteredSolid(td.sourceNodeId, td.speciesId, worldPt)
+        } else if (td.kind === 'gas_extract' && td.speciesId) {
+          onExtractGasFromCollector(td.sourceNodeId, td.speciesId, worldPt)
+        } else if (td.kind === 'chamber_extract') {
+          onExtractSampleFromChamber(td.sourceNodeId, worldPt)
+        }
       }
       return
     }
@@ -797,6 +1125,30 @@ export function LabCanvas({
           !targetFlask && (drag.primaryKind === 'solid' || drag.primaryKind === 'atom')
             ? getSolidHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
             : null
+        const targetCollector =
+          !targetFlask &&
+          !targetSolid &&
+          (drag.primaryKind === 'molecule' || drag.primaryKind === 'flask')
+            ? getGasCollectorHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+            : null
+        const targetChamber =
+          !targetFlask &&
+          !targetSolid &&
+          !targetCollector &&
+          (drag.primaryKind === 'molecule' ||
+            drag.primaryKind === 'solid' ||
+            drag.primaryKind === 'gas_collector')
+            ? getThermalChamberHitTest(nodes, worldPt.x, worldPt.y, drag.primaryNodeId)
+            : null
+
+        const snapPrimaryBack = () => {
+          const origin = drag.origins.get(drag.primaryNodeId)
+          const el = nodeElMapRef.current.get(drag.primaryNodeId)
+          if (origin && el) {
+            el.style.transform = `translate3d(${origin.x}px, ${origin.y}px, 0) translate(-50%, -50%)`
+          }
+          connectionsLayerRef.current?.syncLivePositions()
+        }
 
         if (
           targetFlask &&
@@ -815,9 +1167,25 @@ export function LabCanvas({
           } else if (drag.primaryKind === 'molecule') {
             onDropMoleculeOnFlask(drag.primaryNodeId, targetFlask.id)
           }
+        } else if (targetFlask && drag.primaryKind === 'gas_collector') {
+          droppedOnTarget = true
+          snapPrimaryBack()
+          onDropGasCollectorOnFlask(drag.primaryNodeId, targetFlask.id)
         } else if (targetSolid) {
           droppedOnTarget = true
           onDropSolidOnSolid(drag.primaryNodeId, targetSolid.id)
+        } else if (targetCollector) {
+          droppedOnTarget = true
+          if (drag.primaryKind === 'flask') {
+            snapPrimaryBack()
+          }
+          onDropNodeOnGasCollector(drag.primaryNodeId, targetCollector.id)
+        } else if (targetChamber) {
+          droppedOnTarget = true
+          if (drag.primaryKind === 'gas_collector') {
+            snapPrimaryBack()
+          }
+          onDropNodeOnThermalChamber(drag.primaryNodeId, targetChamber.id)
         } else if (
           targetFlask &&
           drag.primaryKind === 'flask' &&
@@ -828,12 +1196,7 @@ export function LabCanvas({
           )
           if (srcNode && (srcNode.solution.hasWater || srcNode.solution.solutes.length > 0)) {
             droppedOnTarget = true
-            // Snap source flask cleanly back to its origin position rather than overlapping the funnel
-            const origin = drag.origins.get(drag.primaryNodeId)
-            const el = nodeElMapRef.current.get(drag.primaryNodeId)
-            if (origin && el) {
-              el.style.transform = `translate3d(${origin.x}px, ${origin.y}px, 0) translate(-50%, -50%)`
-            }
+            snapPrimaryBack()
             onPourBetweenFlasks(
               drag.primaryNodeId,
               targetFlask.id,
@@ -856,6 +1219,16 @@ export function LabCanvas({
         hoveredSolidKeyRef.current = null
         setHoveredSolidId(null)
         setHoveredSolidHint(null)
+      }
+      if (hoveredCollectorKeyRef.current !== null) {
+        hoveredCollectorKeyRef.current = null
+        setHoveredCollectorId(null)
+        setHoveredCollectorHint(null)
+      }
+      if (hoveredChamberKeyRef.current !== null) {
+        hoveredChamberKeyRef.current = null
+        setHoveredChamberId(null)
+        setHoveredChamberHint(null)
       }
     }
   }
@@ -1048,6 +1421,12 @@ export function LabCanvas({
           transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.zoom})`,
         }}
       >
+        <CanvasConnectionsLayer
+          ref={connectionsLayerRef}
+          nodes={nodes}
+          nodeElMapRef={nodeElMapRef}
+        />
+
         {nodes.map((node) => {
           const isSelected = selectedIds.has(node.id)
           const isShaking = shakingNodeIds.has(node.id)
@@ -1100,6 +1479,79 @@ export function LabCanvas({
             )
           }
 
+          if (node.kind === 'gas_collector') {
+            const linkedFlask = node.sourceFlaskId
+              ? nodes.find(
+                  (n): n is CanvasFlaskNode =>
+                    n.kind === 'flask' && n.id === node.sourceFlaskId,
+                )
+              : null
+            const isCollecting =
+              Boolean(linkedFlask) &&
+              typeof linkedFlask?.heaterTargetC === 'number' &&
+              (linkedFlask.temperatureC ?? 20) >= 55
+            const isTransferHovered = transferActive?.hoveredTargetId === node.id
+            return (
+              <GasCollectorTile
+                key={node.id}
+                node={node}
+                selected={isSelected}
+                shaking={isShaking}
+                fresh={isFresh}
+                altCopy={altPressed && toolMode === 'select' && !spacePressed}
+                isCollecting={isCollecting}
+                isTransferSource={transferActive?.sourceNodeId === node.id}
+                dropHovered={hoveredCollectorId === node.id || isTransferHovered}
+                dropHint={
+                  isTransferHovered
+                    ? transferActive.hoveredHint
+                    : hoveredCollectorId === node.id
+                      ? hoveredCollectorHint
+                      : null
+                }
+                setElRef={setNodeElRef}
+                onPointerDown={(e) => handleNodePointerDown(e, node)}
+                onStartLinkDrag={(e) =>
+                  handleStartTransferDrag(e, 'gas_link', node.id)
+                }
+                onStartExtractDrag={(e, spId) =>
+                  handleStartTransferDrag(e, 'gas_extract', node.id, spId)
+                }
+                onClear={() => onClearGasCollector(node.id)}
+                onDelete={() => onDeleteIds([node.id])}
+              />
+            )
+          }
+
+          if (node.kind === 'thermal_chamber') {
+            const isTransferHovered = transferActive?.hoveredTargetId === node.id
+            return (
+              <ThermalChamberTile
+                key={node.id}
+                node={node}
+                selected={isSelected}
+                shaking={isShaking}
+                fresh={isFresh}
+                altCopy={altPressed && toolMode === 'select' && !spacePressed}
+                isTransferSource={transferActive?.sourceNodeId === node.id}
+                dropHovered={hoveredChamberId === node.id || isTransferHovered}
+                dropHint={
+                  isTransferHovered
+                    ? transferActive.hoveredHint
+                    : hoveredChamberId === node.id
+                      ? hoveredChamberHint
+                      : null
+                }
+                setElRef={setNodeElRef}
+                onPointerDown={(e) => handleNodePointerDown(e, node)}
+                onStartExtractDrag={(e) =>
+                  handleStartTransferDrag(e, 'chamber_extract', node.id)
+                }
+                onDelete={() => onDeleteIds([node.id])}
+              />
+            )
+          }
+
           const pendingPourSource =
             pendingPour && pendingPour.targetFlaskId === node.id
               ? (nodes.find(
@@ -1107,10 +1559,10 @@ export function LabCanvas({
                     n.kind === 'flask' && n.id === pendingPour.sourceFlaskId,
                 ) ?? null)
               : null
-          const isPourHovered = pourActive?.hoveredTargetId === node.id
-          const effectiveDropHovered = activeHoveredFlaskId === node.id || isPourHovered
-          const effectiveDropHint = isPourHovered
-            ? pourActive.hoveredHint
+          const isTransferHovered = transferActive?.hoveredTargetId === node.id
+          const effectiveDropHovered = activeHoveredFlaskId === node.id || isTransferHovered
+          const effectiveDropHint = isTransferHovered
+            ? transferActive.hoveredHint
             : activeHoveredFlaskId === node.id
               ? activeHoverHint
               : null
@@ -1128,7 +1580,8 @@ export function LabCanvas({
                 titrationSession?.running && titrationSession.buretteId === node.id,
               )}
               isPourSource={
-                pourActive?.sourceFlaskId === node.id ||
+                (transferActive?.kind === 'pour' &&
+                  transferActive.sourceNodeId === node.id) ||
                 pendingPour?.sourceFlaskId === node.id
               }
               pendingPourSource={pendingPourSource}
@@ -1136,7 +1589,10 @@ export function LabCanvas({
               dropHint={effectiveDropHint}
               setElRef={setNodeElRef}
               onPointerDown={(e) => handleNodePointerDown(e, node)}
-              onStartPourDrag={(e) => handleStartPourDrag(e, node)}
+              onStartPourDrag={(e) => handleStartTransferDrag(e, 'pour', node.id)}
+              onStartFilterCakeDrag={(e, spId) =>
+                handleStartTransferDrag(e, 'filter_cake', node.id, spId)
+              }
               onConfirmPour={(volumeMl) => {
                 if (pendingPourSource) {
                   onPourBetweenFlasks(pendingPourSource.id, node.id, volumeMl)
@@ -1160,46 +1616,63 @@ export function LabCanvas({
           )
         })}
 
-        {/* Live pour connector curve while dragging from a flask's pour handle (DOM-driven at 120fps) */}
-        {pourActive && (
-          <svg
-            aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 overflow-visible"
-            width="1"
-            height="1"
-          >
-            {(() => {
-              const stroke =
-                pourActive.hoveredHint && !pourActive.hoveredHint.valid
-                  ? '#f59e0b'
-                  : '#38bdf8'
-              const sx = pourActive.startX
-              const sy = pourActive.startY
-              const cx = pourActive.currentX
-              const cy = pourActive.currentY
-              const mx = (sx + cx) * 0.5
-              const arcLift = Math.min(
-                64,
-                Math.max(18, Math.hypot(cx - sx, cy - sy) * 0.22),
-              )
-              const my = Math.min(sy, cy) - arcLift
-              return (
-                <g>
-                  <path
-                    ref={pourPathRef}
-                    d={`M ${sx} ${sy} Q ${mx} ${my} ${cx} ${cy}`}
-                    fill="none"
-                    stroke={stroke}
-                    strokeWidth="2"
-                    strokeDasharray="5 4"
-                    strokeLinecap="round"
-                  />
-                  <circle cx={sx} cy={sy} r="3.5" fill={stroke} />
-                  <circle ref={pourTipRef} cx={cx} cy={cy} r="4.5" fill={stroke} />
-                </g>
-              )
-            })()}
-          </svg>
+        {/* Live transfer / tubing connector curve (DOM-driven at 120fps) */}
+        {transferActive && (
+          <>
+            <svg
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0 top-0 overflow-visible"
+              width="1"
+              height="1"
+            >
+              {(() => {
+                const stroke =
+                  transferActive.hoveredHint && !transferActive.hoveredHint.valid
+                    ? '#f59e0b'
+                    : '#38bdf8'
+                const sx = transferActive.startX
+                const sy = transferActive.startY
+                const cx = transferActive.currentX
+                const cy = transferActive.currentY
+                const mx = (sx + cx) * 0.5
+                const arcLift = Math.min(
+                  64,
+                  Math.max(18, Math.hypot(cx - sx, cy - sy) * 0.22),
+                )
+                const my = Math.min(sy, cy) - arcLift
+                return (
+                  <g>
+                    <path
+                      ref={pourPathRef}
+                      d={`M ${sx} ${sy} Q ${mx} ${my} ${cx} ${cy}`}
+                      fill="none"
+                      stroke={stroke}
+                      strokeWidth="2"
+                      strokeDasharray="5 4"
+                      strokeLinecap="round"
+                    />
+                    <circle cx={sx} cy={sy} r="3.5" fill={stroke} />
+                    <circle ref={pourTipRef} cx={cx} cy={cy} r="4.5" fill={stroke} />
+                  </g>
+                )
+              })()}
+            </svg>
+            {transferActive.moved &&
+              !transferActive.hoveredTargetId &&
+              (transferActive.kind === 'filter_cake' ||
+                transferActive.kind === 'gas_extract' ||
+                transferActive.kind === 'chamber_extract') && (
+                <div
+                  ref={transferTipLabelRef}
+                  className="pointer-events-none absolute left-0 top-0 z-30 whitespace-nowrap rounded-md border border-border bg-zinc-950/95 px-2 py-0.5 text-[10px] font-medium text-zinc-100 shadow-md will-change-transform"
+                  style={{
+                    transform: `translate3d(${transferActive.currentX}px, ${transferActive.currentY - 14}px, 0) translate(-50%, -100%)`,
+                  }}
+                >
+                  Déposer ici
+                </div>
+              )}
+          </>
         )}
       </div>
 

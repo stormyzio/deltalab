@@ -4,80 +4,66 @@ import { fileURLToPath } from 'node:url'
 import type { DatabaseSync } from 'node:sqlite'
 import {
   type AlloyRecord,
-  type PhCharacter,
-  type PhysicalState,
-  type SpeciesKind,
-  type SpeciesRecord,
-  type ThermalNote,
   getElementSolidColor,
   getSolidSpeciesIdForElement,
 } from '../../shared/chemistry.ts'
 import { ELEMENTS_SEED } from '../data/elements.ts'
-import { computeLewisTopologyKey, resolveSpeciesLewis } from '../data/lewis.ts'
+import {
+  computeLewisTopologyKey,
+  makeMonoatomicLewis,
+  resolveSpeciesLewis,
+} from '../data/lewis.ts'
 import { CURATED_REACTIONS, loadReactionConstants } from '../data/reactions/index.ts'
 import { SPECIES_SEED } from '../data/species/index.ts'
+import { buildMonatomicIonSeeds } from '../data/species/monatomic-ions.ts'
 import {
   buildCompositionKey,
   buildSolutionSignatureKey,
   computeMolarMassFromComposition,
 } from '../data/types.ts'
 import { VESSELS_SEED } from '../data/vessels.ts'
-import { smilesToLewis } from '../lib/smiles-lewis.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-export const ENRICHED_SPECIES_PATH = path.resolve(
-  __dirname,
-  '../data/generated/species-enriched.json',
-)
 export const REACTION_CONSTANTS_PATH = path.resolve(
   __dirname,
-  '../data/generated/reaction-constants.json',
+  '../data/reactions/constants.json',
 )
-export const ALLOYS_PATH = path.resolve(
-  __dirname,
-  '../data/generated/alloys.json',
-)
+export const ALLOYS_PATH = path.resolve(__dirname, '../data/alloys.json')
 
 export const ATOMIC_MASS_BY_SYMBOL = new Map(
   ELEMENTS_SEED.map((e) => [e.symbol, e.atomicMass]),
 )
 
-interface EnrichedSpeciesJsonEntry {
-  id: string
-  source: 'curated' | 'wikidata'
-  wikidataId: string | null
-  formula: string
-  displayFormula: string
-  nameFr: string
-  iupacName: string | null
-  casNumber: string | null
-  inchikey: string | null
-  pubchemCid: number | null
-  kind: SpeciesKind
-  charge: number
-  molarMass: number
-  standardState: PhysicalState
-  meltingPointC: number | null
-  boilingPointC: number | null
-  thermalNote: ThermalNote
-  densityGPerCm3: number | null
-  appearanceFr: string | null
-  colorHex: string | null
-  composition: Record<string, number>
-  smiles: string | null
-  popularity: number
-  families: string[]
-  canDissolveInWater: boolean
-  solubilityGPerL: number | null
-  solubilityByTempC: Record<string, number> | null
-  dissolutionType: SpeciesRecord['dissolutionType']
-  solutionColorHex: string | null
-  phCharacter: PhCharacter
-  pkaValues: number[]
-  ghsPictograms: string[]
-  ghsSignalWord: string | null
-  dissociatesInto?: Array<{ speciesId: string; stoichiometry: number }>
-  behaviors: Record<string, unknown>
+const COMMON_SOLID_SYMBOLS = new Set([
+  'Cu',
+  'Ag',
+  'Zn',
+  'Fe',
+  'Mg',
+  'Al',
+  'Pb',
+  'Sn',
+  'Ni',
+  'Co',
+  'Au',
+  'Na',
+  'K',
+  'Ca',
+  'Li',
+  'Cr',
+  'Mn',
+  'C',
+])
+
+const COMMON_SOLID_OVERRIDES: Record<
+  string,
+  { nameFr?: string; behaviors?: Record<string, unknown> }
+> = {
+  C: { nameFr: 'Carbone (graphite)' },
+  Na: { behaviors: { reactsWithWater: true } },
+  K: { behaviors: { reactsWithWater: true } },
+  Ca: { behaviors: { reactsWithWater: true } },
+  Li: { behaviors: { reactsWithWater: true } },
 }
 
 function fileSig(filePath: string): string {
@@ -90,7 +76,7 @@ function fileSig(filePath: string): string {
 }
 
 function computeSeedVersion(): string {
-  return `v16|curated:${SPECIES_SEED.length}|vessels:${VESSELS_SEED.length}|rxn:${CURATED_REACTIONS.length}|enr:${fileSig(ENRICHED_SPECIES_PATH)}|rc:${fileSig(REACTION_CONSTANTS_PATH)}|alloys:${fileSig(ALLOYS_PATH)}`
+  return `v25-clean|el:${ELEMENTS_SEED.length}|sp:${SPECIES_SEED.length}|vessels:${VESSELS_SEED.length}|rxn:${CURATED_REACTIONS.length}|rc:${fileSig(REACTION_CONSTANTS_PATH)}|alloys:${fileSig(ALLOYS_PATH)}`
 }
 
 export function seedDatabase(db: DatabaseSync): void {
@@ -105,18 +91,6 @@ export function seedDatabase(db: DatabaseSync): void {
     return
   }
 
-  let enrichedEntries: EnrichedSpeciesJsonEntry[] = []
-  try {
-    if (fs.existsSync(ENRICHED_SPECIES_PATH)) {
-      enrichedEntries = JSON.parse(
-        fs.readFileSync(ENRICHED_SPECIES_PATH, 'utf-8'),
-      ) as EnrichedSpeciesJsonEntry[]
-    }
-  } catch (err) {
-    console.warn('[DeltaLab] Could not read enriched species JSON:', err)
-  }
-
-  const enrichedById = new Map(enrichedEntries.map((e) => [e.id, e]))
   const reactionConstants = loadReactionConstants()
 
   let alloysSeed: AlloyRecord[] = []
@@ -183,7 +157,7 @@ export function seedDatabase(db: DatabaseSync): void {
     db.exec('DELETE FROM dissolution_rules')
     db.exec('DELETE FROM solution_components')
     db.exec('DELETE FROM solutions')
-    db.exec("DELETE FROM species WHERE source != 'pubchem_live'")
+    db.exec('DELETE FROM species')
 
     const insertSpecies = db.prepare(`
       INSERT OR REPLACE INTO species (
@@ -191,21 +165,33 @@ export function seedDatabase(db: DatabaseSync): void {
         kind, charge, molar_mass, standard_state,
         melting_point_c, boiling_point_c, thermal_note, density_g_per_cm3,
         appearance_fr, color_hex, composition_json, composition_key, atom_signature,
-        lewis_json, lewis_topology_key, source, popularity, smiles, inchikey, pubchem_cid, families_json,
-        is_solvent, can_dissolve_in_water, solubility_g_per_l, solubility_by_temp_json,
+        lewis_json, lewis_topology_key, popularity, pubchem_cid, families_json,
+        is_solvent, can_dissolve_in_water, solubility_g_per_l,
         dissolution_type, solution_color_hex, ph_character, pka_values_json,
         ghs_pictograms_json, ghs_signal_word, behaviors_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
-    const speciesById = new Map(SPECIES_SEED.map((sp) => [sp.id, sp]))
-    const elementsBySymbol = new Map(ELEMENTS_SEED.map((el) => [el.symbol, el]))
-    const seededTopoKeys = new Set<string>()
+    const generatedMonatomicIons = buildMonatomicIonSeeds(ELEMENTS_SEED)
+    const speciesById = new Map(
+      [...SPECIES_SEED, ...generatedMonatomicIons].map((sp) => [sp.id, sp]),
+    )
+
+    const iupacAcidPkaBySpeciesId = new Map<string, number[]>()
+    for (const ab of reactionConstants.acidBaseCouples) {
+      if (!ab.acidSpeciesId) continue
+      const arr = iupacAcidPkaBySpeciesId.get(ab.acidSpeciesId) ?? []
+      arr.push(ab.pKa)
+      iupacAcidPkaBySpeciesId.set(ab.acidSpeciesId, arr)
+    }
+    for (const arr of iupacAcidPkaBySpeciesId.values()) arr.sort((a, b) => a - b)
+
     const seededIds = new Set<string>()
 
-    // Layer 1: Hand-curated workbench core enriched with authoritative PubChem / AqSolDB / IUPAC data
+    // Layer 1A: Curated core species + polyatomic ions
     for (const sp of SPECIES_SEED) {
-      const enr = enrichedById.get(sp.id)
+      seededIds.add(sp.id)
+      const ionCharge = sp.charge ?? 0
       const atomSignature = buildCompositionKey(sp.composition)
       const isMergeable = sp.mergeable ?? sp.kind !== 'ion'
       const compositionKey = isMergeable ? atomSignature : null
@@ -214,8 +200,6 @@ export function seedDatabase(db: DatabaseSync): void {
       const lewisTopologyKey = lewis
         ? computeLewisTopologyKey(lewis.atoms, lewis.bonds, false)
         : null
-      if (lewisTopologyKey) seededTopoKeys.add(lewisTopologyKey)
-      seededIds.add(sp.id)
 
       const computedMass =
         computeMolarMassFromComposition(sp.composition, ATOMIC_MASS_BY_SYMBOL) ||
@@ -225,73 +209,55 @@ export function seedDatabase(db: DatabaseSync): void {
       const dissolutionType =
         aq?.dissolutionType ??
         (soluble ? (aq?.dissociatesInto ? 'ionic_complete' : 'molecular') : 'none')
-      const compEntries = Object.entries(sp.composition)
-      const monatomicEl =
-        sp.kind === 'element_substance' &&
-        compEntries.length === 1 &&
-        compEntries[0][1] === 1
-          ? elementsBySymbol.get(compEntries[0][0]) ?? null
-          : null
-      const densityFallback =
-        typeof sp.behaviors?.densityGPerMl === 'number'
-          ? sp.behaviors.densityGPerMl
-          : (monatomicEl?.densityGPerCm3 ?? null)
-      const pkaFallback =
-        typeof sp.behaviors?.pKa === 'number' ? [sp.behaviors.pKa] : []
-      const pkaValues = enr?.pkaValues?.length ? enr.pkaValues : pkaFallback
-      const finalMp = enr?.meltingPointC ?? monatomicEl?.meltingPointC ?? null
-      const finalBp = enr?.boilingPointC ?? monatomicEl?.boilingPointC ?? null
-      const finalThermalNote =
-        enr?.thermalNote ??
-        (finalMp !== null && finalBp !== null && finalBp < finalMp ? 'sublimes' : null)
+      const pkaValues = sp.pkaValues?.length
+        ? sp.pkaValues
+        : (iupacAcidPkaBySpeciesId.get(sp.id) ?? [])
+
+      const behaviors: Record<string, unknown> = {
+        ...(sp.behaviors ?? {}),
+        ...(sp.usesFr ? { usesFr: sp.usesFr } : {}),
+        ...(sp.identificationFr ? { identificationFr: sp.identificationFr } : {}),
+      }
 
       insertSpecies.run(
         sp.id,
         sp.formula,
         sp.displayFormula,
         sp.nameFr,
-        enr?.iupacName ?? null,
-        enr?.casNumber ?? null,
+        sp.iupacName ?? null,
+        sp.casNumber ?? null,
         sp.kind,
-        sp.charge ?? 0,
+        ionCharge,
         computedMass,
         sp.standardState,
-        finalMp,
-        finalBp,
-        finalThermalNote,
-        enr?.densityGPerCm3 ?? densityFallback,
-        enr?.appearanceFr ?? null,
-        sp.colorHex ?? enr?.colorHex ?? null,
+        sp.meltingPointC ?? null,
+        sp.boilingPointC ?? null,
+        sp.thermalNote ?? null,
+        sp.densityGPerCm3 ?? null,
+        sp.appearanceFr ?? null,
+        sp.colorHex ?? null,
         JSON.stringify(sp.composition),
         compositionKey,
         atomSignature,
         lewisJson,
         lewisTopologyKey,
-        'curated',
-        10000 + (enr?.popularity ?? 0),
-        enr?.smiles ?? null,
-        enr?.inchikey ?? null,
-        enr?.pubchemCid ?? null,
-        JSON.stringify(enr?.families ?? []),
+        sp.popularity ?? 10000,
+        sp.pubchemCid ?? null,
+        JSON.stringify(sp.families ?? []),
         sp.isSolvent ? 1 : 0,
         soluble ? 1 : 0,
-        aq?.solubilityGPerL ?? enr?.solubilityGPerL ?? null,
-        enr?.solubilityByTempC ? JSON.stringify(enr.solubilityByTempC) : null,
+        soluble ? (aq?.solubilityGPerL ?? null) : 0,
         dissolutionType,
         aq?.colorHex ?? null,
         aq?.phCharacter ?? 'neutral',
         JSON.stringify(pkaValues),
-        JSON.stringify(enr?.ghsPictograms ?? []),
-        enr?.ghsSignalWord ?? null,
-        JSON.stringify({
-          ...(sp.behaviors ?? {}),
-          ...(enr?.densityGPerCm3 ? { densityGPerMl: enr.densityGPerCm3 } : {}),
-        }),
+        JSON.stringify(sp.ghsPictograms ?? []),
+        sp.ghsSignalWord ?? null,
+        JSON.stringify(behaviors),
       )
     }
 
-    // Layer 1B: Ensure every solid element from the periodic table has a solid element_substance species
-    // so ANY solid element (Rh, Pt, Ti, W, etc.) can be converted to a solid block and immersed in vessels.
+    // Layer 1B: Solid elemental substances for all solid elements in the periodic table
     for (const el of ELEMENTS_SEED) {
       if (el.defaultState !== 'solid') continue
       const solidId = getSolidSpeciesIdForElement(el.symbol)
@@ -306,7 +272,10 @@ export function seedDatabase(db: DatabaseSync): void {
       const comp = { [el.symbol]: 1 }
       const atomSignature = buildCompositionKey(comp)
       const solidColor = getElementSolidColor(el.symbol, el.category)
-      const nameFr = isMetal ? `${el.nameFr} métallique` : `${el.nameFr} solide`
+      const override = COMMON_SOLID_OVERRIDES[el.symbol]
+      const nameFr =
+        override?.nameFr ??
+        (isMetal ? `${el.nameFr} métallique` : `${el.nameFr} solide`)
 
       const solidThermalNote =
         el.meltingPointC !== null &&
@@ -314,6 +283,13 @@ export function seedDatabase(db: DatabaseSync): void {
         el.boilingPointC < el.meltingPointC
           ? 'sublimes'
           : null
+      const solidLewis = makeMonoatomicLewis(el.symbol, 0)
+      const solidLewisJson = JSON.stringify(solidLewis)
+      const solidLewisTopoKey = computeLewisTopologyKey(
+        solidLewis.atoms,
+        solidLewis.bonds,
+        false,
+      )
 
       insertSpecies.run(
         solidId,
@@ -335,98 +311,80 @@ export function seedDatabase(db: DatabaseSync): void {
         JSON.stringify(comp),
         null,
         atomSignature,
-        null,
-        null,
-        'curated',
-        3500,
-        null,
-        null,
+        solidLewisJson,
+        solidLewisTopoKey,
+        COMMON_SOLID_SYMBOLS.has(el.symbol) ? 11000 : 3500,
         null,
         JSON.stringify([isMetal ? 'Métal' : 'Corps simple']),
         0,
         0,
         0,
-        null,
         'none',
         null,
         'neutral',
         '[]',
         '[]',
         null,
-        JSON.stringify(
-          el.densityGPerCm3 ? { densityGPerMl: el.densityGPerCm3 } : {},
-        ),
+        JSON.stringify(override?.behaviors ?? {}),
       )
     }
 
-    // Layer 2: Strictly filtered complete species from PubChem + AqSolDB + IUPAC
-    const extWithDissociation: EnrichedSpeciesJsonEntry[] = []
-    for (const entry of enrichedEntries) {
-      if (entry.source === 'curated' || seededIds.has(entry.id)) continue
-      if (!entry.smiles) continue
-
-      const parsed = smilesToLewis(entry.smiles, ATOMIC_MASS_BY_SYMBOL, {
-        maxHeavyAtoms: 55,
-        maxTotalAtoms: 140,
-        maxMolarMass: 900,
-      })
-      if (!parsed) continue
-      const lewisTopologyKey = computeLewisTopologyKey(
-        parsed.lewis.atoms,
-        parsed.lewis.bonds,
+    // Layer 1C: Complete coverage of monatomic ions across the periodic table
+    for (const ion of generatedMonatomicIons) {
+      if (seededIds.has(ion.id)) continue
+      seededIds.add(ion.id)
+      const sym = Object.keys(ion.composition)[0]
+      const charge = ion.charge ?? 0
+      const atomSignature = buildCompositionKey(ion.composition)
+      const ionLewis = makeMonoatomicLewis(sym, charge)
+      const ionLewisJson = JSON.stringify(ionLewis)
+      const ionLewisTopoKey = computeLewisTopologyKey(
+        ionLewis.atoms,
+        ionLewis.bonds,
         false,
       )
-      if (seededTopoKeys.has(lewisTopologyKey)) continue
-      seededTopoKeys.add(lewisTopologyKey)
-      seededIds.add(entry.id)
-
-      const atomSignature = buildCompositionKey(entry.composition)
-      const compositionKey = entry.kind !== 'ion' ? atomSignature : null
-      const computedMass =
-        computeMolarMassFromComposition(entry.composition, ATOMIC_MASS_BY_SYMBOL) ||
-        entry.molarMass
-
-      if (entry.dissociatesInto?.length) extWithDissociation.push(entry)
+      const aq = ion.aqueous
+      const soluble = aq?.soluble ?? true
+      const behaviors: Record<string, unknown> = {
+        ...(ion.usesFr ? { usesFr: ion.usesFr } : {}),
+        ...(ion.identificationFr ? { identificationFr: ion.identificationFr } : {}),
+      }
 
       insertSpecies.run(
-        entry.id,
-        entry.formula,
-        entry.displayFormula,
-        entry.nameFr,
-        entry.iupacName,
-        entry.casNumber,
-        entry.kind,
-        entry.charge ?? 0,
-        computedMass,
-        entry.standardState,
-        entry.meltingPointC,
-        entry.boilingPointC,
-        entry.thermalNote,
-        entry.densityGPerCm3,
-        entry.appearanceFr,
-        entry.colorHex,
-        JSON.stringify(entry.composition),
-        compositionKey,
+        ion.id,
+        ion.formula,
+        ion.displayFormula,
+        ion.nameFr,
+        ion.iupacName ?? null,
+        ion.casNumber ?? null,
+        'ion',
+        charge,
+        ion.molarMass,
+        'aqueous',
+        null,
+        null,
+        null,
+        null,
+        ion.appearanceFr ?? null,
+        ion.colorHex ?? null,
+        JSON.stringify(ion.composition),
+        null,
         atomSignature,
-        JSON.stringify(parsed.lewis),
-        lewisTopologyKey,
-        'wikidata',
-        entry.popularity,
-        entry.smiles,
-        entry.inchikey,
-        entry.pubchemCid,
-        JSON.stringify(entry.families ?? []),
+        ionLewisJson,
+        ionLewisTopoKey,
+        ion.popularity ?? 3000,
+        ion.pubchemCid ?? null,
+        JSON.stringify(ion.families ?? []),
         0,
-        entry.canDissolveInWater ? 1 : 0,
-        entry.solubilityGPerL,
-        entry.solubilityByTempC ? JSON.stringify(entry.solubilityByTempC) : null,
-        entry.dissolutionType,
-        entry.solutionColorHex,
-        entry.phCharacter,
-        JSON.stringify(entry.pkaValues ?? []),
-        JSON.stringify(entry.ghsPictograms ?? []),
-        entry.ghsSignalWord,
-        JSON.stringify(entry.behaviors ?? {}),
+        soluble ? 1 : 0,
+        null,
+        aq?.dissolutionType ?? (soluble ? 'ionic_complete' : 'none'),
+        aq?.colorHex ?? null,
+        aq?.phCharacter ?? 'neutral',
+        '[]',
+        '[]',
+        null,
+        JSON.stringify(behaviors),
       )
     }
 
@@ -436,7 +394,7 @@ export function seedDatabase(db: DatabaseSync): void {
       ) VALUES (?, ?, ?, ?, ?, ?)
     `)
 
-    for (const sp of SPECIES_SEED) {
+    for (const sp of [...SPECIES_SEED, ...generatedMonatomicIons]) {
       if (
         !sp.aqueous?.soluble ||
         sp.isSolvent ||
@@ -456,20 +414,6 @@ export function seedDatabase(db: DatabaseSync): void {
           prod.stoichiometry ?? 1,
           prod.state ?? 'aqueous',
           prod.noteFr ?? null,
-        )
-      }
-    }
-
-    for (const entry of extWithDissociation) {
-      for (const prod of entry.dissociatesInto ?? []) {
-        if (!seededIds.has(prod.speciesId)) continue
-        insertRule.run(
-          entry.id,
-          'h2o',
-          prod.speciesId,
-          prod.stoichiometry,
-          'aqueous',
-          null,
         )
       }
     }
@@ -532,6 +476,10 @@ export function seedDatabase(db: DatabaseSync): void {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     for (const rxn of CURATED_REACTIONS) {
+      const allPresent =
+        rxn.reactants.every((r) => seededIds.has(r.speciesId)) &&
+        rxn.products.every((p) => seededIds.has(p.speciesId))
+      if (!allPresent) continue
       insertReaction.run(
         rxn.id,
         rxn.nameFr,
@@ -553,6 +501,12 @@ export function seedDatabase(db: DatabaseSync): void {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     for (const c of reactionConstants.redoxCouples) {
+      if (
+        (c.oxSpeciesId && !seededIds.has(c.oxSpeciesId)) ||
+        (c.redSpeciesId && !seededIds.has(c.redSpeciesId))
+      ) {
+        continue
+      }
       insertRedox.run(
         c.id,
         c.coupleLabel,
@@ -582,6 +536,13 @@ export function seedDatabase(db: DatabaseSync): void {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     for (const k of reactionConstants.solubilityProducts) {
+      if (
+        (k.solidSpeciesId && !seededIds.has(k.solidSpeciesId)) ||
+        (k.cationSpeciesId && !seededIds.has(k.cationSpeciesId)) ||
+        (k.anionSpeciesId && !seededIds.has(k.anionSpeciesId))
+      ) {
+        continue
+      }
       insertKs.run(
         k.id,
         k.solidSpeciesId,
@@ -608,6 +569,12 @@ export function seedDatabase(db: DatabaseSync): void {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
     for (const ab of reactionConstants.acidBaseCouples) {
+      if (
+        (ab.acidSpeciesId && !seededIds.has(ab.acidSpeciesId)) ||
+        (ab.baseSpeciesId && !seededIds.has(ab.baseSpeciesId))
+      ) {
+        continue
+      }
       insertAb.run(
         ab.id,
         ab.acidSpeciesId,
@@ -624,8 +591,8 @@ export function seedDatabase(db: DatabaseSync): void {
     const insertAlloy = db.prepare(`
       INSERT OR REPLACE INTO alloys (
         id, name_fr, family_fr, base_element, components_json,
-        density_g_per_cm3, melting_point_c, color_hex, uses_fr, source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        density_g_per_cm3, melting_point_c, color_hex, uses_fr
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     for (const al of alloysSeed) {
       insertAlloy.run(
@@ -638,7 +605,6 @@ export function seedDatabase(db: DatabaseSync): void {
         al.meltingPointC,
         al.colorHex,
         al.usesFr,
-        al.source,
       )
     }
 

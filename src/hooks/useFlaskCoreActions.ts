@@ -18,6 +18,7 @@ import {
 import { api } from '@/lib/api'
 import { createEmptySolution, formatMassG } from '@/lib/chemistry-ui'
 import { getSelectedFlaskReaction } from '@/lib/flask-reaction-ui'
+import { mergeGasIntoCollector } from '@/lib/phase-changes'
 import { getSolidTotalMassG } from '@/lib/solid-alloys'
 import { getPendingReactionCommit } from '@/lib/workbench-helpers'
 import type { CanvasNotice } from '@/components/LabCanvas'
@@ -408,20 +409,57 @@ export function useFlaskCoreActions({
           showNotice('warning', res.messageFr)
           return
         }
-        setNodes((prev) =>
-          prev.map((n) =>
-            n.id === flaskId && n.kind === 'flask'
-              ? {
-                  ...n,
-                  solution: res.solution,
-                  reactionExtentMol: 0,
-                  selectedReactionId: undefined,
-                }
-              : n,
-          ),
+        const actualEvapMl = Math.max(
+          0,
+          flask.solution.waterVolumeMl - res.solution.waterVolumeMl,
         )
+        const evapMol = Math.round((actualEvapMl / 18.015) * 1e6) / 1e6
+        const linkedCollector = nodesRef.current.find(
+          (n) => n.kind === 'gas_collector' && n.sourceFlaskId === flaskId,
+        )
+
+        setNodes((prev) =>
+          prev.map((n) => {
+            if (n.id === flaskId && n.kind === 'flask') {
+              return {
+                ...n,
+                solution: res.solution,
+                reactionExtentMol: 0,
+                selectedReactionId: undefined,
+              }
+            }
+            if (
+              linkedCollector &&
+              n.id === linkedCollector.id &&
+              n.kind === 'gas_collector' &&
+              evapMol > 1e-6
+            ) {
+              return {
+                ...n,
+                gases: mergeGasIntoCollector(n.gases, {
+                  speciesId: 'h2o',
+                  formula: 'H2O',
+                  displayFormula: 'H₂O',
+                  nameFr: 'Vapeur d’eau',
+                  amountMol: evapMol,
+                  molarMass: 18.015,
+                  colorHex: '#bae6fd',
+                  meltingPointC: 0,
+                  boilingPointC: 100,
+                }),
+              }
+            }
+            return n
+          }),
+        )
+
         triggerFlaskPulse(flaskId)
-        showNotice(res.effect === 'saturated' ? 'warning' : 'success', res.messageFr)
+        showNotice(
+          res.effect === 'saturated' ? 'warning' : 'success',
+          linkedCollector && evapMol > 1e-6
+            ? `${res.messageFr} · Vapeur capturée dans le collecteur.`
+            : res.messageFr,
+        )
       } catch {
         showNotice('warning', 'Erreur lors de l’évaporation.')
       }

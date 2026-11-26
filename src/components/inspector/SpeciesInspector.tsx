@@ -25,11 +25,16 @@ import {
   buildCanonicalSignature,
   extractNotableBehaviors,
   formatChargeLabel,
+  isPkaApplicable,
 } from '@/lib/chemistry-calc'
 import { describeWaterBehavior } from '@/lib/water-behavior'
+import {
+  getMoleculeEffectivePhase,
+  getPhaseContextualNameFr,
+} from '@/lib/phase-changes'
 import { cn } from '@/lib/utils'
 import { MASS_UNITS, MOL_UNITS, VOLUME_UNITS } from '@/lib/quantity-units'
-import { ChemFormula, ChemText, ChemVar } from '@/components/ui/chem-text'
+import { ChemFormula, ChemText, ChemVar, StateTag } from '@/components/ui/chem-text'
 import { ScrubNumberInput } from '@/components/ui/scrub-number-input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MolecularRepresentationSection } from '@/components/MolecularRepresentationSection'
@@ -44,6 +49,14 @@ function UnknownValue({ title = 'Donnée non renseignée en base' }: { title?: s
   return (
     <span title={title} className="text-muted-foreground">
       ?
+    </span>
+  )
+}
+
+function NotApplicableValue({ title = 'Non applicable' }: { title?: string }) {
+  return (
+    <span title={title} className="text-muted-foreground">
+      —
     </span>
   )
 }
@@ -75,9 +88,7 @@ export function SpeciesInspector({
     ? { ...enriched, lewis: enriched.lewis ?? node.species.lewis }
     : node.species
   const isIon = sp.kind === 'ion'
-  const isUnknownSolubility =
-    sp.source !== 'curated' && !sp.canDissolveInWater && sp.solubilityGPerL === null
-  const waterBehavior = describeWaterBehavior(sp, isUnknownSolubility)
+  const waterBehavior = describeWaterBehavior(sp)
   const tintDot = sp.solutionColorHex ?? sp.colorHex ?? (sp.isSolvent ? '#bae6fd' : null)
   const density = getSpeciesDensityGPerMl(sp)
   const massG = node.amountMol * sp.molarMass
@@ -146,9 +157,19 @@ export function SpeciesInspector({
   const [speciesTab, setSpeciesTab] = useState<'overview' | 'chemistry'>('overview')
 
   const kindLabel = SPECIES_KIND_LABEL[sp.kind]
+  const effectivePhase = getMoleculeEffectivePhase(node)
+  const effectiveNameFr = isIon
+    ? sp.nameFr
+    : getPhaseContextualNameFr(sp, effectivePhase)
   const stateOrCharge = isIon
     ? formatChargeLabel(sp.charge)
-    : STATE_META[sp.standardState].labelFr
+    : STATE_META[effectivePhase].labelFr
+  const tempBadge =
+    !isIon &&
+    typeof node.temperatureC === 'number' &&
+    Math.abs(node.temperatureC - 20) >= 2
+      ? `${formatFrNumber(node.temperatureC, 0)} °C`
+      : null
   const seenMeta = new Set([kindLabel.toLowerCase(), stateOrCharge.toLowerCase()])
   const extraFamilies = sp.families.filter((f) => {
     const k = f.trim().toLowerCase()
@@ -156,7 +177,11 @@ export function SpeciesInspector({
     seenMeta.add(k)
     return true
   })
-  const subtitleParts = [kindLabel, stateOrCharge, ...extraFamilies]
+  const subtitleParts = [
+    kindLabel,
+    tempBadge ? `${stateOrCharge} (${tempBadge})` : stateOrCharge,
+    ...extraFamilies,
+  ]
 
   return (
     <div className="space-y-4">
@@ -171,10 +196,11 @@ export function SpeciesInspector({
             )}
             <h2 className="truncate text-lg font-semibold leading-tight tracking-tight text-foreground">
               <ChemFormula value={sp.displayFormula} />
+              {!isIon && <StateTag state={effectivePhase} />}
             </h2>
           </div>
           <p className="mt-1 text-[13px] font-medium leading-snug text-zinc-200">
-            {sp.nameFr}
+            {effectiveNameFr}
           </p>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
             {subtitleParts.join(' · ')}
@@ -212,7 +238,7 @@ export function SpeciesInspector({
       <div
         role="tablist"
         aria-label="Sections de l’espèce"
-        className="flex gap-5 overflow-x-auto border-b border-border/70"
+        className="flex gap-5 border-b border-border/70"
       >
         <button
           type="button"
@@ -428,7 +454,7 @@ export function SpeciesInspector({
             </div>
           </section>
 
-          <section className="space-y-2.5 border-t border-border/60 pt-3.5">
+          <section className="space-y-2 border-t border-border/60 pt-3.5">
             <span className="block text-[11px] font-medium text-muted-foreground">
               Constantes physico-chimiques
             </span>
@@ -440,7 +466,18 @@ export function SpeciesInspector({
                     label="T° fusion"
                     value={
                       sp.meltingPointC !== null ? (
-                        `${formatFrNumber(sp.meltingPointC, 1)} °C`
+                        <>
+                          {`${formatFrNumber(sp.meltingPointC, 1)} °C`}
+                          {sp.boilingPointC === null && sp.thermalNote && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              ({THERMAL_NOTE_FR[sp.thermalNote] ?? sp.thermalNote})
+                            </span>
+                          )}
+                        </>
+                      ) : sp.thermalNote ? (
+                        <span className="text-muted-foreground">
+                          {THERMAL_NOTE_FR[sp.thermalNote] ?? sp.thermalNote}
+                        </span>
                       ) : (
                         <UnknownValue />
                       )
@@ -451,7 +488,18 @@ export function SpeciesInspector({
                     label="T° ébullition"
                     value={
                       sp.boilingPointC !== null ? (
-                        `${formatFrNumber(sp.boilingPointC, 1)} °C${sp.thermalNote ? ` (${THERMAL_NOTE_FR[sp.thermalNote] ?? sp.thermalNote})` : ''}`
+                        <>
+                          {`${formatFrNumber(sp.boilingPointC, 1)} °C`}
+                          {sp.thermalNote && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              ({THERMAL_NOTE_FR[sp.thermalNote] ?? sp.thermalNote})
+                            </span>
+                          )}
+                        </>
+                      ) : sp.thermalNote ? (
+                        <span className="text-muted-foreground">
+                          {THERMAL_NOTE_FR[sp.thermalNote] ?? sp.thermalNote}
+                        </span>
                       ) : (
                         <UnknownValue />
                       )
@@ -471,24 +519,6 @@ export function SpeciesInspector({
                     }
                     mono={sp.densityGPerCm3 !== null}
                   />
-                  <div className="min-w-0">
-                    <dt className="truncate text-[10.5px] text-muted-foreground">Aspect pur</dt>
-                    <dd className="mt-0.5 flex items-center gap-1.5 text-foreground">
-                      {sp.appearanceFr ? (
-                        <>
-                          {sp.colorHex && (
-                            <span
-                              className="h-2 w-2 shrink-0 rounded-full border border-white/20"
-                              style={{ backgroundColor: sp.colorHex }}
-                            />
-                          )}
-                          <span className="truncate">{sp.appearanceFr}</span>
-                        </>
-                      ) : (
-                        <UnknownValue />
-                      )}
-                    </dd>
-                  </div>
                 </>
               )}
 
@@ -509,13 +539,36 @@ export function SpeciesInspector({
                         {formatFrNumber(val, 2)}
                       </span>
                     ))
+                  ) : isPkaApplicable(sp) ? (
+                    <UnknownValue title="pKa aqueux non renseigné en base" />
                   ) : (
-                    <UnknownValue title="Aucun pKa aqueux renseigné" />
+                    <NotApplicableValue title="Non applicable (pas de dissociation acide propre en solution aqueuse)" />
                   )}
                 </dd>
               </div>
 
-              <div className="min-w-0">
+              {!isIon && (
+                <div className="col-span-2 min-w-0">
+                  <dt className="text-[10.5px] text-muted-foreground">Aspect pur</dt>
+                  <dd className="mt-0.5 flex items-center gap-1.5 text-foreground">
+                    {sp.appearanceFr ? (
+                      <>
+                        {sp.colorHex && (
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full border border-white/20"
+                            style={{ backgroundColor: sp.colorHex }}
+                          />
+                        )}
+                        <span>{sp.appearanceFr}</span>
+                      </>
+                    ) : (
+                      <UnknownValue />
+                    )}
+                  </dd>
+                </div>
+              )}
+
+              <div className="col-span-2 min-w-0">
                 <dt className="text-[10.5px] text-muted-foreground">Sécurité SGH</dt>
                 <dd className="mt-0.5 text-[10.5px] text-muted-foreground">
                   {sp.ghsPictograms.length > 0 ? (
@@ -538,6 +591,15 @@ export function SpeciesInspector({
                           .join(' · ')}
                       </span>
                     </>
+                  ) : sp.ghsSignalWord === 'Non classé' ? (
+                    <span
+                      title="Évalué ECHA / SGH : non classé dangereux"
+                      className="text-muted-foreground"
+                    >
+                      Non classé
+                    </span>
+                  ) : isIon ? (
+                    <NotApplicableValue title="Non applicable à un ion isolé en solution" />
                   ) : (
                     <UnknownValue title="Pictogrammes SGH non renseignés" />
                   )}
@@ -545,12 +607,37 @@ export function SpeciesInspector({
               </div>
             </dl>
           </section>
+
+          {(typeof sp.behaviors?.usesFr === 'string' ||
+            typeof sp.behaviors?.identificationFr === 'string') && (
+            <section className="space-y-2 border-t border-border/60 pt-3.5 text-[11.5px] leading-relaxed">
+              {typeof sp.behaviors?.usesFr === 'string' && (
+                <div>
+                  <p className="text-[10.5px] font-medium text-muted-foreground">
+                    En pratique
+                  </p>
+                  <p className="mt-0.5 text-zinc-200">
+                    <ChemText value={sp.behaviors.usesFr} />
+                  </p>
+                </div>
+              )}
+              {typeof sp.behaviors?.identificationFr === 'string' && (
+                <div>
+                  <p className="text-[10.5px] font-medium text-muted-foreground">
+                    Test caractéristique
+                  </p>
+                  <p className="mt-0.5 text-zinc-300">
+                    <ChemText value={sp.behaviors.identificationFr} />
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
         </div>
       ) : (
         <SpeciesChemistryTab
           sp={sp}
           enriched={enriched}
-          isUnknownSolubility={isUnknownSolubility}
           linkedSolution={linkedSolution}
           linkedReactions={linkedReactions}
           massBreakdown={massBreakdown}

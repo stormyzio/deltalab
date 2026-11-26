@@ -4,7 +4,6 @@ import type {
   IonizeResponse,
   LewisAtom,
   LewisBond,
-  LookupPubChemResponse,
   MatchLewisRequest,
   MatchLewisResponse,
   MergeAtomsRequest,
@@ -14,8 +13,6 @@ import type {
 import { computeLewisTopologyKey, validateLewisElectrons } from '../data/lewis.ts'
 import { buildCompositionKey } from '../data/types.ts'
 import { toSubscript } from '../lib/math-format.ts'
-import { lookupSpeciesOnPubChem } from '../lib/pubchem-lookup.ts'
-import { lewisGraphToSmiles, smilesToLewis } from '../lib/smiles-lewis.ts'
 import {
   type RawElementRow,
   type RawSpeciesRow,
@@ -23,7 +20,6 @@ import {
   mapSpeciesRow,
 } from './catalog.ts'
 import { getDb } from './connection.ts'
-import { ATOMIC_MASS_BY_SYMBOL } from './seed.ts'
 
 export function formatHillFormula(composition: Record<string, number>): string {
   const entries = Object.entries(composition).filter(([, c]) => c > 0)
@@ -199,36 +195,7 @@ export function matchLewisStructure(req: MatchLewisRequest): MatchLewisResponse 
     .all(atomSignature, totalCharge) as unknown as RawSpeciesRow[]
   const sameFormulaMapped = sameFormulaRows.map(mapSpeciesRow)
 
-  // Kekulé aromatic equivalence fallback
-  if (sameFormulaMapped.length > 0 && bonds.length >= 6) {
-    const smRes = lewisGraphToSmiles(atoms, bonds)
-    if ('smiles' in smRes) {
-      const kekuleMatch = sameFormulaMapped.find(
-        (sp) => sp.smiles && sp.smiles === smRes.smiles,
-      )
-      if (kekuleMatch?.lewis) {
-        const parsedDrawn = smilesToLewis(smRes.smiles, ATOMIC_MASS_BY_SYMBOL)
-        const expectedLewis = kekuleMatch.lewis
-        const expectedTotalLP = expectedLewis.atoms.reduce((s, a) => s + a.lonePairs, 0)
-        const drawnTotalLP = atoms.reduce((s, a) => s + a.lonePairs, 0)
-        const issuesFr: string[] = []
-        if (drawnTotalLP !== expectedTotalLP) {
-          issuesFr.push(
-            `Doublets non liants : ${expectedTotalLP} attendus au total (actuellement ${drawnTotalLP}).`,
-          )
-        }
-        return {
-          matched: true,
-          exactLewisValid: issuesFr.length === 0 && Boolean(parsedDrawn),
-          species: kekuleMatch,
-          expectedLewis,
-          issuesFr,
-        }
-      }
-    }
-  }
-
-  // Fallback: bond-order-agnostic skeleton connectivity
+  // Fallback: bond-order-agnostic skeleton connectivity (including Kekulé aromatic equivalence)
   if (sameFormulaMapped.length > 0 && bonds.length > 0) {
     const drawnSkeleton = computeLewisTopologyKey(atoms, bonds, true)
     const skeletonMatches = sameFormulaMapped.filter(
@@ -238,14 +205,34 @@ export function matchLewisStructure(req: MatchLewisRequest): MatchLewisResponse 
     )
     if (skeletonMatches.length === 1) {
       const species = skeletonMatches[0]
+      const expectedLewis = species.lewis!
+      const expectedTotalOrders = expectedLewis.bonds.reduce((s, b) => s + b.order, 0)
+      const drawnTotalOrders = bonds.reduce((s, b) => s + b.order, 0)
+      const expectedTotalLP = expectedLewis.atoms.reduce((s, a) => s + a.lonePairs, 0)
+      const drawnTotalLP = atoms.reduce((s, a) => s + a.lonePairs, 0)
+
+      // Check if every atom has identical total bond order sum + lone pairs (e.g. rotated Kekulé benzene)
+      const isKekuleEquivalent =
+        drawnTotalOrders === expectedTotalOrders &&
+        drawnTotalLP === expectedTotalLP &&
+        atoms.every((a) => {
+          const orderSum = bonds.reduce(
+            (sum, b) => (b.from === a.id || b.to === a.id ? sum + b.order : sum),
+            0,
+          )
+          return a.symbol === 'C' ? orderSum === 4 && a.lonePairs === 0 : orderSum >= 1
+        })
+
       return {
         matched: true,
-        exactLewisValid: false,
+        exactLewisValid: isKekuleEquivalent,
         species,
-        expectedLewis: species.lewis!,
-        issuesFr: [
-          'Squelette reconnu, mais vérifiez l’ordre des liaisons (simples, doubles ou triples) et les doublets non liants.',
-        ],
+        expectedLewis,
+        issuesFr: isKekuleEquivalent
+          ? []
+          : [
+              'Squelette reconnu, mais vérifiez l’ordre des liaisons (simples, doubles ou triples) et les doublets non liants.',
+            ],
       }
     }
   }
@@ -267,124 +254,7 @@ export function matchLewisStructure(req: MatchLewisRequest): MatchLewisResponse 
     reasonFr:
       sameFormulaMapped.length > 0
         ? `La formule ${compositionFormula}${chargeText} existe en base, mais l’enchaînement des liaisons ne correspond à aucun isomère répertorié.`
-        : `Aucune espèce répertoriée en local pour ce schéma (${compositionFormula}${chargeText}).`,
-  }
-}
-
-export async function lookupAndCachePubChem(
-  req: MatchLewisRequest,
-): Promise<LookupPubChemResponse> {
-  const { atoms, bonds } = sanitizeLewisInput(req)
-
-  const localCheck = matchLewisStructure({ atoms, bonds })
-  if (localCheck.matched) {
-    return {
-      found: true,
-      alreadyInDb: true,
-      exactLewisValid: localCheck.exactLewisValid,
-      species: localCheck.species,
-      expectedLewis: localCheck.expectedLewis,
-      issuesFr: localCheck.issuesFr,
-    }
-  }
-
-  const smRes = lewisGraphToSmiles(atoms, bonds)
-  if ('errorFr' in smRes) return { found: false, reasonFr: smRes.errorFr }
-
-  const pubchem = await lookupSpeciesOnPubChem(smRes.smiles, ATOMIC_MASS_BY_SYMBOL)
-  if (!pubchem) {
-    return {
-      found: false,
-      reasonFr: `Aucun composé correspondant trouvé sur PubChem pour la structure (${smRes.smiles}).`,
-    }
-  }
-
-  const db = getDb()
-  const topoKey = computeLewisTopologyKey(
-    pubchem.parsed.lewis.atoms,
-    pubchem.parsed.lewis.bonds,
-    false,
-  )
-
-  const existing = db
-    .prepare('SELECT * FROM species WHERE lewis_topology_key = ? OR id = ? LIMIT 1')
-    .get(topoKey, pubchem.id) as unknown as RawSpeciesRow | undefined
-
-  let species: SpeciesRecord
-  let alreadyInDb = false
-
-  if (existing) {
-    species = mapSpeciesRow(existing)
-    alreadyInDb = true
-  } else {
-    const atomSignature = buildCompositionKey(pubchem.parsed.composition)
-    const compositionKey = pubchem.parsed.kind !== 'ion' ? atomSignature : null
-
-    // Build the discovered species in memory without mutating the shared SQLite catalog;
-    // the browser persists each user's discovered molecules locally in localStorage.
-    species = {
-      id: pubchem.id,
-      formula: pubchem.parsed.formula,
-      displayFormula: pubchem.parsed.displayFormula,
-      nameFr: pubchem.nameFr,
-      iupacName:
-        typeof pubchem.behaviors.iupacName === 'string'
-          ? pubchem.behaviors.iupacName
-          : null,
-      casNumber: null,
-      inchikey: pubchem.inchikey,
-      kind: pubchem.parsed.kind,
-      charge: pubchem.parsed.totalCharge,
-      molarMass: pubchem.parsed.molarMass,
-      standardState: pubchem.standardState,
-      meltingPointC:
-        typeof pubchem.behaviors.meltingPointC === 'number'
-          ? pubchem.behaviors.meltingPointC
-          : null,
-      boilingPointC:
-        typeof pubchem.behaviors.boilingPointC === 'number'
-          ? pubchem.behaviors.boilingPointC
-          : null,
-      thermalNote: null,
-      densityGPerCm3: null,
-      appearanceFr: null,
-      colorHex: null,
-      composition: pubchem.parsed.composition,
-      compositionKey,
-      isSolvent: false,
-      canDissolveInWater: false,
-      solubilityGPerL: null,
-      solubilityByTempC: null,
-      dissolutionType: 'none',
-      solutionColorHex: null,
-      phCharacter: pubchem.phCharacter,
-      pkaValues:
-        typeof pubchem.behaviors.pKa === 'number' ? [pubchem.behaviors.pKa] : [],
-      ghsPictograms: [],
-      ghsSignalWord: null,
-      source: 'pubchem_live',
-      popularity: pubchem.popularity,
-      smiles: pubchem.parsed.canonicalSmiles,
-      pubchemCid: pubchem.pubchemCid,
-      families: pubchem.parsed.families,
-      lewis: pubchem.parsed.lewis,
-      behaviors: pubchem.behaviors,
-    }
-  }
-
-  const expectedLewis = species.lewis!
-  const { exactLewisValid, issuesFr } = validateLewisElectrons(
-    { atoms, bonds },
-    expectedLewis,
-  )
-
-  return {
-    found: true,
-    alreadyInDb,
-    exactLewisValid,
-    species,
-    expectedLewis,
-    issuesFr,
+        : `Aucune espèce répertoriée en base pour ce schéma (${compositionFormula}${chargeText}).`,
   }
 }
 

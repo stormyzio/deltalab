@@ -1,13 +1,11 @@
 import {
   Eraser,
-  Link2,
   Minus,
   MousePointer2,
   Plus,
   Sparkles,
   Trash2,
   Undo2,
-  Zap,
 } from 'lucide-react'
 import type { LewisAtom, LewisBond } from '../../../shared/chemistry.ts'
 import { formatChargeLabel } from '@/lib/chemistry-calc'
@@ -23,6 +21,7 @@ export function LewisToolbar({
   activeSymbol,
   atomsCount,
   selectedAtom,
+  selectedAtomCount,
   selectedBond,
   selectedBondKey,
   historyCount,
@@ -38,6 +37,7 @@ export function LewisToolbar({
   onToggleSplit3D,
   onUpdateAtom,
   onDeleteAtom,
+  onDeleteSelectedAtoms,
   onSetBondOrder,
   onDeleteBond,
 }: {
@@ -45,6 +45,7 @@ export function LewisToolbar({
   activeSymbol: string
   atomsCount: number
   selectedAtom: LewisAtom | null
+  selectedAtomCount: number
   selectedBond: LewisBond | null
   selectedBondKey: string | null
   historyCount: number
@@ -60,6 +61,7 @@ export function LewisToolbar({
   onToggleSplit3D: () => void
   onUpdateAtom: (atomId: string, updater: (a: LewisAtom) => LewisAtom) => void
   onDeleteAtom: (atomId: string) => void
+  onDeleteSelectedAtoms: () => void
   onSetBondOrder: (bondKey: string, order: 1 | 2 | 3) => void
   onDeleteBond: (bondKey: string) => void
 }) {
@@ -75,35 +77,14 @@ export function LewisToolbar({
       label: `Poser (${activeSymbol})`,
       shortcut: '1',
       icon: Plus,
-      hint: `Clic vide : poser ${activeSymbol} · Glisser/cliquer depuis un atome : lier un nouveau ${activeSymbol} · Clic sur liaison : 1→2→3`,
+      hint: `Clic vide : poser ${activeSymbol} · Glisser/cliquer depuis un atome : lier un nouveau ${activeSymbol} · Clic sur liaison : 1→2→3 (1 / &)`,
     },
     {
       id: 'move',
       label: 'Déplacer',
       shortcut: '2',
       icon: MousePointer2,
-      hint: 'Déplacer un atome ou glisser le fond pour naviguer (2)',
-    },
-    {
-      id: 'bond',
-      label: 'Liaison',
-      shortcut: '3',
-      icon: Link2,
-      hint: 'Glisser d’un atome à l’autre ou cliquer sur une liaison (1 → 2 → 3)',
-    },
-    {
-      id: 'lonepair',
-      label: 'Doublet',
-      shortcut: '4',
-      icon: Minus,
-      hint: 'Cliquer sur un atome pour ajouter un doublet non liant (clic droit : retirer)',
-    },
-    {
-      id: 'charge',
-      label: 'Charge',
-      shortcut: '5',
-      icon: Zap,
-      hint: 'Cliquer sur un atome pour ajuster sa charge formelle (+ / −)',
+      hint: 'Sélectionner et déplacer des atomes · Glisser le fond : encadrer (2 / é)',
     },
   ]
 
@@ -163,14 +144,14 @@ export function LewisToolbar({
               size="icon-sm"
               disabled={atomsCount === 0}
               onClick={onAutoCompleteLonePairs}
-              aria-label="Auto-doublets"
+              aria-label="Auto-doublets et charges"
               className="shrink-0 text-muted-foreground hover:text-foreground"
             >
               <Sparkles className="h-3.5 w-3.5" strokeWidth={1.6} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            Compléter automatiquement les doublets non liants (E)
+            Compléter automatiquement les doublets et charges (E)
           </TooltipContent>
         </Tooltip>
 
@@ -367,7 +348,35 @@ export function LewisToolbar({
         </div>
       )}
 
-      {!selectedAtom && selectedBond && selectedBondKey && (
+      {!selectedAtom && selectedAtomCount > 1 && (
+        <div
+          aria-label="Contrôles de la sélection multiple"
+          className="pointer-events-auto flex max-w-full items-center gap-1.5 overflow-x-auto rounded-lg border border-border bg-panel/95 px-2.5 py-1 shadow-xl"
+        >
+          <span className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground">
+            {selectedAtomCount} atomes sélectionnés
+          </span>
+
+          <Separator orientation="vertical" className="h-4 shrink-0" />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onDeleteSelectedAtoms}
+                className="h-6 w-6 shrink-0 text-muted-foreground hover:text-red-400"
+                aria-label="Supprimer la sélection"
+              >
+                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.6} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Supprimer la sélection (Suppr)</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
+      {!selectedAtom && selectedAtomCount === 0 && selectedBond && selectedBondKey && (
         <div
           aria-label="Contrôles de la liaison sélectionnée"
           className="pointer-events-auto flex max-w-full items-center gap-1.5 overflow-x-auto rounded-lg border border-border bg-panel/95 px-2 py-1 shadow-xl"

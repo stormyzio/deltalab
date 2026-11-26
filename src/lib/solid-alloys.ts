@@ -20,7 +20,7 @@ const ELEMENT_SOLID_DESCRIPTIONS: Record<string, string> = {
   Al: 'Métal blanc argenté léger, ductile et bon conducteur, protégé naturellement par une fine couche d’alumine.',
   Si: 'Métalloïde gris bleuté à éclat métallique, cassant, semi-conducteur de référence de l’électronique.',
   P: 'Solide cireux blanc-jaunâtre très réactif (phosphore blanc P₄) ou poudre amorphe rouge plus stable.',
-  S: 'Cristaux jaune citron friables (octasoufre S₈), isolant électrique et thermique, insoluble dans l’eau.',
+  S: 'Cristaux jaune citron friables, isolant électrique et thermique, insoluble dans l’eau.',
   K: 'Métal alcalin argenté extrêmement mou et réactif, s’enflammant au contact de l’eau avec une flamme lilas.',
   Ca: 'Métal alcalino-terreux gris argenté assez mou, qui se ternit rapidement à l’air et dégage du dihydrogène dans l’eau.',
   Sc: 'Métal blanc argenté léger à point de fusion élevé, utilisé pour renforcer les alliages d’aluminium haute performance.',
@@ -211,7 +211,6 @@ export interface AlloyMatchEvaluation {
 
 /**
  * Matches a mass breakdown against the SQLite alloys table.
- * Exact range matches win first (curated prioritized over wikipedia/wikidata).
  */
 export function matchAlloyFromComponents(
   components: SolidComponent[],
@@ -251,7 +250,10 @@ export function matchAlloyFromComponents(
     const allRequiredPresent = required.every((c) => presentSymbols.has(c.symbol))
     if (!allRequiredPresent) continue
 
-    sameElementAlloys.push(alloy)
+    // Only suggest alternative alloys that have the exact same set of elements
+    if (allowedSymbols.size === presentSymbols.size) {
+      sameElementAlloys.push(alloy)
+    }
 
     // Evaluate whether mass percentages fall inside [minPct, maxPct]
     let inRange = true
@@ -268,19 +270,14 @@ export function matchAlloyFromComponents(
     }
 
     if (inRange) {
-      const sourceBonus = alloy.source === 'curated' ? 0 : alloy.source === 'wikidata' ? 15 : 25
-      const score = deviation + sourceBonus
-      if (!bestExact || score < bestExact.score) {
-        bestExact = { alloy, score }
+      if (!bestExact || deviation < bestExact.score) {
+        bestExact = { alloy, score: deviation }
       }
     }
   }
 
-  // Sort same-element suggestions: curated first, then closest typical composition
+  // Sort same-element suggestions by closest typical composition
   sameElementAlloys.sort((a, b) => {
-    const aCur = a.source === 'curated' ? 0 : 1
-    const bCur = b.source === 'curated' ? 0 : 1
-    if (aCur !== bCur) return aCur - bCur
     const devA = a.components.reduce(
       (s, c) => s + Math.abs((pctBySymbol.get(c.symbol) ?? 0) - c.typicalPct),
       0,

@@ -1,17 +1,19 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Search, X } from 'lucide-react'
-import type {
-  AlloyRecord,
-  ElementRecord,
-  FullCatalogResponse,
-  ReactionConstantsResponse,
-  SpeciesKind,
-  SpeciesRecord,
-  SpeciesSource,
+import {
+  type AlloyRecord,
+  type CatalogSolutionRecord,
+  type ElementRecord,
+  type FullCatalogResponse,
+  type ReactionConstantsResponse,
+  type SpeciesKind,
+  type SpeciesRecord,
+  isMonatomicSolidSpecies,
 } from '../../shared/chemistry.ts'
 import type { ExternalDragItem } from '@/types/drag'
 import type { CatalogJumpTarget } from '@/components/InspectorPanel'
 import { api } from '@/lib/api'
+import { normalizeChemSearch, normalizeFormulaSearch } from '@/lib/chemistry-calc'
 import { describeWaterBehavior, getSolubilitySortValue } from '@/lib/water-behavior'
 import {
   type CatalogSection,
@@ -37,7 +39,6 @@ import {
   SolutionDetail,
   VesselDetail,
 } from '@/components/catalog/CatalogEntityDetails'
-import { ReactionPredictorPane } from '@/components/catalog/ReactionPredictorPane'
 
 export type CatalogJumpRequest = CatalogJumpTarget & { nonce: number }
 
@@ -49,6 +50,7 @@ interface CatalogPageProps {
   active?: boolean
   onSpawnToWorkbench: (item: ExternalDragItem) => void
   onSpawnAlloy?: (alloy: AlloyRecord) => void
+  onSpawnSolution?: (solution: CatalogSolutionRecord) => void
   onOpenInLewisBuilder: (species: SpeciesRecord) => void
   onOpenElementInPeriodic?: (atomicNumber: number) => void
   onSpawnReactionSetup?: (setup: ReactionSpawnSetup) => void
@@ -62,6 +64,7 @@ export const CatalogPage = memo(function CatalogPage({
   active = true,
   onSpawnToWorkbench,
   onSpawnAlloy,
+  onSpawnSolution,
   onOpenInLewisBuilder,
   onOpenElementInPeriodic,
   onSpawnReactionSetup,
@@ -100,7 +103,6 @@ export const CatalogPage = memo(function CatalogPage({
   }, [active])
 
   const [speciesKindFilter, setSpeciesKindFilter] = useState<SpeciesKind | 'all'>('all')
-  const [speciesSourceFilter, setSpeciesSourceFilter] = useState<SpeciesSource | 'all'>('all')
   const [solubilityFilter, setSolubilityFilter] = useState<'all' | 'soluble' | 'insoluble'>('all')
   const [solutionPhFilter, setSolutionPhFilter] = useState<
     'all' | 'acid' | 'neutral' | 'base' | 'colored'
@@ -194,9 +196,17 @@ export const CatalogPage = memo(function CatalogPage({
   }
 
   const jumpToSpecies = (speciesId: string) => {
+    const sp = catalog?.species.find((s) => s.id === speciesId)
+    if (sp && isMonatomicSolidSpecies(sp)) {
+      const sym = Object.keys(sp.composition)[0]
+      const el = sym ? catalog?.elements.find((e) => e.symbol === sym) : null
+      if (el && onOpenElementInPeriodic) {
+        onOpenElementInPeriodic(el.atomicNumber)
+        return
+      }
+    }
     onSectionChange('species')
     setSpeciesKindFilter('all')
-    setSpeciesSourceFilter('all')
     setSolubilityFilter('all')
     setQuery('')
     setSelectedBySection((prev) => ({ ...prev, species: speciesId }))
@@ -215,13 +225,14 @@ export const CatalogPage = memo(function CatalogPage({
     setSelectedBySection((prev) => ({ ...prev, solutions: solutionId }))
   }
 
-  const q = query.trim().toLowerCase()
+  const q = normalizeChemSearch(query)
+  const qCompact = normalizeFormulaSearch(query)
 
   const filteredSpecies = useMemo(() => {
     if (!catalog) return []
     const rows = catalog.species.filter((sp) => {
+      if (isMonatomicSolidSpecies(sp)) return false
       if (speciesKindFilter !== 'all' && sp.kind !== speciesKindFilter) return false
-      if (speciesSourceFilter !== 'all' && sp.source !== speciesSourceFilter) return false
       if (solubilityFilter === 'soluble' && !describeWaterBehavior(sp).isEffectivelySoluble) {
         return false
       }
@@ -231,13 +242,13 @@ export const CatalogPage = memo(function CatalogPage({
       }
       if (!q) return true
       return (
-        sp.nameFr.toLowerCase().includes(q) ||
-        (sp.iupacName ?? '').toLowerCase().includes(q) ||
-        (sp.casNumber ?? '').toLowerCase().includes(q) ||
-        sp.formula.toLowerCase().includes(q) ||
-        sp.displayFormula.toLowerCase().includes(q) ||
-        sp.id.toLowerCase().includes(q) ||
-        sp.families.some((f) => f.toLowerCase().includes(q))
+        normalizeChemSearch(sp.nameFr).includes(q) ||
+        normalizeChemSearch(sp.iupacName ?? '').includes(q) ||
+        (sp.casNumber ?? '').toLowerCase().includes(qCompact) ||
+        normalizeFormulaSearch(sp.formula).includes(qCompact) ||
+        normalizeFormulaSearch(sp.displayFormula).includes(qCompact) ||
+        sp.id.toLowerCase().includes(qCompact) ||
+        sp.families.some((f) => normalizeChemSearch(f).includes(q))
       )
     })
 
@@ -273,7 +284,7 @@ export const CatalogPage = memo(function CatalogPage({
           return a.nameFr.localeCompare(b.nameFr, 'fr') * mult
       }
     })
-  }, [catalog, q, speciesKindFilter, speciesSourceFilter, solubilityFilter, sortKey, sortDir])
+  }, [catalog, q, qCompact, speciesKindFilter, solubilityFilter, sortKey, sortDir])
 
   const filteredSolutions = useMemo(() => {
     if (!catalog) return []
@@ -294,9 +305,9 @@ export const CatalogPage = memo(function CatalogPage({
         return false
       if (!q) return true
       return (
-        sol.nameFr.toLowerCase().includes(q) ||
-        sol.formulaLabel.toLowerCase().includes(q) ||
-        sol.soluteFormulas.some((f) => f.toLowerCase().includes(q))
+        normalizeChemSearch(sol.nameFr).includes(q) ||
+        normalizeFormulaSearch(sol.formulaLabel).includes(qCompact) ||
+        sol.soluteFormulas.some((f) => normalizeFormulaSearch(f).includes(qCompact))
       )
     })
 
@@ -306,65 +317,65 @@ export const CatalogPage = memo(function CatalogPage({
       if (sortKey === 'formula') return a.formulaLabel.localeCompare(b.formulaLabel) * mult
       return a.nameFr.localeCompare(b.nameFr, 'fr') * mult
     })
-  }, [catalog, q, solutionPhFilter, sortKey, sortDir])
+  }, [catalog, q, qCompact, solutionPhFilter, sortKey, sortDir])
 
   const filteredReactions = useMemo(() => {
     if (!catalog) return []
     const rows = catalog.reactions.filter((r) => {
       if (!q) return true
       return (
-        r.nameFr.toLowerCase().includes(q) ||
-        r.equationDisplay.toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q) ||
-        (r.observationsFr ?? '').toLowerCase().includes(q)
+        normalizeChemSearch(r.nameFr).includes(q) ||
+        normalizeFormulaSearch(r.equationDisplay).includes(qCompact) ||
+        normalizeChemSearch(r.category).includes(q) ||
+        normalizeChemSearch(r.observationsFr ?? '').includes(q)
       )
     })
     const mult = sortDir === 'asc' ? 1 : -1
     return [...rows].sort((a, b) => a.nameFr.localeCompare(b.nameFr, 'fr') * mult)
-  }, [catalog, q, sortDir])
+  }, [catalog, q, qCompact, sortDir])
 
   const filteredRedox = useMemo(() => {
     const list = reactionConstants?.redoxCouples ?? []
     if (!q) return list
     return list.filter(
       (c) =>
-        c.coupleLabel.toLowerCase().includes(q) ||
-        c.halfEquation.toLowerCase().includes(q) ||
-        c.oxFormula.toLowerCase().includes(q) ||
-        c.redFormula.toLowerCase().includes(q),
+        normalizeFormulaSearch(c.coupleLabel).includes(qCompact) ||
+        normalizeFormulaSearch(c.halfEquation).includes(qCompact) ||
+        normalizeFormulaSearch(c.oxFormula).includes(qCompact) ||
+        normalizeFormulaSearch(c.redFormula).includes(qCompact),
     )
-  }, [reactionConstants, q])
+  }, [reactionConstants, q, qCompact])
 
   const filteredKs = useMemo(() => {
     const list = reactionConstants?.solubilityProducts ?? []
     if (!q) return list
     return list.filter(
       (k) =>
-        k.solidFormula.toLowerCase().includes(q) ||
-        k.solidNameFr.toLowerCase().includes(q) ||
-        k.cationFormula.toLowerCase().includes(q) ||
-        k.anionFormula.toLowerCase().includes(q),
+        normalizeFormulaSearch(k.solidFormula).includes(qCompact) ||
+        normalizeChemSearch(k.solidNameFr).includes(q) ||
+        normalizeFormulaSearch(k.cationFormula).includes(qCompact) ||
+        normalizeFormulaSearch(k.anionFormula).includes(qCompact),
     )
-  }, [reactionConstants, q])
+  }, [reactionConstants, q, qCompact])
 
   const filteredAb = useMemo(() => {
     const list = reactionConstants?.acidBaseCouples ?? []
     if (!q) return list
     return list.filter(
       (ab) =>
-        ab.acidFormula.toLowerCase().includes(q) ||
-        ab.baseFormula.toLowerCase().includes(q) ||
-        ab.acidNameFr.toLowerCase().includes(q),
+        normalizeFormulaSearch(ab.acidFormula).includes(qCompact) ||
+        normalizeFormulaSearch(ab.baseFormula).includes(qCompact) ||
+        normalizeChemSearch(ab.acidNameFr).includes(q),
     )
-  }, [reactionConstants, q])
+  }, [reactionConstants, q, qCompact])
 
   const filteredVessels = useMemo(() => {
     if (!catalog) return []
     const rows = catalog.vessels.filter((v) => {
       if (!q) return true
       return (
-        v.nameFr.toLowerCase().includes(q) ||
-        v.descriptionShort.toLowerCase().includes(q) ||
+        normalizeChemSearch(v.nameFr).includes(q) ||
+        normalizeChemSearch(v.descriptionShort).includes(q) ||
         v.vesselType.toLowerCase().includes(q)
       )
     })
@@ -392,13 +403,14 @@ export const CatalogPage = memo(function CatalogPage({
       if (alloyFamilyFilter !== 'all' && al.familyFr !== alloyFamilyFilter) return false
       if (!q) return true
       return (
-        al.nameFr.toLowerCase().includes(q) ||
-        al.familyFr.toLowerCase().includes(q) ||
-        al.usesFr.toLowerCase().includes(q) ||
+        normalizeChemSearch(al.nameFr).includes(q) ||
+        normalizeFormulaSearch(al.nameFr).includes(qCompact) ||
+        normalizeChemSearch(al.familyFr).includes(q) ||
+        normalizeChemSearch(al.usesFr).includes(q) ||
         al.components.some(
           (c) =>
-            c.symbol.toLowerCase() === q ||
-            (elementsBySymbol.get(c.symbol)?.nameFr.toLowerCase().includes(q) ?? false),
+            c.symbol.toLowerCase() === qCompact ||
+            normalizeChemSearch(elementsBySymbol.get(c.symbol)?.nameFr ?? '').includes(q),
         )
       )
     })
@@ -412,7 +424,7 @@ export const CatalogPage = memo(function CatalogPage({
       }
       return a.nameFr.localeCompare(b.nameFr, 'fr') * mult
     })
-  }, [alloyFamilyFilter, catalog, elementsBySymbol, q, sortDir, sortKey])
+  }, [alloyFamilyFilter, catalog, elementsBySymbol, q, qCompact, sortDir, sortKey])
 
   const displayedSpecies = useMemo(
     () => filteredSpecies.slice(0, visibleSpeciesCount),
@@ -452,9 +464,7 @@ export const CatalogPage = memo(function CatalogPage({
               ? filteredRedox.length
               : reactionSubTab === 'ks'
                 ? filteredKs.length
-                : reactionSubTab === 'pka'
-                  ? filteredAb.length
-                  : 1
+                : filteredAb.length
           : section === 'alloys'
             ? filteredAlloys.length
             : filteredVessels.length
@@ -524,11 +534,6 @@ export const CatalogPage = memo(function CatalogPage({
           setSpeciesKindFilter(val)
           setVisibleSpeciesCount(120)
         }}
-        speciesSourceFilter={speciesSourceFilter}
-        onSpeciesSourceFilter={(val) => {
-          setSpeciesSourceFilter(val)
-          setVisibleSpeciesCount(120)
-        }}
         solubilityFilter={solubilityFilter}
         onSolubilityFilter={(val) => {
           setSolubilityFilter(val)
@@ -569,6 +574,7 @@ export const CatalogPage = memo(function CatalogPage({
               sortDir={sortDir}
               onSort={toggleSort}
               onSelect={setSelectedId}
+              onSpawnSolution={onSpawnSolution}
             />
           )}
 
@@ -597,14 +603,6 @@ export const CatalogPage = memo(function CatalogPage({
                 onSpawnReactionSetup={onSpawnReactionSetup}
               />
             )}
-
-          {section === 'reactions' && reactionSubTab === 'predictor' && (
-            <ReactionPredictorPane
-              speciesList={catalog.species}
-              onJumpToSpecies={jumpToSpecies}
-              onSpawnReactionSetup={onSpawnReactionSetup}
-            />
-          )}
 
           {section === 'vessels' && (
             <VesselsCatalogTable
@@ -660,6 +658,9 @@ export const CatalogPage = memo(function CatalogPage({
               <SolutionDetail
                 solution={selectedSolution}
                 onJumpToSpecies={jumpToSpecies}
+                onSpawn={
+                  onSpawnSolution ? () => onSpawnSolution(selectedSolution) : undefined
+                }
               />
             )}
 

@@ -21,12 +21,14 @@ import type {
   SolubilityProductRecord,
   SpeciesKind,
   SpeciesRecord,
-  SpeciesSource,
   ThermalNote,
   VesselRecord,
   VesselType,
 } from '../../shared/chemistry.ts'
-import { predictReactionsBetween } from '../lib/reaction-engine.ts'
+import {
+  predictReactionsForSpecies,
+  predictReactionsWithContexts,
+} from '../lib/reaction-engine.ts'
 import { getDb } from './connection.ts'
 
 export interface RawElementRow {
@@ -84,16 +86,12 @@ export interface RawSpeciesRow {
   composition_key: string | null
   lewis_json?: string | null
   lewis_topology_key?: string | null
-  source: string
   popularity: number
-  smiles: string | null
-  inchikey?: string | null
   pubchem_cid: number | null
   families_json: string
   is_solvent: number
   can_dissolve_in_water: number
   solubility_g_per_l: number | null
-  solubility_by_temp_json?: string | null
   dissolution_type: string
   solution_color_hex: string | null
   ph_character: string
@@ -161,7 +159,6 @@ export function mapSpeciesRow(row: RawSpeciesRow): SpeciesRecord {
     nameFr: row.name_fr,
     iupacName: row.iupac_name ?? null,
     casNumber: row.cas_number ?? null,
-    inchikey: row.inchikey ?? null,
     kind: row.kind as SpeciesKind,
     charge: row.charge,
     molarMass: row.molar_mass,
@@ -177,9 +174,6 @@ export function mapSpeciesRow(row: RawSpeciesRow): SpeciesRecord {
     isSolvent: row.is_solvent === 1,
     canDissolveInWater: row.can_dissolve_in_water === 1,
     solubilityGPerL: row.solubility_g_per_l,
-    solubilityByTempC: row.solubility_by_temp_json
-      ? (JSON.parse(row.solubility_by_temp_json) as Record<string, number>)
-      : null,
     dissolutionType: row.dissolution_type as SpeciesRecord['dissolutionType'],
     solutionColorHex: row.solution_color_hex,
     phCharacter: row.ph_character as PhCharacter,
@@ -188,9 +182,7 @@ export function mapSpeciesRow(row: RawSpeciesRow): SpeciesRecord {
       ? (JSON.parse(row.ghs_pictograms_json) as string[])
       : [],
     ghsSignalWord: row.ghs_signal_word ?? null,
-    source: (row.source as SpeciesSource) || 'curated',
     popularity: row.popularity ?? 0,
-    smiles: row.smiles ?? null,
     pubchemCid: row.pubchem_cid ?? null,
     families: row.families_json ? (JSON.parse(row.families_json) as string[]) : [],
     lewis: row.lewis_json ? (JSON.parse(row.lewis_json) as LewisStructure) : null,
@@ -226,12 +218,12 @@ export function listElements(): ElementRecord[] {
 }
 
 const LIGHTWEIGHT_SPECIES_COLS = `
-  id, formula, display_formula, name_fr, iupac_name, cas_number, inchikey,
+  id, formula, display_formula, name_fr, iupac_name, cas_number,
   kind, charge, molar_mass, standard_state,
   melting_point_c, boiling_point_c, thermal_note, density_g_per_cm3,
   appearance_fr, color_hex, composition_json, composition_key,
-  source, popularity, smiles, pubchem_cid, families_json,
-  is_solvent, can_dissolve_in_water, solubility_g_per_l, solubility_by_temp_json,
+  popularity, pubchem_cid, families_json,
+  is_solvent, can_dissolve_in_water, solubility_g_per_l,
   dissolution_type, solution_color_hex, ph_character, pka_values_json,
   ghs_pictograms_json, ghs_signal_word, behaviors_json
 `
@@ -451,9 +443,7 @@ export function getFullCatalog(): FullCatalogResponse {
   const reactions = rxnRows.map((row) => mapReactionRow(row, speciesFormulaMap))
 
   const alloyRows = db
-    .prepare(
-      "SELECT * FROM alloys ORDER BY CASE source WHEN 'curated' THEN 0 WHEN 'wikidata' THEN 1 ELSE 2 END, name_fr ASC",
-    )
+    .prepare('SELECT * FROM alloys ORDER BY name_fr ASC')
     .all() as unknown as Array<{
     id: string
     name_fr: string
@@ -464,7 +454,6 @@ export function getFullCatalog(): FullCatalogResponse {
     melting_point_c: number | null
     color_hex: string
     uses_fr: string
-    source: string
   }>
 
   const alloys: AlloyRecord[] = alloyRows.map((a) => ({
@@ -477,7 +466,6 @@ export function getFullCatalog(): FullCatalogResponse {
     meltingPointC: a.melting_point_c,
     colorHex: a.color_hex,
     usesFr: a.uses_fr,
-    source: a.source as AlloyRecord['source'],
   }))
 
   return { summary, elements, species, solutions, reactions, vessels, alloys }
@@ -592,15 +580,18 @@ export function getReactionConstants(): ReactionConstantsResponse {
   return { redoxCouples, solubilityProducts, acidBaseCouples }
 }
 
-export function predictReactionByIds(
-  speciesAId: string,
-  speciesBId: string,
-  speciesCId?: string,
+export function predictReactionsByIds(
+  speciesIds: string[],
+  options?: { includeContexts?: boolean },
 ): PredictReactionResponse | null {
-  const spA = getSpeciesById(speciesAId)
-  const spB = getSpeciesById(speciesBId)
-  if (!spA || !spB) return null
-  const spC = speciesCId ? getSpeciesById(speciesCId) : null
+  const uniqueIds = [...new Set(speciesIds.map((id) => id.trim()).filter(Boolean))].slice(
+    0,
+    4,
+  )
+  const speciesList = uniqueIds
+    .map((id) => getSpeciesById(id))
+    .filter((sp): sp is SpeciesRecord => Boolean(sp))
+  if (speciesList.length === 0) return null
 
   const db = getDb()
   const constants = getReactionConstants()
@@ -613,19 +604,35 @@ export function predictReactionByIds(
     "SELECT product_species_id FROM dissolution_rules WHERE solute_id = ? AND solvent_id = 'h2o'",
   )
 
-  return predictReactionsBetween(
-    spA,
-    spB,
-    {
-      curatedReactions,
-      redoxCouples: constants.redoxCouples,
-      solubilityProducts: constants.solubilityProducts,
-      acidBaseCouples: constants.acidBaseCouples,
-      getDissolvedIonIds: (id) => {
-        const rows = ruleStmt.all(id) as Array<{ product_species_id: string }>
-        return rows.map((r) => r.product_species_id)
-      },
+  const engineCtx = {
+    curatedReactions,
+    redoxCouples: constants.redoxCouples,
+    solubilityProducts: constants.solubilityProducts,
+    acidBaseCouples: constants.acidBaseCouples,
+    getDissolvedIonIds: (id: string) => {
+      const rows = ruleStmt.all(id) as Array<{ product_species_id: string }>
+      return rows.map((r) => r.product_species_id)
     },
-    spC,
+  }
+
+  if (options?.includeContexts) {
+    return predictReactionsWithContexts(speciesList, engineCtx, {
+      acidic: getSpeciesById('h3o_plus'),
+      basic: getSpeciesById('oh_minus'),
+      aqueous: getSpeciesById('h2o'),
+      oxygen: getSpeciesById('o2'),
+    })
+  }
+
+  return predictReactionsForSpecies(speciesList, engineCtx)
+}
+
+export function predictReactionByIds(
+  speciesAId: string,
+  speciesBId: string,
+  speciesCId?: string,
+): PredictReactionResponse | null {
+  return predictReactionsByIds(
+    [speciesAId, speciesBId, ...(speciesCId ? [speciesCId] : [])].filter(Boolean),
   )
 }

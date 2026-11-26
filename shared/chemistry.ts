@@ -14,8 +14,6 @@ export type PhysicalState = 'solid' | 'liquid' | 'gas' | 'aqueous'
 
 export type SpeciesKind = 'molecule' | 'ionic_compound' | 'ion' | 'element_substance'
 
-export type SpeciesSource = 'curated' | 'wikidata' | 'pubchem_live'
-
 export type ThermalNote = 'decomposes' | 'sublimes' | 'explodes' | null
 
 export type ReactionCategory =
@@ -117,7 +115,6 @@ export interface SpeciesRecord {
   nameFr: string
   iupacName: string | null
   casNumber: string | null
-  inchikey: string | null
   kind: SpeciesKind
   charge: number
   molarMass: number
@@ -133,16 +130,13 @@ export interface SpeciesRecord {
   isSolvent: boolean
   canDissolveInWater: boolean
   solubilityGPerL: number | null
-  solubilityByTempC: Record<string, number> | null
   dissolutionType: DissolutionType
   solutionColorHex: string | null
   phCharacter: PhCharacter
   pkaValues: number[]
   ghsPictograms: string[]
   ghsSignalWord: string | null
-  source: SpeciesSource
   popularity: number
-  smiles: string | null
   pubchemCid: number | null
   families: string[]
   lewis: LewisStructure | null
@@ -176,37 +170,25 @@ export interface DissolvedSpeciesItem {
   colorHex: string | null
 }
 
-export const ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID: Record<string, string> = {
-  Cu: 'cu_solid',
-  Ag: 'ag_solid',
-  Zn: 'zn_solid',
-  Fe: 'fe_solid',
-  Mg: 'mg_solid',
-  Al: 'al_solid',
-  Pb: 'pb_solid',
-  Sn: 'sn_solid',
-  Ni: 'ni_solid',
-  Co: 'co_solid',
-  Au: 'au_solid',
-  Na: 'na_solid',
-  K: 'k_solid',
-  Ca: 'ca_solid',
-  Li: 'li_solid',
-  Cr: 'cr_solid',
-  Mn: 'mn_solid',
-  C: 'c_solid',
-  S: 's8',
-  P: 'p4',
-  I: 'i2',
+/**
+ * Resolves the SQLite species id for any solid element symbol (`<symbol_lowercase>_solid`).
+ */
+export function getSolidSpeciesIdForElement(symbol: string): string {
+  return `${symbol.toLowerCase()}_solid`
 }
 
 /**
- * Resolves the SQLite species id for any solid element symbol.
- * Curated molecular allotropes (S8, P4, I2) use their curated IDs;
- * every other solid element uses `<symbol_lowercase>_solid`.
+ * True for monatomic solid elemental substances (e.g. Fe(s), Cu(s), Rh(s), Og(s)).
+ * Kept in SQLite for flask immersion & reaction stoichiometry, but hidden from the
+ * user-facing "Espèces" catalog where they would duplicate the Periodic Table.
+ * Polyatomic solid elements (S₈, P₄, I₂) and gases/liquids (O₂, O₃, Cl₂, Br₂…) stay visible.
  */
-export function getSolidSpeciesIdForElement(symbol: string): string {
-  return ELEMENT_SYMBOL_TO_SOLID_SPECIES_ID[symbol] ?? `${symbol.toLowerCase()}_solid`
+export function isMonatomicSolidSpecies(
+  sp: Pick<SpeciesRecord, 'kind' | 'standardState' | 'composition'>,
+): boolean {
+  if (sp.kind !== 'element_substance' || sp.standardState !== 'solid') return false
+  const entries = Object.entries(sp.composition).filter(([, c]) => c > 0)
+  return entries.length === 1 && entries[0][1] === 1
 }
 
 /**
@@ -281,6 +263,7 @@ export interface SoluteSummaryItem {
   displayFormula: string
   nameFr: string
   molarMass: number
+  standardState?: PhysicalState
   addedMol: number
   addedMassG: number
   dissolvedMol: number
@@ -410,20 +393,6 @@ export type MatchLewisResponse =
       reasonFr: string
     }
 
-export type LookupPubChemResponse =
-  | {
-      found: true
-      alreadyInDb: boolean
-      exactLewisValid: boolean
-      species: SpeciesRecord
-      expectedLewis: LewisStructure
-      issuesFr: string[]
-    }
-  | {
-      found: false
-      reasonFr: string
-    }
-
 export interface IonizeRequest {
   composition: Record<string, number>
   currentCharge: number
@@ -471,6 +440,7 @@ export interface EvaluateFlaskAdditionRequest {
   commitReaction?: {
     reactionId: string
     xMol: number
+    gasCapturedByCollector?: boolean
   }
   incomingFlask?: {
     waterVolumeMl: number
@@ -544,7 +514,6 @@ export interface AlloyRecord {
   meltingPointC: number | null
   colorHex: string
   usesFr: string
-  source: 'curated' | 'wikidata' | 'wikipedia'
 }
 
 export interface RedoxCoupleRecord {
@@ -612,11 +581,27 @@ export interface PredictedReactionItem {
   setupMedium?: 'aqueous' | 'gas' | 'solid' | 'any'
 }
 
+export type ReactionPredictionContextId =
+  | 'direct'
+  | 'acidic'
+  | 'basic'
+  | 'aqueous'
+  | 'oxygen'
+
+export interface PredictedReactionGroup {
+  context: ReactionPredictionContextId
+  labelFr: string
+  addedSpeciesFormula?: string
+  reactions: PredictedReactionItem[]
+}
+
 export interface PredictReactionResponse {
-  speciesA: { id: string; displayFormula: string; nameFr: string }
-  speciesB: { id: string; displayFormula: string; nameFr: string }
+  species: Array<{ id: string; displayFormula: string; nameFr: string }>
+  speciesA?: { id: string; displayFormula: string; nameFr: string }
+  speciesB?: { id: string; displayFormula: string; nameFr: string }
   speciesC?: { id: string; displayFormula: string; nameFr: string } | null
   reactions: PredictedReactionItem[]
+  contextGroups?: PredictedReactionGroup[]
 }
 
 export interface CatalogDissolutionProduct {
@@ -707,6 +692,64 @@ export interface CanvasMoleculeNode {
   y: number
   species: SpeciesRecord
   amountMol: number
+  /** Current physical phase after a thermal phase change (defaults to species.standardState) */
+  phaseOverride?: PhysicalState
+  /** Sample temperature in °C when transformed away from 20 °C */
+  temperatureC?: number
+}
+
+export interface CollectedGasItem {
+  speciesId: string
+  formula: string
+  displayFormula: string
+  nameFr: string
+  molarMass: number
+  amountMol: number
+  colorHex: string | null
+  meltingPointC: number | null
+  boilingPointC: number | null
+}
+
+export interface CanvasGasCollectorNode {
+  id: string
+  kind: 'gas_collector'
+  x: number
+  y: number
+  label?: string
+  capacityMl: number
+  temperatureC: number
+  /** Linked source flask capturing evaporated vapor or evolved reaction gases */
+  sourceFlaskId: string | null
+  gases: CollectedGasItem[]
+}
+
+export interface ThermalChamberSample {
+  species: SpeciesRecord
+  amountMol: number
+  currentState: PhysicalState
+  /** Preserved solid metadata if a pure/alloy solid block was loaded */
+  solidBlock?: {
+    nameFr: string
+    colorHex: string
+    densityGPerCm3: number
+    meltingPointC: number | null
+    alloyId: string | null
+    isAlloy: boolean
+    components: SolidComponent[]
+    usesFr?: string | null
+  } | null
+}
+
+export interface CanvasThermalChamberNode {
+  id: string
+  kind: 'thermal_chamber'
+  x: number
+  y: number
+  label?: string
+  temperatureC: number
+  targetTemperatureC: number
+  powerOn: boolean
+  sample: ThermalChamberSample | null
 }
 
 export type PhIndicatorId =
@@ -744,6 +787,8 @@ export type CanvasNode =
   | CanvasMoleculeNode
   | CanvasSolidNode
   | CanvasFlaskNode
+  | CanvasGasCollectorNode
+  | CanvasThermalChamberNode
 
 export interface WorkspaceSnapshot {
   nodes: CanvasNode[]

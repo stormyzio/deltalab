@@ -22,6 +22,7 @@ export interface ProjectedGasItem {
   nameFr: string
   amountMol: number
   volumeMl: number
+  colorHex?: string | null
 }
 
 export interface ProjectedFlaskState {
@@ -141,9 +142,9 @@ export function projectFlaskStateAtExtent(
 ): ProjectedFlaskState {
   const reaction = getSelectedFlaskReaction(solution, selectedReactionId)
 
-  // Baseline solids from solutes
+  // Baseline solids from solutes (only actual solids, never undissolved gases or liquids)
   const baseSolids: ProjectedSolidItem[] = solution.solutes
-    .filter((s) => s.undissolvedMol > 1e-7)
+    .filter((s) => s.undissolvedMol > 1e-7 && (s.standardState ?? 'solid') === 'solid')
     .map((s) => ({
       speciesId: s.speciesId,
       displayFormula: s.displayFormula,
@@ -152,6 +153,37 @@ export function projectFlaskStateAtExtent(
       massG: s.undissolvedMassG,
       colorHex: s.colorHex ?? '#d4d4d8',
     }))
+
+  // Baseline headspace gases present in the vessel (undissolved gas in aqueous vessel or dry gas in anhydrous vessel)
+  const baseGasMap = new Map<string, ProjectedGasItem>()
+  for (const s of solution.solutes) {
+    if (s.standardState === 'gas' && s.undissolvedMol > 1e-7) {
+      baseGasMap.set(s.speciesId, {
+        speciesId: s.speciesId,
+        displayFormula: s.displayFormula,
+        nameFr: s.nameFr,
+        amountMol: s.undissolvedMol,
+        volumeMl: s.undissolvedMol * 24000,
+        colorHex: s.colorHex ?? null,
+      })
+    }
+  }
+  for (const d of solution.dissolvedSpecies) {
+    if (d.state === 'gas' && d.amountMol > 1e-7 && !baseGasMap.has(d.speciesId)) {
+      baseGasMap.set(d.speciesId, {
+        speciesId: d.speciesId,
+        displayFormula: d.displayFormula,
+        nameFr: d.nameFr,
+        amountMol: d.amountMol,
+        volumeMl: d.amountMol * 24000,
+        colorHex: d.colorHex ?? null,
+      })
+    }
+  }
+  const baseGases: ProjectedGasItem[] = [...baseGasMap.values()]
+  const baseAqueous: DissolvedSpeciesItem[] = solution.dissolvedSpecies.filter(
+    (d) => d.state !== 'gas',
+  )
 
   const applyVisualAndCond = (
     baseHex: string | null,
@@ -178,7 +210,7 @@ export function projectFlaskStateAtExtent(
       solution.liquidColorHex,
       solution.liquidOpacity,
       solution.phEstimate,
-      solution.dissolvedSpecies,
+      baseAqueous,
     )
     return {
       reaction: null,
@@ -186,16 +218,16 @@ export function projectFlaskStateAtExtent(
       progressRatio: 0,
       liquidColorHex: visual.liquidColorHex,
       liquidOpacity: visual.liquidOpacity,
-      hasUndissolvedSolid: solution.hasUndissolvedSolid,
+      hasUndissolvedSolid: baseSolids.length > 0 && totalSolidG > 1e-6,
       sedimentColorHex: solution.sedimentColorHex ?? (baseSolids[0]?.colorHex ?? null),
       sedimentRatio: totalSolidG > 0 ? Math.min(1, 0.3 + Math.log10(1 + totalSolidG * 3) * 0.45) : 0,
       isPrecipitating: false,
       evolvingGas: false,
       phEstimate: solution.phEstimate,
       conductivityMsCm: visual.conductivityMsCm,
-      dissolvedSpecies: solution.dissolvedSpecies,
+      dissolvedSpecies: baseAqueous,
       solidSpecies: baseSolids,
-      gasProduced: [],
+      gasProduced: baseGases,
     }
   }
 
@@ -208,7 +240,7 @@ export function projectFlaskStateAtExtent(
       solution.liquidColorHex,
       solution.liquidOpacity,
       solution.phEstimate,
-      solution.dissolvedSpecies,
+      baseAqueous,
     )
     return {
       reaction,
@@ -216,16 +248,16 @@ export function projectFlaskStateAtExtent(
       progressRatio: 0,
       liquidColorHex: visual.liquidColorHex,
       liquidOpacity: visual.liquidOpacity,
-      hasUndissolvedSolid: solution.hasUndissolvedSolid,
+      hasUndissolvedSolid: baseSolids.length > 0 && totalSolidG > 1e-6,
       sedimentColorHex: solution.sedimentColorHex ?? (baseSolids[0]?.colorHex ?? null),
       sedimentRatio: totalSolidG > 0 ? Math.min(1, 0.3 + Math.log10(1 + totalSolidG * 3) * 0.45) : 0,
       isPrecipitating: false,
       evolvingGas: false,
       phEstimate: solution.phEstimate,
       conductivityMsCm: visual.conductivityMsCm,
-      dissolvedSpecies: solution.dissolvedSpecies,
+      dissolvedSpecies: baseAqueous,
       solidSpecies: baseSolids,
-      gasProduced: [],
+      gasProduced: baseGases,
     }
   }
 
@@ -233,7 +265,7 @@ export function projectFlaskStateAtExtent(
 
   // Clone aqueous map
   const aqMap = new Map<string, DissolvedSpeciesItem>()
-  for (const d of solution.dissolvedSpecies) {
+  for (const d of baseAqueous) {
     aqMap.set(d.speciesId, { ...d })
   }
 
@@ -243,7 +275,11 @@ export function projectFlaskStateAtExtent(
     solidMap.set(s.speciesId, { ...s })
   }
 
-  const gasProduced: ProjectedGasItem[] = []
+  // Clone headspace gas map
+  const gasMap = new Map<string, ProjectedGasItem>()
+  for (const g of baseGases) {
+    gasMap.set(g.speciesId, { ...g })
+  }
 
   // Subtract reactants
   for (const r of reaction.reactants) {
@@ -259,7 +295,28 @@ export function projectFlaskStateAtExtent(
           cur.massG = nextMol * r.molarMass
         }
       }
-    } else if (r.state === 'aqueous' || r.state === 'liquid' || r.state === 'gas') {
+    } else if (r.state === 'gas') {
+      const curGas = gasMap.get(r.speciesId)
+      if (curGas) {
+        const nextMol = Math.max(0, curGas.amountMol - delta)
+        if (nextMol <= 1e-7) gasMap.delete(r.speciesId)
+        else {
+          curGas.amountMol = nextMol
+          curGas.volumeMl = nextMol * 24000
+        }
+      } else {
+        const curAq = aqMap.get(r.speciesId)
+        if (curAq) {
+          const nextMol = Math.max(0, curAq.amountMol - delta)
+          if (nextMol <= 1e-7) aqMap.delete(r.speciesId)
+          else {
+            curAq.amountMol = nextMol
+            curAq.concentrationMolPerL = nextMol / totalVolumeL
+            curAq.massConcentrationGPerL = curAq.concentrationMolPerL * r.molarMass
+          }
+        }
+      }
+    } else if (r.state === 'aqueous' || r.state === 'liquid') {
       const cur = aqMap.get(r.speciesId)
       if (cur) {
         const nextMol = Math.max(0, cur.amountMol - delta)
@@ -280,13 +337,20 @@ export function projectFlaskStateAtExtent(
     if (delta <= 1e-8) continue
 
     if (p.state === 'gas') {
-      gasProduced.push({
-        speciesId: p.speciesId,
-        displayFormula: p.displayFormula,
-        nameFr: p.nameFr,
-        amountMol: delta,
-        volumeMl: delta * 24000, // 24.0 L/mol at 20 °C
-      })
+      const curGas = gasMap.get(p.speciesId)
+      if (curGas) {
+        curGas.amountMol += delta
+        curGas.volumeMl = curGas.amountMol * 24000
+      } else {
+        gasMap.set(p.speciesId, {
+          speciesId: p.speciesId,
+          displayFormula: p.displayFormula,
+          nameFr: p.nameFr,
+          amountMol: delta,
+          volumeMl: delta * 24000, // 24.0 L/mol at 20 °C
+          colorHex: p.colorHex ?? null,
+        })
+      }
     } else if (p.state === 'solid') {
       const cur = solidMap.get(p.speciesId)
       if (cur) {
@@ -332,6 +396,7 @@ export function projectFlaskStateAtExtent(
     return a.displayFormula.localeCompare(b.displayFormula)
   })
   const solidSpecies = [...solidMap.values()].sort((a, b) => b.massG - a.massG)
+  const gasProduced = [...gasMap.values()]
 
   // Recompute live liquid color (Beer-Lambert weighted blend of colored aqueous species)
   const colorSamples: Array<{ hex: string; weight: number }> = []
